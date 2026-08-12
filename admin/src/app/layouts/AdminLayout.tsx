@@ -91,10 +91,8 @@ export default function AdminLayout() {
           onQuickActionsClick={header.onAction}
           quickActionsLabel={header.actionLabel}
           user={{
-            name: 'Rajesh Kumar',
-            role: 'Super Admin',
-            avatarUrl:
-              'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=96&h=96&fit=crop&crop=face',
+            name: 'Admin',
+            role: '',
           }}
         />
         <main className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain">

@@ -57,7 +57,6 @@ import { getOperators } from '@/features/operators/services/operators.service';
 import type { ApplicationCategory, ApplicationPriority, ApplicationStatus } from '../types';
 import { ApplicationStatusBadge } from '../components/ApplicationStatusBadge';
 import { PriorityIndicator } from '../components/PriorityIndicator';
-import { PipelineStepper } from '../components/PipelineStepper';
 import { BulkActionBar } from '../components/BulkActionBar';
 
 const PAGE_SIZE = 8;
@@ -178,8 +177,6 @@ export function ApplicationsPage() {
               />
             ))}
       </div>
-
-      <PipelineStepper />
 
       <Card className="border-gray-200">
         <CardContent className="space-y-4">

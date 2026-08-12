@@ -2,7 +2,7 @@ import * as React from 'react';
 import { Bell, Globe, Search, Sparkles, Sun } from 'lucide-react';
 
 import { useUiStore } from '@/app/store/ui-store';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,14 +25,6 @@ export interface TopHeaderProps extends React.HTMLAttributes<HTMLElement> {
   /** Label for the primary header action. Hide the button when undefined. */
   quickActionsLabel?: string;
   user?: TopHeaderUser;
-}
-
-function getInitials(name: string): string {
-  const parts = name.trim().split(/\s+/);
-  return parts
-    .slice(0, 2)
-    .map((part) => part.charAt(0).toUpperCase())
-    .join('');
 }
 
 export function TopHeader({
@@ -128,13 +120,9 @@ export function TopHeader({
                 className="flex items-center gap-2.5 rounded-md px-1.5 py-1 transition-colors duration-150 hover:bg-muted"
               >
                 <Avatar className="size-8">
-                  <AvatarImage src={user.avatarUrl} alt={user.name} />
-                  <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
+                  {/* Keep the avatar without showing the full name/image */}
+                  <AvatarFallback>{user.name}</AvatarFallback>
                 </Avatar>
-                <div className="hidden flex-col items-start leading-tight sm:flex">
-                  <span className="text-sm font-medium text-foreground">{user.name}</span>
-                  <span className="text-xs text-muted-foreground">{user.role}</span>
-                </div>
               </button>
             </>
           )}
