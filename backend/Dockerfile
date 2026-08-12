@@ -30,9 +30,9 @@ RUN apk add --no-cache openssl wget \
 
 COPY package.json package-lock.json ./
 
-# Production deps + prisma CLI (needed for db push / migrate on boot)
+# Production deps + prisma CLI + ts-node (auto-seed on first boot)
 RUN npm ci --omit=dev \
-  && npm install prisma@6.8.2 --no-save \
+  && npm install prisma@6.8.2 ts-node@10.9.2 typescript@5.7.3 --no-save \
   && npm cache clean --force
 
 COPY --from=builder /app/dist ./dist

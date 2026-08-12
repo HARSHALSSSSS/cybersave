@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 /**
- * Docker / Railway boot: sync Prisma schema, then start NestJS.
- * Uses Node so Windows CRLF in the repo cannot break the container.
+ * Docker / Railway boot:
+ * 1) sync Prisma schema
+ * 2) auto-seed demo data if DB is empty (no manual seed step)
+ * 3) start NestJS
  */
 const { spawnSync } = require('child_process');
 const fs = require('fs');
@@ -17,6 +19,31 @@ function run(command, args) {
   if (result.status !== 0) {
     process.exit(result.status ?? 1);
   }
+}
+
+function countMainServices() {
+  const script = `
+    const { PrismaClient } = require('@prisma/client');
+    const prisma = new PrismaClient();
+    prisma.mainService.count()
+      .then(async (n) => {
+        console.log(String(n));
+        await prisma.$disconnect();
+      })
+      .catch(async (e) => {
+        console.error(e.message || e);
+        try { await prisma.$disconnect(); } catch {}
+        process.exit(2);
+      });
+  `;
+  const result = spawnSync(process.execPath, ['-e', script], {
+    encoding: 'utf8',
+    env: process.env,
+  });
+  if (result.status !== 0) {
+    throw new Error((result.stderr || result.stdout || 'count failed').toString());
+  }
+  return Number((result.stdout || '0').trim()) || 0;
 }
 
 console.log('[cybersave] Starting API...');
@@ -35,14 +62,30 @@ const hasMigrations =
 if (hasMigrations) {
   run('npx', ['prisma', 'migrate', 'deploy']);
 } else {
-  console.log('[cybersave] No migrations folder — running prisma db push...');
+  console.log('[cybersave] Syncing database schema (prisma db push)...');
   run('npx', ['prisma', 'db', 'push', '--skip-generate']);
 }
 
+const autoSeed =
+  process.env.AUTO_SEED !== 'false' && process.env.AUTO_SEED !== '0';
+
+if (autoSeed) {
+  try {
+    const count = countMainServices();
+    if (count === 0) {
+      console.log('[cybersave] Empty database — seeding demo data automatically...');
+      run('npx', ['ts-node', '--transpile-only', 'prisma/seed.ts']);
+      console.log('[cybersave] Seed complete.');
+    } else {
+      console.log(`[cybersave] Database already has data (${count} categories) — skip seed.`);
+    }
+  } catch (error) {
+    console.error('[cybersave] Auto-seed skipped:', error.message || error);
+  }
+}
+
 console.log('[cybersave] Launching NestJS...');
-const node = process.execPath;
-const main = path.join(process.cwd(), 'dist', 'main.js');
-const child = spawnSync(node, [main], {
+const child = spawnSync(process.execPath, [path.join(process.cwd(), 'dist', 'main.js')], {
   stdio: 'inherit',
   env: process.env,
 });

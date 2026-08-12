@@ -19,8 +19,12 @@ async function bootstrap() {
 
   app.setGlobalPrefix(apiPrefix);
   app.use(helmet());
+  const allowAllCors =
+    corsOrigins.length === 0 ||
+    corsOrigins.includes('*') ||
+    corsOrigins.includes('true');
   app.enableCors({
-    origin: corsOrigins,
+    origin: allowAllCors ? true : corsOrigins,
     credentials: true,
   });
 
