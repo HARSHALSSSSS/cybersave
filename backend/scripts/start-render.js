@@ -8,6 +8,7 @@
 const { spawnSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const { ensureProductionEnv } = require('./ensure-env');
 
 function run(command, args) {
   console.log(`[cybersave] ${command} ${args.join(' ')}`);
@@ -54,6 +55,8 @@ if (!process.env.DATABASE_URL) {
   console.error('[cybersave] Create a free Neon DB (neon.tech) and paste DATABASE_URL in Render Environment.');
   process.exit(1);
 }
+
+ensureProductionEnv();
 
 const migrationsDir = path.join(process.cwd(), 'prisma', 'migrations');
 const hasMigrations =
