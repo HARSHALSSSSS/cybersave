@@ -4,8 +4,11 @@ import { Eye, EyeOff, LockKeyhole, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button, Input, Label } from '@/components/ui';
 import { useAuthStore } from '../store/auth.store';
+import { env } from '@/app/config/env';
 
 const isDev = import.meta.env.VITE_APP_ENV === 'development' || import.meta.env.DEV;
+const showDemoCredentials =
+  isDev || env.apiBaseUrl.includes('onrender.com') || env.apiBaseUrl.includes('localhost');
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -157,9 +160,9 @@ export function LoginPage() {
               </Button>
             </form>
 
-            {isDev ? (
+            {showDemoCredentials ? (
               <div className="mt-6 rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-xs leading-5 text-white/55">
-                <p className="font-medium text-white/75">Local development</p>
+                <p className="font-medium text-white/75">Demo credentials</p>
                 <p className="mt-1">
                   `admin@cybersave.local` / `Admin@123456`
                 </p>

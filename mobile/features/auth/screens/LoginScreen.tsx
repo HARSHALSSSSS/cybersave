@@ -96,9 +96,9 @@ export const LoginScreen: React.FC<Props> = ({ navigation }) => {
 
   const requestOtpMutation = useMutation({
     mutationFn: (phone: string) => authApi.requestOtp(phone),
-    onSuccess: (_data, phone) => {
+    onSuccess: (data, phone) => {
       dispatch(setPhone(phone));
-      navigation.navigate('OTP', { phone });
+      navigation.navigate('OTP', { phone, devCode: data.devCode });
     },
     onError: (error: unknown) => {
       const message =

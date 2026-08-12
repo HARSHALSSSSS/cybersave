@@ -40,7 +40,7 @@ const LockIcon = ({ color }: { color: string }) => (
 );
 
 export const OTPScreen: React.FC<Props> = ({ navigation, route }) => {
-  const { phone } = route.params;
+  const { phone, devCode } = route.params;
   const { theme } = useTheme();
   const dispatch = useDispatch();
   const insets = useSafeAreaInsets();
@@ -252,7 +252,7 @@ export const OTPScreen: React.FC<Props> = ({ navigation, route }) => {
             {t.auth.otpHint}{' '}
             <Text style={styles.phoneHighlight}>{maskPhoneNumber(phone)}</Text>
             {' · '}
-            <Text style={styles.phoneHighlight}>{DEV_OTP_HINT}</Text>
+            <Text style={styles.phoneHighlight}>{devCode ?? DEV_OTP_HINT}</Text>
           </Text>
 
           <View style={styles.otpRow}>

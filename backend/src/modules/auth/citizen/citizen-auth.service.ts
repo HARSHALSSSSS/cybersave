@@ -53,11 +53,13 @@ export class CitizenAuthService {
     });
 
     const isDev = this.configService.get('app.nodeEnv') !== 'production';
-    // Fixed OTP for local/testing so any phone can verify with 123456
-    const code = isDev
-      ? '123456'
-      : randomInt(10 ** (otpLength - 1), 10 ** otpLength - 1).toString();
-    // Faster hash in development so OTP requests feel instant on device
+    const consoleSms =
+      (process.env.SMS_PROVIDER ?? 'console').toLowerCase() === 'console';
+    // Fixed OTP for local/testing; console SMS on hosted demo exposes code in API/logs
+    const code =
+      isDev || consoleSms
+        ? '123456'
+        : randomInt(10 ** (otpLength - 1), 10 ** otpLength - 1).toString();
     const codeHash = await bcrypt.hash(code, isDev ? 4 : 10);
     const expiresAt = new Date(Date.now() + expiresMinutes * 60 * 1000);
 
@@ -71,16 +73,14 @@ export class CitizenAuthService {
 
     await this.smsService.sendOtp(normalizedPhone, code);
 
-    if (this.configService.get('app.nodeEnv') !== 'production') {
-      this.logger.log(`[DEV OTP] ${normalizedPhone} => ${code}`);
+    if (isDev || consoleSms) {
+      this.logger.log(`[OTP] ${normalizedPhone} => ${code}`);
     }
 
     return {
       message: 'OTP sent successfully',
       expiresAt,
-      ...(this.configService.get('app.nodeEnv') !== 'production'
-        ? { devCode: code }
-        : {}),
+      ...(isDev || consoleSms ? { devCode: code } : {}),
     };
   }
 
@@ -116,6 +116,8 @@ export class CitizenAuthService {
     const phoneVariants = this.phoneLookupVariants(phone);
     const trimmedCode = code.trim();
     const isDev = this.configService.get('app.nodeEnv') !== 'production';
+    const consoleSms =
+      (process.env.SMS_PROVIDER ?? 'console').toLowerCase() === 'console';
 
     const challenge = await this.prisma.citizenOtpChallenge.findFirst({
       where: {
@@ -131,7 +133,7 @@ export class CitizenAuthService {
     }
 
     const valid =
-      (isDev && trimmedCode === '123456') ||
+      ((isDev || consoleSms) && trimmedCode === '123456') ||
       (await bcrypt.compare(trimmedCode, challenge.codeHash));
     if (!valid) {
       throw new UnauthorizedException('Invalid OTP');

@@ -7,7 +7,7 @@ export const AUTH_TOKEN_STORAGE_KEY = 'cybersave_admin_token';
 
 export const apiClient = axios.create({
   baseURL: env.apiBaseUrl,
-  timeout: 15_000,
+  timeout: env.apiBaseUrl.includes('onrender.com') ? 60_000 : 15_000,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -28,8 +28,12 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
-    // TODO: centralize 401/403 handling (logout redirect) and toast surfacing.
-    if (error.response?.status === 401) {
+    const status = error.response?.status;
+    const url = error.config?.url ?? '';
+    const isPublicAuth =
+      url.includes('/admin/auth/login') || url.includes('/admin/auth/refresh');
+
+    if (status === 401 && !isPublicAuth) {
       localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
       localStorage.removeItem('cybersave_admin_refresh_token');
       if (!window.location.pathname.startsWith('/login')) {

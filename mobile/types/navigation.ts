@@ -12,7 +12,7 @@ export type RootStackParamList = {
 
 export type AuthStackParamList = {
   Login: undefined;
-  OTP: { phone: string };
+  OTP: { phone: string; devCode?: string };
   Register: undefined;
 };
 
