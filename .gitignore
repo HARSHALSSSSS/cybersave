@@ -1,0 +1,52 @@
+# Root
+.DS_Store
+Thumbs.db
+*.log
+.env
+.env.*
+!.env.example
+!.env.railway.example
+!.env*.example
+
+# Dependencies & builds
+node_modules/
+dist/
+build/
+coverage/
+.turbo/
+*.tsbuildinfo
+
+# Backend
+backend/storage/
+backend/dist/
+
+# Admin
+admin/dist/
+admin/dist-ssr/
+
+# Mobile / React Native
+mobile/android/app/build/
+mobile/android/.gradle/
+mobile/android/local.properties
+mobile/ios/Pods/
+mobile/ios/build/
+**/.xcode.env.local
+*.jsbundle
+.metro-health-check*
+
+# IDE
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Misc
+*.pem
+*.p12
+*.keystore
+!debug.keystore

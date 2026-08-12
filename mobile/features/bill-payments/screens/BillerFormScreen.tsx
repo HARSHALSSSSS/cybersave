@@ -1,0 +1,214 @@
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useMutation, useQuery } from '@tanstack/react-query';
+
+import { useTheme } from '@app/providers/ThemeProvider';
+import { useTranslation } from '@/i18n';
+import { Button } from '@components/Button';
+import { DynamicBillerForm, billerInitial } from '@features/bill-payments/components';
+import { BillPaymentScreenLayout } from '@features/bill-payments/components/BillPaymentScreenLayout';
+import { BillPaymentsStackParamList } from '@/types/navigation';
+import { billPaymentsApi, billPaymentsQueryKeys } from '@services/api/billPayments.api';
+
+type Props = NativeStackScreenProps<BillPaymentsStackParamList, 'BillerForm'>;
+
+function validateFields(
+  fields: Array<{ key: string; label: string; required: boolean; minLength?: number; maxLength?: number; regex?: string }>,
+  values: Record<string, string>,
+): Record<string, string> {
+  const errors: Record<string, string> = {};
+  for (const field of fields) {
+    const value = values[field.key]?.trim() ?? '';
+    if (field.required && !value) {
+      errors[field.key] = `${field.label} is required`;
+      continue;
+    }
+    if (!value) continue;
+    if (field.minLength && value.length < field.minLength) {
+      errors[field.key] = `Minimum ${field.minLength} characters`;
+    }
+    if (field.maxLength && value.length > field.maxLength) {
+      errors[field.key] = `Maximum ${field.maxLength} characters`;
+    }
+    if (field.regex) {
+      try {
+        if (!new RegExp(field.regex).test(value)) {
+          errors[field.key] = 'Invalid format';
+        }
+      } catch {
+        // ignore invalid provider regex
+      }
+    }
+  }
+  return errors;
+}
+
+export const BillerFormScreen: React.FC<Props> = ({ navigation, route }) => {
+  const { billerId, billerName, accountHolder: preset } = route.params;
+  const { theme } = useTheme();
+  const { t } = useTranslation();
+  const [values, setValues] = useState<Record<string, string>>(preset ?? {});
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [fetching, setFetching] = useState(false);
+  const [slowMessage, setSlowMessage] = useState(false);
+
+  const { data: biller, isLoading, isError, refetch } = useQuery({
+    queryKey: billPaymentsQueryKeys.biller(billerId),
+    queryFn: () => billPaymentsApi.getBiller(billerId),
+    retry: 2,
+  });
+
+  useEffect(() => {
+    if (biller?.fields?.length && preset) {
+      setValues(prev => ({ ...prev, ...preset }));
+    }
+  }, [biller, preset]);
+
+  const fetchMutation = useMutation({
+    mutationFn: async () => {
+      const fieldErrors = validateFields(biller?.fields ?? [], values);
+      if (Object.keys(fieldErrors).length > 0) {
+        setErrors(fieldErrors);
+        throw new Error('Validation failed');
+      }
+      setErrors({});
+      return billPaymentsApi.createBillRequest(billerId, values);
+    },
+  });
+
+  const pollUntilDone = useCallback(async (requestId: string) => {
+    setFetching(true);
+    setSlowMessage(false);
+    const slowTimer = setTimeout(() => setSlowMessage(true), 4000);
+
+    try {
+      let attempt = 0;
+      while (attempt < 30) {
+        const result = await billPaymentsApi.getBillRequest(requestId, true);
+        if (result.status === 'success') {
+          navigation.replace('BillDetails', { requestId });
+          return;
+        }
+        if (result.status === 'failed') {
+          Alert.alert(t.bills.couldNotFetchBill, result.errorMessage ?? t.bills.verifyDetails);
+          return;
+        }
+        await new Promise<void>(resolve => {
+          setTimeout(resolve, 1500);
+        });
+        attempt += 1;
+      }
+      Alert.alert(t.bills.takingLonger, t.bills.checkHistory);
+    } finally {
+      clearTimeout(slowTimer);
+      setFetching(false);
+      setSlowMessage(false);
+    }
+  }, [navigation, t]);
+
+  const handleFetch = useCallback(async () => {
+    try {
+      const created = await fetchMutation.mutateAsync();
+      if (created.status === 'success') {
+        navigation.replace('BillDetails', { requestId: created.id });
+        return;
+      }
+      await pollUntilDone(created.id);
+    } catch (error) {
+      if (error instanceof Error && error.message !== 'Validation failed') {
+        const message =
+          error.message && error.message !== 'Network Error'
+            ? error.message
+            : t.bills.unableToStartFetch;
+        Alert.alert(t.bills.couldNotFetchBill, message);
+      }
+    }
+  }, [fetchMutation, navigation, pollUntilDone]);
+
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        headerBlock: { alignItems: 'center', marginBottom: theme.spacing['2xl'] },
+        avatar: {
+          width: 56,
+          height: 56,
+          borderRadius: theme.radius.xl,
+          backgroundColor: theme.colors.primaryMuted,
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: theme.spacing.sm,
+        },
+        avatarText: { ...theme.typography.headingMedium, color: theme.colors.primary },
+        title: { ...theme.typography.headingSmall, color: theme.colors.textPrimary },
+        alias: { ...theme.typography.bodySmall, color: theme.colors.textSecondary, textAlign: 'center' },
+        sectionTitle: {
+          ...theme.typography.bodyLarge,
+          color: theme.colors.textPrimary,
+          marginBottom: theme.spacing.lg,
+        },
+        fetchStatus: {
+          ...theme.typography.bodyMedium,
+          color: theme.colors.textSecondary,
+          textAlign: 'center',
+          marginTop: theme.spacing.lg,
+        },
+      }),
+    [theme],
+  );
+
+  const displayName = billerName ?? biller?.name ?? t.bills.billerName;
+
+  return (
+    <BillPaymentScreenLayout
+      title={t.bills.payBill}
+      showBack
+      onBack={() => navigation.goBack()}
+      loading={isLoading || (!biller && !isError)}
+      error={isError}
+      errorMessage={t.bills.loadBillerError}
+      onRetry={() => refetch()}
+      scroll>
+      {biller ? (
+        <>
+          <View style={styles.headerBlock}>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{billerInitial(displayName)}</Text>
+            </View>
+            <Text style={styles.title}>{displayName}</Text>
+            {biller.aliasName ? <Text style={styles.alias}>{biller.aliasName}</Text> : null}
+          </View>
+
+          <Text style={styles.sectionTitle}>{t.bills.enterBillDetails}</Text>
+          <DynamicBillerForm
+            fields={biller.fields ?? []}
+            values={values}
+            onChange={(key, value) => setValues(prev => ({ ...prev, [key]: value }))}
+            errors={errors}
+          />
+
+          {fetching ? (
+            <View style={{ alignItems: 'center', paddingVertical: theme.spacing.lg }}>
+              <ActivityIndicator color={theme.colors.primary} size="large" />
+              <Text style={styles.fetchStatus}>
+                {slowMessage ? t.bills.fetchBillSlow : t.bills.fetchingBill}
+              </Text>
+            </View>
+          ) : (
+            <Button
+              title={t.bills.fetchBill.toUpperCase()}
+              loading={fetchMutation.isPending}
+              onPress={handleFetch}
+            />
+          )}
+        </>
+      ) : null}
+    </BillPaymentScreenLayout>
+  );
+};

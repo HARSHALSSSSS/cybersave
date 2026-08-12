@@ -1,0 +1,13 @@
+# Railway — Docker deploy for Cybersave backend
+# Dashboard: New Project → Deploy from GitHub → set Root Directory to "backend"
+# (or deploy this folder as the service root).
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+healthcheckPath = "/api/v1/health"
+healthcheckTimeout = 100
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 5

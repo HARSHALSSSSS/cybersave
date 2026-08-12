@@ -1,0 +1,64 @@
+# Full stack for staging/production-like local runs.
+# Usage: docker compose -f docker-compose.prod.yml up -d --build
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: cybersave
+      POSTGRES_PASSWORD: cybersave
+      POSTGRES_DB: cybersave
+    volumes:
+      - cybersave_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U cybersave -d cybersave']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - cybersave_redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - '8000:8000'
+    environment:
+      NODE_ENV: production
+      PORT: 8000
+      API_PREFIX: api/v1
+      DATABASE_URL: postgresql://cybersave:cybersave@postgres:5432/cybersave?schema=public
+      REDIS_URL: redis://redis:6379
+      CITIZEN_JWT_SECRET: change-me-citizen-jwt-secret-min-32-chars-prod
+      ADMIN_JWT_SECRET: change-me-admin-jwt-secret-min-32-chars-prod
+      CORS_ORIGINS: http://localhost:5173,http://localhost:8081
+      SWAGGER_ENABLED: 'true'
+      SMS_PROVIDER: console
+      PAYMENT_PROVIDER: mock
+      SKIP_PAYMENT_VERIFICATION: 'true'
+      STORAGE_PROVIDER: local
+      STORAGE_LOCAL_PATH: /app/storage
+    volumes:
+      - cybersave_storage:/app/storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  cybersave_pg_data:
+  cybersave_redis_data:
+  cybersave_storage:
