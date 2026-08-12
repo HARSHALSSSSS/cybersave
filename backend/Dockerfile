@@ -1,4 +1,4 @@
-# Cybersave Backend — Railway / production Docker image
+# Cybersave Backend — production Docker image (Render / Railway / any Docker host)
 # Multi-stage: build NestJS, then run a slim Node image.
 
 FROM node:20-alpine AS builder

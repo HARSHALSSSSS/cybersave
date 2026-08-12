@@ -1,0 +1,67 @@
+# Cybersave API on Render (Blueprint)
+# Deploy: Render Dashboard → New → Blueprint → select this GitHub repo
+
+databases:
+  - name: cybersave-db
+    plan: free
+    databaseName: cybersave
+    user: cybersave
+
+services:
+  - type: web
+    name: cybersave-api
+    runtime: docker
+    plan: free
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: API_PREFIX
+        value: api/v1
+      - key: AUTO_SEED
+        value: "true"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: cybersave-db
+          property: connectionString
+      - key: CITIZEN_JWT_SECRET
+        generateValue: true
+      - key: ADMIN_JWT_SECRET
+        generateValue: true
+      - key: CITIZEN_JWT_EXPIRES_IN
+        value: 15m
+      - key: ADMIN_JWT_EXPIRES_IN
+        value: 15m
+      - key: CITIZEN_JWT_AUDIENCE
+        value: cybersave-mobile
+      - key: ADMIN_JWT_AUDIENCE
+        value: cybersave-admin
+      - key: CITIZEN_REFRESH_TOKEN_EXPIRES_DAYS
+        value: "30"
+      - key: ADMIN_REFRESH_TOKEN_EXPIRES_DAYS
+        value: "7"
+      - key: OTP_EXPIRES_MINUTES
+        value: "5"
+      - key: OTP_LENGTH
+        value: "6"
+      - key: STORAGE_PROVIDER
+        value: local
+      - key: STORAGE_LOCAL_PATH
+        value: ./storage
+      - key: CORS_ORIGINS
+        value: "*"
+      - key: SWAGGER_ENABLED
+        value: "true"
+      - key: SMS_PROVIDER
+        value: console
+      - key: PAYMENT_PROVIDER
+        value: mock
+      - key: SKIP_PAYMENT_VERIFICATION
+        value: "true"
+      - key: BBPS_PROVIDER
+        value: mock
+      - key: BBPS_CONVENIENCE_FEE_FLAT
+        value: "5"

@@ -6,6 +6,7 @@ Thumbs.db
 .env.*
 !.env.example
 !.env.railway.example
+!.env.render.example
 !.env*.example
 
 # Dependencies & builds
