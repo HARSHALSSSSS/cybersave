@@ -90,10 +90,7 @@ export default function AdminLayout() {
           onNotificationsClick={() => navigate('/notifications')}
           onQuickActionsClick={header.onAction}
           quickActionsLabel={header.actionLabel}
-          user={{
-            name: 'Admin',
-            role: '',
-          }}
+          showAdminLabel
         />
         <main className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain">
           <div className="mx-auto w-full max-w-[1600px] px-4 pt-5 pb-8 sm:px-6 sm:pt-6 sm:pb-10 lg:px-8">

@@ -1,20 +1,13 @@
 import * as React from 'react';
-import { Bell, Globe, Search, Sparkles, Sun } from 'lucide-react';
+import { Bell, Globe, Search, ShieldCheck, Sparkles, Sun } from 'lucide-react';
 
 import { useUiStore } from '@/app/store/ui-store';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-
-export interface TopHeaderUser {
-  name: string;
-  role: string;
-  avatarUrl?: string;
-}
 
 export interface TopHeaderProps extends React.HTMLAttributes<HTMLElement> {
   searchPlaceholder?: string;
@@ -24,7 +17,8 @@ export interface TopHeaderProps extends React.HTMLAttributes<HTMLElement> {
   onQuickActionsClick?: () => void;
   /** Label for the primary header action. Hide the button when undefined. */
   quickActionsLabel?: string;
-  user?: TopHeaderUser;
+  /** When true, shows a simple "Admin" label (no photo / personal name). */
+  showAdminLabel?: boolean;
 }
 
 export function TopHeader({
@@ -34,7 +28,7 @@ export function TopHeader({
   onNotificationsClick,
   onQuickActionsClick,
   quickActionsLabel = 'Quick Actions',
-  user,
+  showAdminLabel = true,
   className,
   ...props
 }: TopHeaderProps) {
@@ -112,20 +106,20 @@ export function TopHeader({
             </Button>
           ) : null}
 
-          {user && (
+          {showAdminLabel ? (
             <>
               <Separator orientation="vertical" className="mx-1.5 h-7" />
-              <button
-                type="button"
-                className="flex items-center gap-2.5 rounded-md px-1.5 py-1 transition-colors duration-150 hover:bg-muted"
+              <div
+                className="flex items-center gap-2 rounded-lg border border-border bg-muted/50 px-3 py-1.5"
+                aria-label="Signed in as Admin"
               >
-                <Avatar className="size-8">
-                  {/* Keep the avatar without showing the full name/image */}
-                  <AvatarFallback>{user.name}</AvatarFallback>
-                </Avatar>
-              </button>
+                <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
+                  <ShieldCheck className="size-4" aria-hidden />
+                </span>
+                <span className="text-sm font-medium text-foreground">Admin</span>
+              </div>
             </>
-          )}
+          ) : null}
         </div>
       </header>
     </TooltipProvider>
