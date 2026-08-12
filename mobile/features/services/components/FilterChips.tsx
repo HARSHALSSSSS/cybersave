@@ -44,6 +44,7 @@ export function FilterChips<T extends string>({
         chipText: {
           ...theme.typography.labelMedium,
           color: theme.colors.textPrimary,
+          flexShrink: 1,
         },
         chipTextActive: {
           color: theme.colors.textInverse,
@@ -55,6 +56,7 @@ export function FilterChips<T extends string>({
   return (
     <ScrollView
       horizontal
+      nestedScrollEnabled
       showsHorizontalScrollIndicator={false}
       style={styles.scroll}
       contentContainerStyle={styles.content}>

@@ -5,6 +5,7 @@ import {
   clearAuthTokens,
   setAuthTokens,
 } from '@services/api';
+import { shouldUseDevDiscovery } from '@app/config/env';
 import {
   ensureApiReachable,
   withTimeout,
@@ -19,7 +20,7 @@ const AUTH_TIMEOUT_MS = 5000;
 export async function resolveBootstrapRoute(
   dispatch: AppDispatch,
 ): Promise<BootstrapRoute> {
-  if (__DEV__) {
+  if (shouldUseDevDiscovery()) {
     await ensureApiReachable(3000).catch(() => undefined);
   }
 

@@ -16,6 +16,7 @@ import { ProfileStackParamList, MainTabParamList } from '@/types/navigation';
 import { useTranslation } from '@/i18n';
 import { useTheme } from '@app/providers/ThemeProvider';
 import { Button } from '@components/Button';
+import { ScrollScreenAction } from '@components/layout';
 import { Input } from '@components/Input';
 import { GradientScreenHeader } from '@features/profile/components/GradientScreenHeader';
 import { useCitizenProfile } from '@features/profile/hooks/useCitizenProfile';
@@ -24,7 +25,7 @@ import {
   validateProfileName,
 } from '@features/profile/utils/profileSync';
 import { formatPhoneNumber } from '@utils/format';
-import { getTabFooterPadding } from '@utils/layout';
+import { getScrollBottomPadding } from '@utils/layout';
 
 type Props = NativeStackScreenProps<ProfileStackParamList, 'CompleteProfile'>;
 
@@ -71,7 +72,7 @@ export const CompleteProfileScreen: React.FC<Props> = ({ navigation, route }) =>
           paddingTop: theme.spacing['2xl'],
         },
         scrollContent: {
-          paddingBottom: theme.spacing.xl,
+          paddingBottom: getScrollBottomPadding(insets, theme.spacing.lg),
         },
         profileRow: {
           flexDirection: 'row',
@@ -116,14 +117,6 @@ export const CompleteProfileScreen: React.FC<Props> = ({ navigation, route }) =>
         },
         fieldGap: {
           height: theme.spacing.lg,
-        },
-        footer: {
-          paddingHorizontal: theme.spacing['2xl'],
-          paddingTop: theme.spacing.md,
-          paddingBottom: getTabFooterPadding(insets),
-          backgroundColor: theme.colors.surface,
-          borderTopWidth: 1,
-          borderTopColor: theme.colors.border,
         },
       }),
     [theme, insets],
@@ -239,16 +232,16 @@ export const CompleteProfileScreen: React.FC<Props> = ({ navigation, route }) =>
             keyboardType="email-address"
             autoCapitalize="none"
           />
+
+          <ScrollScreenAction>
+            <Button
+              title={saving ? t.profile.saving : t.profile.saveProfile}
+              loading={saving}
+              onPress={handleSave}
+            />
+          </ScrollScreenAction>
         </ScrollView>
       </KeyboardAvoidingView>
-
-      <View style={styles.footer}>
-        <Button
-          title={saving ? t.profile.saving : t.profile.saveProfile}
-          loading={saving}
-          onPress={handleSave}
-        />
-      </View>
     </View>
   );
 };

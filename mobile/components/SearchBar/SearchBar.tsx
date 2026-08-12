@@ -44,6 +44,12 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           color: theme.colors.textPrimary,
           paddingVertical: theme.spacing.md,
         },
+        placeholder: {
+          flex: 1,
+          ...theme.typography.bodyMedium,
+          color: theme.colors.inputPlaceholder,
+          paddingVertical: theme.spacing.md,
+        },
       }),
     [theme],
   );
@@ -53,10 +59,10 @@ export const SearchBar: React.FC<SearchBarProps> = ({
       <Pressable
         accessibilityRole="search"
         onPress={onPress}
-        style={styles.container}>
+        style={({ pressed }) => [styles.container, pressed && { opacity: 0.92 }]}>
         <SearchIcon color={theme.colors.textSecondary} />
-        <Text style={[styles.input, { color: theme.colors.inputPlaceholder }]}>
-          {placeholder}
+        <Text style={styles.placeholder} numberOfLines={1}>
+          {value?.toString() || placeholder}
         </Text>
       </Pressable>
     );

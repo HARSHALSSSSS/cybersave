@@ -3,18 +3,17 @@ import {
   ActivityIndicator,
   Alert,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ApplicationsStackParamList } from '@/types/navigation';
 import { useTranslation } from '@/i18n';
 import { useTheme } from '@app/providers/ThemeProvider';
 import { Button } from '@components/Button';
+import { TabStackScreenLayout } from '@components/layout';
 import { Input } from '@components/Input';
 import { CloudUploadIcon, FileDocIcon } from '@components/icons';
 import { GradientScreenHeader } from '@features/profile/components/GradientScreenHeader';
@@ -27,7 +26,6 @@ import {
   applicationsQueryKeys,
   mapApplicationDetail,
 } from '@services/api';
-import { getTabFooterPadding } from '@utils/layout';
 
 type Props = NativeStackScreenProps<
   ApplicationsStackParamList,
@@ -47,7 +45,6 @@ export const SubmitCorrectionsScreen: React.FC<Props> = ({
 }) => {
   const { applicationId } = route.params;
   const { theme } = useTheme();
-  const insets = useSafeAreaInsets();
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [values, setValues] = useState<Record<string, string>>({});
@@ -156,15 +153,6 @@ export const SubmitCorrectionsScreen: React.FC<Props> = ({
           flex: 1,
           backgroundColor: theme.colors.backgroundSecondary,
         },
-        content: {
-          flex: 1,
-          backgroundColor: theme.colors.surface,
-          borderTopLeftRadius: theme.radius['3xl'],
-          borderTopRightRadius: theme.radius['3xl'],
-          marginTop: -theme.spacing.lg,
-          paddingHorizontal: theme.spacing['2xl'],
-          paddingTop: theme.spacing['2xl'],
-        },
         intro: {
           ...theme.typography.bodyMedium,
           color: theme.colors.textSecondary,
@@ -213,12 +201,6 @@ export const SubmitCorrectionsScreen: React.FC<Props> = ({
           color: theme.colors.textSecondary,
           marginTop: theme.spacing.sm,
         },
-        footer: {
-          paddingHorizontal: theme.spacing['2xl'],
-          paddingBottom: getTabFooterPadding(insets),
-          paddingTop: theme.spacing.md,
-          backgroundColor: theme.colors.surface,
-        },
         center: {
           flex: 1,
           alignItems: 'center',
@@ -230,7 +212,7 @@ export const SubmitCorrectionsScreen: React.FC<Props> = ({
           marginBottom: theme.spacing.lg,
         },
       }),
-    [theme, insets],
+    [theme],
   );
 
   if (isLoading || !application) {
@@ -256,82 +238,15 @@ export const SubmitCorrectionsScreen: React.FC<Props> = ({
   const canSubmit = Boolean(openActionRequest) && !submitMutation.isPending;
 
   return (
-    <View style={styles.container}>
-      <GradientScreenHeader
-        title={t.applications.submitCorrections}
-        showBack
-        onBack={() => navigation.goBack()}
-      />
-
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {openActionRequest?.reason ? (
-          <Text style={styles.reason}>{openActionRequest.reason}</Text>
-        ) : null}
-        <Text style={styles.intro}>{instructions}</Text>
-
-        {requiredKeys.length === 0 && requiredDocumentIds.length === 0 ? (
-          <Text style={styles.emptyHint}>
-            No specific fields were requested. You can submit to confirm
-            corrections are complete.
-          </Text>
-        ) : null}
-
-        {requiredKeys.map(key => (
-          <View key={key} style={styles.field}>
-            <Text style={styles.label}>{humanizeKey(key)}</Text>
-            <Input
-              value={
-                values[key] ??
-                String(
-                  data?.fieldValues.find(fv => fv.fieldKey === key)?.value ??
-                    '',
-                )
-              }
-              onChangeText={text =>
-                setValues(prev => ({ ...prev, [key]: text }))
-              }
-            />
-          </View>
-        ))}
-
-        {requiredDocumentIds.map(docId => {
-          const uploadedName = uploadedDocs[docId];
-          const isUploading = uploadingDocId === docId;
-          return (
-            <View key={docId}>
-              <Text style={styles.label}>{documentLabel(docId)}</Text>
-              {uploadedName ? (
-                <View style={styles.uploaded}>
-                  <FileDocIcon color={theme.colors.primary} size={20} />
-                  <Text style={styles.fileName}>{uploadedName}</Text>
-                </View>
-              ) : (
-                <Pressable
-                  style={styles.uploadZone}
-                  accessibilityRole="button"
-                  disabled={isUploading || uploadDocMutation.isPending}
-                  onPress={() => {
-                    setUploadingDocId(docId);
-                    uploadDocMutation.mutate(docId);
-                  }}>
-                  {isUploading ? (
-                    <ActivityIndicator color={theme.colors.primary} />
-                  ) : (
-                    <>
-                      <CloudUploadIcon color={theme.colors.primary} size={28} />
-                      <Text style={styles.uploadHint}>
-                        Tap to upload document
-                      </Text>
-                    </>
-                  )}
-                </Pressable>
-              )}
-            </View>
-          );
-        })}
-      </ScrollView>
-
-      <View style={styles.footer}>
+    <TabStackScreenLayout
+      header={
+        <GradientScreenHeader
+          title={t.applications.submitCorrections}
+          showBack
+          onBack={() => navigation.goBack()}
+        />
+      }
+      footer={
         <Button
           title={
             submitMutation.isPending
@@ -342,7 +257,72 @@ export const SubmitCorrectionsScreen: React.FC<Props> = ({
           disabled={!canSubmit}
           loading={submitMutation.isPending}
         />
-      </View>
-    </View>
+      }>
+      {openActionRequest?.reason ? (
+        <Text style={styles.reason}>{openActionRequest.reason}</Text>
+      ) : null}
+      <Text style={styles.intro}>{instructions}</Text>
+
+      {requiredKeys.length === 0 && requiredDocumentIds.length === 0 ? (
+        <Text style={styles.emptyHint}>
+          No specific fields were requested. You can submit to confirm
+          corrections are complete.
+        </Text>
+      ) : null}
+
+      {requiredKeys.map(key => (
+        <View key={key} style={styles.field}>
+          <Text style={styles.label}>{humanizeKey(key)}</Text>
+          <Input
+            value={
+              values[key] ??
+              String(
+                data?.fieldValues.find(fv => fv.fieldKey === key)?.value ??
+                  '',
+              )
+            }
+            onChangeText={text =>
+              setValues(prev => ({ ...prev, [key]: text }))
+            }
+          />
+        </View>
+      ))}
+
+      {requiredDocumentIds.map(docId => {
+        const uploadedName = uploadedDocs[docId];
+        const isUploading = uploadingDocId === docId;
+        return (
+          <View key={docId}>
+            <Text style={styles.label}>{documentLabel(docId)}</Text>
+            {uploadedName ? (
+              <View style={styles.uploaded}>
+                <FileDocIcon color={theme.colors.primary} size={20} />
+                <Text style={styles.fileName}>{uploadedName}</Text>
+              </View>
+            ) : (
+              <Pressable
+                style={styles.uploadZone}
+                accessibilityRole="button"
+                disabled={isUploading || uploadDocMutation.isPending}
+                onPress={() => {
+                  setUploadingDocId(docId);
+                  uploadDocMutation.mutate(docId);
+                }}>
+                {isUploading ? (
+                  <ActivityIndicator color={theme.colors.primary} />
+                ) : (
+                  <>
+                    <CloudUploadIcon color={theme.colors.primary} size={28} />
+                    <Text style={styles.uploadHint}>
+                      Tap to upload document
+                    </Text>
+                  </>
+                )}
+              </Pressable>
+            )}
+          </View>
+        );
+      })}
+    </TabStackScreenLayout>
   );
 };

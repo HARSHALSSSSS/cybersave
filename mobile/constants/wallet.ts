@@ -1,14 +1,72 @@
+import { getString, setString, StorageKeys } from '@services/storage';
+
 export const WALLET_BALANCE_INITIAL = 3250.0;
 
-let demoWalletBalance = WALLET_BALANCE_INITIAL;
+function parseStoredBalance(): number {
+  const raw = getString(StorageKeys.WALLET_BALANCE);
+  if (!raw) return WALLET_BALANCE_INITIAL;
+  const parsed = Number.parseFloat(raw);
+  return Number.isFinite(parsed) ? parsed : WALLET_BALANCE_INITIAL;
+}
+
+function loadExtraTransactions(): WalletTransaction[] {
+  const raw = getString(StorageKeys.WALLET_EXTRA_TRANSACTIONS);
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw) as WalletTransaction[];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+let demoWalletBalance = parseStoredBalance();
+let extraTransactions = loadExtraTransactions();
 
 export function getWalletBalance(): number {
   return demoWalletBalance;
 }
 
-export function addToWalletBalance(amount: number): number {
+export function getWalletTransactions(): WalletTransaction[] {
+  return [...extraTransactions, ...WALLET_TRANSACTIONS];
+}
+
+export function addToWalletBalance(
+  amount: number,
+  paymentSourceTitle: string,
+): number {
   if (amount > 0) {
     demoWalletBalance += amount;
+    setString(StorageKeys.WALLET_BALANCE, String(demoWalletBalance));
+
+    const now = new Date();
+    const tx: WalletTransaction = {
+      id: `tx-topup-${now.getTime()}`,
+      title: `Wallet Added via ${paymentSourceTitle}`,
+      time: now.toLocaleString('en-IN', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      }),
+      dateGroup: now.toLocaleDateString('en-IN', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      }),
+      amount,
+      type: 'credit',
+      ref: `CSW${now.getTime().toString().slice(-8)}`,
+      paymentMethod: paymentSourceTitle,
+      category: 'Wallet Top-up',
+      beneficiary: 'Cybersave Wallet',
+    };
+    extraTransactions = [tx, ...extraTransactions].slice(0, 50);
+    setString(
+      StorageKeys.WALLET_EXTRA_TRANSACTIONS,
+      JSON.stringify(extraTransactions),
+    );
   }
   return demoWalletBalance;
 }
@@ -59,242 +117,159 @@ export type TransactionType = 'debit' | 'credit' | 'refund';
 export type WalletTransaction = {
   id: string;
   title: string;
-  ref: string;
   time: string;
   dateGroup: string;
   amount: number;
   type: TransactionType;
+  ref: string;
   paymentMethod?: string;
   category?: string;
   beneficiary?: string;
-  status?: 'success' | 'refund_pending';
 };
 
 export const WALLET_TRANSACTIONS: WalletTransaction[] = [
   {
-    id: 'tx1',
+    id: 'tx-1',
     title: 'Electricity Bill Payment',
-    ref: 'ELEC849204',
-    time: 'Today, 2:30 PM',
-    dateGroup: 'TODAY, 12 MAY',
-    amount: -1450,
+    time: '12 Aug 2026, 10:24 AM',
+    dateGroup: '12 Aug 2026',
+    amount: -850,
     type: 'debit',
-    paymentMethod: 'SBI Bank Account',
-    category: 'BBPS Bill Payment',
-    beneficiary: 'MSEB — Electricity',
-    status: 'success',
+    ref: 'CSW48291037',
+    paymentMethod: 'Cybersave Wallet',
+    category: 'Bill Payment',
+    beneficiary: 'BESCOM',
   },
   {
-    id: 'tx2',
-    title: 'Refund Received',
-    ref: 'REF8391823',
-    time: 'Yesterday, 11:15 AM',
-    dateGroup: 'YESTERDAY, 11 MAY',
-    amount: 50,
-    type: 'refund',
-    status: 'refund_pending',
-  },
-  {
-    id: 'tx3',
+    id: 'tx-2',
     title: 'Wallet Added via UPI',
-    ref: 'UPI9284710',
-    time: '10 May, 6:00 PM',
-    dateGroup: '10 MAY',
+    time: '10 Aug 2026, 06:15 PM',
+    dateGroup: '10 Aug 2026',
     amount: 2000,
     type: 'credit',
-    paymentMethod: 'UPI Payment',
-    category: 'Wallet Top-up',
-    status: 'success',
-  },
-  {
-    id: 'tx4',
-    title: 'PAN Card Verification Fee',
-    ref: 'PAN3948293',
-    time: '2:30 PM',
-    dateGroup: 'TODAY, 12 MAY',
-    amount: -110,
-    type: 'debit',
-    paymentMethod: 'SBI Bank Account',
-    category: 'Digital Governance Fees',
-    beneficiary: 'PAN Verification Service',
-    status: 'success',
-  },
-  {
-    id: 'tx5',
-    title: 'Aadhaar Service Payment',
-    ref: 'ADH3920194',
-    time: '9:00 AM',
-    dateGroup: 'YESTERDAY, 11 MAY',
-    amount: -50,
-    type: 'debit',
-    paymentMethod: 'SBI Bank Account',
-    category: 'Digital Governance Fees',
-    beneficiary: 'Aadhaar Update Service',
-    status: 'success',
-  },
-];
-
-export type TransactionDetail = {
-  id: string;
-  ref: string;
-  txnId: string;
-  dateTime: string;
-  paymentMethod: string;
-  category: string;
-  beneficiary: string;
-  amount: number;
-  status: 'success' | 'refund_pending';
-  title: string;
-};
-
-export const TRANSACTION_DETAILS: Record<string, TransactionDetail> = {
-  tx1: {
-    id: 'tx1',
-    title: 'Electricity Bill Payment',
-    ref: 'ELEC849204',
-    txnId: 'TXN839481029302',
-    dateTime: '12 May 2024, 02:30 PM',
-    paymentMethod: 'SBI Bank Account',
-    category: 'BBPS Bill Payment',
-    beneficiary: 'MSEB — Electricity',
-    amount: 1450,
-    status: 'success',
-  },
-  tx3: {
-    id: 'tx3',
-    title: 'Wallet Added via UPI',
-    ref: 'UPI9284710',
-    txnId: 'TXN928471029301',
-    dateTime: '10 May 2024, 06:00 PM',
+    ref: 'CSW48290112',
     paymentMethod: 'UPI Payment',
     category: 'Wallet Top-up',
     beneficiary: 'Cybersave Wallet',
-    amount: 2000,
-    status: 'success',
   },
-  tx4: {
-    id: 'tx4',
-    title: 'PAN Card Verification Fee',
-    ref: 'PAN3948293',
-    txnId: 'TXN394829301928',
-    dateTime: '12 May 2024, 02:30 PM',
-    paymentMethod: 'SBI Bank Account',
-    category: 'Digital Governance Fees',
-    beneficiary: 'PAN Verification Service',
-    amount: 110,
-    status: 'success',
+  {
+    id: 'tx-3',
+    title: 'Income Certificate Fee',
+    time: '8 Aug 2026, 02:40 PM',
+    dateGroup: '8 Aug 2026',
+    amount: -149,
+    type: 'debit',
+    ref: 'CSW48289001',
+    paymentMethod: 'Cybersave Wallet',
+    category: 'Government Service',
+    beneficiary: 'Revenue Department',
   },
-  tx5: {
-    id: 'tx5',
-    title: 'Aadhaar Service Payment',
-    ref: 'ADH3920194',
-    txnId: 'TXN392019483920',
-    dateTime: '11 May 2024, 09:00 AM',
-    paymentMethod: 'SBI Bank Account',
-    category: 'Digital Governance Fees',
-    beneficiary: 'Aadhaar Update Service',
-    amount: 50,
-    status: 'success',
+  {
+    id: 'tx-4',
+    title: 'Wallet Added via UPI',
+    time: '5 Aug 2026, 11:05 AM',
+    dateGroup: '5 Aug 2026',
+    amount: 1500,
+    type: 'credit',
+    ref: 'CSW48288044',
+    paymentMethod: 'UPI Payment',
+    category: 'Wallet Top-up',
+    beneficiary: 'Cybersave Wallet',
   },
-};
+  {
+    id: 'tx-5',
+    title: 'Broadband Bill Payment',
+    time: '2 Aug 2026, 09:18 AM',
+    dateGroup: '2 Aug 2026',
+    amount: -599,
+    type: 'debit',
+    ref: 'CSW48287022',
+    paymentMethod: 'Cybersave Wallet',
+    category: 'Bill Payment',
+    beneficiary: 'Airtel Broadband',
+  },
+  {
+    id: 'tx-6',
+    title: 'Refund — DTH Recharge',
+    time: '28 Jul 2026, 04:32 PM',
+    dateGroup: '28 Jul 2026',
+    amount: 299,
+    type: 'refund',
+    ref: 'CSW48286019',
+    paymentMethod: 'Original Payment Method',
+    category: 'Refund',
+    beneficiary: 'Tata Play',
+  },
+];
 
 export function getTransactionById(id: string): WalletTransaction | undefined {
-  return WALLET_TRANSACTIONS.find(tx => tx.id === id);
+  return getWalletTransactions().find(tx => tx.id === id);
 }
 
-export function getTransactionDetails(transactionId: string): TransactionDetail {
-  const existing = TRANSACTION_DETAILS[transactionId];
-  if (existing) return existing;
-
-  const tx = getTransactionById(transactionId);
-  if (!tx) {
-    return TRANSACTION_DETAILS.tx1;
-  }
-
-  return {
-    id: tx.id,
-    title: tx.title,
-    ref: tx.ref,
-    txnId: `TXN${tx.ref.replace(/\D/g, '').slice(0, 12)}`,
-    dateTime: tx.time,
-    paymentMethod: tx.paymentMethod ?? 'Cybersave Wallet',
-    category: tx.category ?? 'Transaction',
-    beneficiary: tx.beneficiary ?? tx.title,
-    amount: Math.abs(tx.amount),
-    status: tx.status ?? 'success',
-  };
-}
-
-export type RefundDetail = {
-  refundId: string;
-  status: string;
-  amount: number;
-  ref: string;
-  steps: Array<{
-    id: string;
-    title: string;
-    description: string;
-    timestamp: string;
-    state: 'completed' | 'current' | 'pending';
-  }>;
-  destination: {
-    bankName: string;
-    accountNumber: string;
-    referenceNumber: string;
-  };
-};
-
-export const REFUND_DETAILS_MAP: Record<string, RefundDetail> = {
-  REF8391823: {
-    refundId: 'REF8391823',
-    status: 'REFUND IN PROGRESS',
-    amount: 50,
-    ref: 'REF8391823',
-    steps: [
-      {
-        id: '1',
-        title: 'Refund Initiated',
-        description: 'Merchant accepted refund request',
-        timestamp: '12 May, 04:00 PM',
-        state: 'completed',
-      },
-      {
-        id: '2',
-        title: 'Processing by Bank',
-        description: 'Awaiting clearance from partner bank',
-        timestamp: '13 May, 10:30 AM',
-        state: 'current',
-      },
-      {
-        id: '3',
-        title: 'Credited to Wallet',
-        description: 'Funds will reflect in available balance',
-        timestamp: 'Expected: 15 May',
-        state: 'pending',
-      },
-    ],
-    destination: {
-      bankName: 'State Bank of India',
-      accountNumber: '**********1204',
-      referenceNumber: 'REV-REF-39482910',
-    },
-  },
-};
-
-/** @deprecated use getRefundDetails(refundId) */
-export const REFUND_DETAILS = REFUND_DETAILS_MAP.REF8391823;
-
-export function getRefundDetails(refundId: string): RefundDetail {
-  return (
-    REFUND_DETAILS_MAP[refundId] ?? {
-      ...REFUND_DETAILS_MAP.REF8391823,
-      refundId,
-      ref: refundId,
-    }
+export function getRefundByRef(ref: string): WalletTransaction | undefined {
+  return getWalletTransactions().find(
+    tx => tx.type === 'refund' && tx.ref === ref,
   );
 }
 
-export const DATE_RANGE_LABEL = 'Showing: 01 May 2024 - 15 May 2024';
+export function getTransactionDetails(id: string) {
+  const tx = getTransactionById(id);
+  if (!tx) return null;
+
+  const isCredit = tx.amount > 0;
+  return {
+    id: tx.id,
+    title: tx.title,
+    amount: Math.abs(tx.amount),
+    ref: tx.ref,
+    txnId: `TXN${tx.ref.replace(/\D/g, '').slice(-10)}`,
+    dateTime: tx.time,
+    paymentMethod: tx.paymentMethod ?? 'Cybersave Wallet',
+    category: tx.category,
+    beneficiary: tx.beneficiary,
+    status: isCredit || tx.type === 'refund' ? 'Successful' : 'Successful',
+    isCredit,
+  };
+}
+
+export function getRefundDetails(refundId: string) {
+  const refund = getWalletTransactions().find(
+    tx => tx.type === 'refund' && (tx.ref === refundId || tx.id === refundId),
+  );
+  if (!refund) return null;
+
+  return {
+    ref: refund.ref,
+    amount: Math.abs(refund.amount),
+    status: 'completed' as const,
+    initiatedAt: '28 Jul 2026, 04:32 PM',
+    processedAt: '29 Jul 2026, 10:15 AM',
+    creditedAt: '30 Jul 2026, 09:00 AM',
+    bankName: LINKED_PAYMENT_METHOD.bankName,
+    accountMasked: LINKED_PAYMENT_METHOD.accountMasked,
+    referenceNumber: `RF${refund.ref.replace(/\D/g, '')}`,
+    steps: [
+      {
+        key: 'initiated',
+        title: 'Refund Initiated',
+        subtitle: 'Merchant approved the refund request',
+        completed: true,
+      },
+      {
+        key: 'processed',
+        title: 'Refund Processed',
+        subtitle: 'Amount sent to your bank',
+        completed: true,
+      },
+      {
+        key: 'completed',
+        title: 'Credited to Wallet',
+        subtitle: 'Funds available in your wallet',
+        completed: true,
+      },
+    ],
+  };
+}
 
 export const formatCurrency = (amount: number): string => {
   const formatted = Math.abs(amount).toLocaleString('en-IN', {
@@ -318,3 +293,9 @@ export function navigateWalletTransaction(
   }
   navigation.navigate('TransactionDetails', { transactionId: tx.id });
 }
+
+export function getPaymentSourceTitle(sourceId: string): string {
+  return PAYMENT_SOURCES.find(s => s.id === sourceId)?.title ?? 'UPI Payment';
+}
+
+export const DATE_RANGE_LABEL = 'Aug 2026';

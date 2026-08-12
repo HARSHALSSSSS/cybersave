@@ -14,10 +14,12 @@ import { ProfileStackParamList } from '@/types/navigation';
 import { LANGUAGES } from '@constants/index';
 import { useTheme } from '@app/providers/ThemeProvider';
 import { Button } from '@components/Button';
+import { ScrollScreenAction } from '@components/layout';
 import { GradientScreenHeader } from '@features/profile/components/GradientScreenHeader';
 import { setLanguage } from '@features/auth/store/authSlice';
 import { setString, StorageKeys } from '@services/storage';
 import { useTranslation } from '@/i18n';
+import { getScrollBottomPadding } from '@utils/layout';
 import type { RootState } from '@app/store';
 import Svg, { Path } from 'react-native-svg';
 
@@ -105,14 +107,8 @@ export const LanguageSelectionScreen: React.FC<Props> = ({ navigation }) => {
         radioUnselected: {
           borderColor: theme.colors.border,
         },
-        footer: {
-          paddingHorizontal: theme.spacing['2xl'],
-          paddingBottom: insets.bottom + theme.spacing.lg,
-          paddingTop: theme.spacing.md,
-          backgroundColor: theme.colors.surface,
-        },
         listContent: {
-          paddingBottom: theme.spacing.xl,
+          paddingBottom: getScrollBottomPadding(insets, theme.spacing.lg),
         },
       }),
     [theme, insets],
@@ -178,13 +174,14 @@ export const LanguageSelectionScreen: React.FC<Props> = ({ navigation }) => {
         ListHeaderComponent={
           <Text style={styles.description}>{t.language.subtitle}</Text>
         }
+        ListFooterComponent={
+          <ScrollScreenAction>
+            <Button title={t.common.save} onPress={handleSave} />
+          </ScrollScreenAction>
+        }
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
       />
-
-      <View style={styles.footer}>
-        <Button title={t.common.save} onPress={handleSave} />
-      </View>
     </View>
   );
 };

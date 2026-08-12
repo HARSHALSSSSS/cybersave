@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -15,12 +16,20 @@ import { ServicesStackParamList } from '@/types/navigation';
 import { useTheme } from '@app/providers/ThemeProvider';
 import { Button } from '@components/Button';
 import { CheckCircleIcon, ShieldIcon } from '@components/icons';
-import { ServiceHubHeader } from '@features/services/components';
+import { ServiceHubHeader, ServiceFeeStatsGrid } from '@features/services/components';
 import { goBackInServicesStack } from '@features/services/utils/navigateToService';
+import { openManualApplyPortal } from '@features/services/utils/openManualApplyPortal';
 import { useRequireProfile } from '@features/profile/hooks/useRequireProfile';
+import { extractRequestError } from '@utils/apiDiscovery';
 import { servicesApi, servicesQueryKeys } from '@services/api';
 import { useTranslation } from '@/i18n';
 import { getScrollBottomPadding } from '@utils/layout';
+
+function formatCurrency(amount: number, zeroLabel: string): string {
+  if (!Number.isFinite(amount) || amount <= 0) return zeroLabel;
+  const rounded = Math.round(amount);
+  return `₹${rounded.toLocaleString('en-IN')}`;
+}
 
 type Props = NativeStackScreenProps<ServicesStackParamList, 'ServiceDetail'>;
 
@@ -29,6 +38,7 @@ export const ServiceDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const { t, format } = useTranslation();
+  const [manualOpening, setManualOpening] = useState(false);
 
   const { data: config, isLoading, isError } = useQuery({
     queryKey: servicesQueryKeys.configuration(optionId, stateCode),
@@ -147,28 +157,6 @@ export const ServiceDetailScreen: React.FC<Props> = ({ navigation, route }) => {
           backgroundColor: theme.colors.primary,
           marginTop: 8,
         },
-        feeRow: {
-          flexDirection: 'row',
-          gap: theme.spacing.md,
-          marginBottom: theme.spacing.lg,
-        },
-        feeCard: {
-          flex: 1,
-          borderRadius: theme.radius.xl,
-          borderWidth: 1,
-          borderColor: theme.colors.border,
-          padding: theme.spacing.lg,
-          backgroundColor: theme.colors.backgroundSecondary,
-        },
-        feeLabel: {
-          ...theme.typography.bodySmall,
-          color: theme.colors.textSecondary,
-        },
-        feeValue: {
-          ...theme.typography.headingSmall,
-          color: theme.colors.textPrimary,
-          marginTop: 4,
-        },
         ctaBlock: {
           gap: theme.spacing.md,
           marginTop: theme.spacing.md,
@@ -224,15 +212,34 @@ export const ServiceDetailScreen: React.FC<Props> = ({ navigation, route }) => {
       screen: 'ServiceDetail' as const,
       params: { categoryId, optionId, stateCode, stateName },
     };
-    ensureProfile(() => {
-      navigation.navigate('ManualApplyPayment', {
-        categoryId,
-        optionId,
-        stateCode,
-        stateName,
-      });
+    const portalUrl = config?.fulfillment?.officialPortalUrl;
+    if (!portalUrl) {
+      Alert.alert(t.services.unableToContinue, t.services.couldNotOpenPortal);
+      return;
+    }
+
+    ensureProfile(async () => {
+      setManualOpening(true);
+      try {
+        await openManualApplyPortal({ optionId, stateCode, portalUrl });
+      } catch (error) {
+        Alert.alert(
+          t.services.unableToContinue,
+          extractRequestError(error) || t.services.couldNotOpenPortal,
+        );
+      } finally {
+        setManualOpening(false);
+      }
     }, returnTo);
-  }, [categoryId, ensureProfile, navigation, optionId, stateCode, stateName]);
+  }, [
+    categoryId,
+    config?.fulfillment?.officialPortalUrl,
+    ensureProfile,
+    optionId,
+    stateCode,
+    stateName,
+    t,
+  ]);
 
   if (isLoading) {
     return (
@@ -303,6 +310,25 @@ export const ServiceDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const instructions = config.instructions ?? config.overview?.instructions;
   const documents = config.documentRequirements.map(doc => doc.name);
 
+  const feeStats: { key: string; label: string; value: string }[] = [];
+  if (assistedEnabled) {
+    feeStats.push({
+      key: 'government',
+      label: t.services.governmentFee,
+      value: formatCurrency(governmentFee, t.services.asPerPortal),
+    });
+    feeStats.push({
+      key: 'platform',
+      label: t.services.cybersaveFee,
+      value: formatCurrency(platformFee, t.services.included),
+    });
+  }
+  feeStats.push({
+    key: 'processing',
+    label: t.services.processingTime,
+    value: processingTime,
+  });
+
   return (
     <View style={styles.container}>
       <ServiceHubHeader
@@ -360,28 +386,7 @@ export const ServiceDetailScreen: React.FC<Props> = ({ navigation, route }) => {
           </View>
         ) : null}
 
-        <View style={styles.feeRow}>
-          {assistedEnabled ? (
-            <>
-              <View style={styles.feeCard}>
-                <Text style={styles.feeLabel}>{t.services.governmentFee}</Text>
-                <Text style={styles.feeValue}>
-                  {governmentFee > 0 ? `₹${governmentFee}` : t.services.asPerPortal}
-                </Text>
-              </View>
-              <View style={styles.feeCard}>
-                <Text style={styles.feeLabel}>{t.services.cybersaveFee}</Text>
-                <Text style={styles.feeValue}>
-                  {platformFee > 0 ? `₹${platformFee}` : t.services.included}
-                </Text>
-              </View>
-            </>
-          ) : null}
-          <View style={styles.feeCard}>
-            <Text style={styles.feeLabel}>{t.services.processingTime}</Text>
-            <Text style={styles.feeValue}>{processingTime}</Text>
-          </View>
-        </View>
+        <ServiceFeeStatsGrid stats={feeStats} />
 
         <View style={styles.ctaBlock}>
           {assistedEnabled ? (
@@ -395,11 +400,20 @@ export const ServiceDetailScreen: React.FC<Props> = ({ navigation, route }) => {
           ) : null}
 
           {manualEnabled ? (
-            <Pressable style={styles.manualBtn} onPress={handleManual}>
-              <Text style={styles.manualTitle}>
-                {fulfillment?.manualCtaLabel ?? t.services.applyPortal}
-              </Text>
-              <Text style={styles.manualFee}>{t.services.manualFree}</Text>
+            <Pressable
+              style={[styles.manualBtn, manualOpening && { opacity: 0.7 }]}
+              disabled={manualOpening}
+              onPress={handleManual}>
+              {manualOpening ? (
+                <ActivityIndicator color={theme.colors.primary} />
+              ) : (
+                <>
+                  <Text style={styles.manualTitle}>
+                    {fulfillment?.manualCtaLabel ?? t.services.applyPortal}
+                  </Text>
+                  <Text style={styles.manualFee}>{t.services.manualFree}</Text>
+                </>
+              )}
             </Pressable>
           ) : null}
         </View>

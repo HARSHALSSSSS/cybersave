@@ -3,11 +3,10 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ServicesStackParamList } from '@/types/navigation';
 import {
   AllServicesScreen,
+  ServiceSearchScreen,
   ServiceHubScreen,
   StateSelectScreen,
   ServiceDetailScreen,
-  ManualApplyPaymentScreen,
-  ManualApplySuccessScreen,
   ApplyServiceScreen,
   UploadProofsScreen,
   ReviewApplicationScreen,
@@ -20,11 +19,14 @@ const Stack = createNativeStackNavigator<ServicesStackParamList>();
 export const ServicesStack: React.FC = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
     <Stack.Screen name="ServicesMain" component={AllServicesScreen} />
+    <Stack.Screen
+      name="ServiceSearch"
+      component={ServiceSearchScreen}
+      options={{ animation: 'slide_from_right' }}
+    />
     <Stack.Screen name="ServiceHub" component={ServiceHubScreen} options={{ animation: 'slide_from_right' }} />
     <Stack.Screen name="StateSelect" component={StateSelectScreen} options={{ animation: 'slide_from_right' }} />
     <Stack.Screen name="ServiceDetail" component={ServiceDetailScreen} options={{ animation: 'slide_from_right' }} />
-    <Stack.Screen name="ManualApplyPayment" component={ManualApplyPaymentScreen} options={{ animation: 'slide_from_right' }} />
-    <Stack.Screen name="ManualApplySuccess" component={ManualApplySuccessScreen} options={{ animation: 'fade' }} />
     <Stack.Screen
       name="ApplyService"
       component={ApplyServiceScreen}

@@ -21,6 +21,7 @@ import { useTheme } from '@app/providers/ThemeProvider';
 import { Button } from '@components/Button';
 import { GradientScreenHeader } from '@features/profile/components/GradientScreenHeader';
 import { TicketMessage, supportApi, supportQueryKeys } from '@services/api';
+import { getScrollBottomPadding } from '@utils/layout';
 
 type Props = NativeStackScreenProps<ProfileStackParamList, 'TicketDetail'>;
 
@@ -120,14 +121,6 @@ export const TicketDetailScreen: React.FC<Props> = ({ navigation, route }) => {
           marginTop: theme.spacing.xs,
           letterSpacing: 0,
         },
-        footer: {
-          paddingHorizontal: theme.spacing['2xl'],
-          paddingTop: theme.spacing.md,
-          paddingBottom: insets.bottom + theme.spacing.md,
-          borderTopWidth: 1,
-          borderTopColor: theme.colors.borderLight,
-          backgroundColor: theme.colors.surface,
-        },
         input: {
           borderWidth: 1,
           borderColor: theme.colors.border,
@@ -146,8 +139,13 @@ export const TicketDetailScreen: React.FC<Props> = ({ navigation, route }) => {
           textAlign: 'center',
           padding: theme.spacing.lg,
         },
+        replySection: {
+          paddingHorizontal: theme.spacing['2xl'],
+          paddingTop: theme.spacing.md,
+          paddingBottom: getScrollBottomPadding(insets, theme.spacing.lg),
+        },
       }),
-    [theme, insets.bottom],
+    [theme, insets],
   );
 
   const renderMessage: ListRenderItem<TicketMessage> = useCallback(
@@ -233,7 +231,7 @@ export const TicketDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         {isClosed ? (
           <Text style={styles.closedNote}>{t.support.ticketClosedNote}</Text>
         ) : (
-          <View style={styles.footer}>
+          <View style={styles.replySection}>
             <TextInput
               style={styles.input}
               placeholder={t.profile.typeReply}

@@ -4,4 +4,5 @@ export { FilterChips } from './FilterChips';
 export { ServiceGridCard } from './ServiceGridCard';
 export { ServiceOptionCard } from './ServiceOptionCard';
 export { InfoBanner } from './InfoBanner';
-export { DynamicFormFields } from './DynamicFormFields';
+export { ServiceFeeStatsGrid } from './ServiceFeeStatsGrid';
+export type { ServiceFeeStat } from './ServiceFeeStatsGrid';

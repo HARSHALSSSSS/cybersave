@@ -153,39 +153,57 @@ export const ServiceHubScreen: React.FC<Props> = ({ navigation, route }) => {
       />
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {isCertificates ? (
-          <View style={styles.searchWrap}>
-            <SearchBar
-              placeholder={t.services.searchCertificates}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-          </View>
-        ) : null}
-
         {category.description ? (
           <InfoBanner text={category.description} type="info" />
         ) : null}
+
+        <View style={styles.searchWrap}>
+          <SearchBar
+            placeholder={
+              isCertificates
+                ? t.services.searchCertificates
+                : t.home.search
+            }
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            returnKeyType="search"
+          />
+        </View>
 
         <Text style={styles.sectionTitle}>
           {isCertificates ? t.common.popularCertificates : t.common.availableServices}
         </Text>
 
         <View style={styles.grid}>
-          {options.map(option => (
-            <ServiceOptionCard
-              key={option.id}
-              title={option.displayName}
-              description={option.shortDescription ?? option.description ?? ''}
-              icon={iconStyle.icon}
-              iconColor={iconStyle.iconColor}
-              iconBg={iconStyle.iconBg}
-              processingDays={option.processingTime ?? undefined}
-              fee={formatServiceFee(option.baseFee, option.currency)}
-              variant={isCertificates ? 'certificate' : 'grid'}
-              onPress={() => handleOptionPress(option)}
-            />
-          ))}
+          {options.length === 0 ? (
+            <Text
+              style={{
+                ...theme.typography.bodyMedium,
+                color: theme.colors.textSecondary,
+                textAlign: 'center',
+                width: '100%',
+                paddingVertical: theme.spacing['3xl'],
+              }}>
+              {searchQuery.trim()
+                ? t.services.noSearchResults
+                : t.services.noServicesAvailable}
+            </Text>
+          ) : (
+            options.map(option => (
+              <ServiceOptionCard
+                key={option.id}
+                title={option.displayName}
+                description={option.shortDescription ?? option.description ?? ''}
+                icon={iconStyle.icon}
+                iconColor={iconStyle.iconColor}
+                iconBg={iconStyle.iconBg}
+                processingDays={option.processingTime ?? undefined}
+                fee={formatServiceFee(option.baseFee, option.currency)}
+                variant={isCertificates ? 'certificate' : 'grid'}
+                onPress={() => handleOptionPress(option)}
+              />
+            ))
+          )}
         </View>
       </ScrollView>
     </View>

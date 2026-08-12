@@ -134,7 +134,7 @@ export const CustomTabBar: React.FC<BottomTabBarProps> = ({
         <View style={styles.glassBg} pointerEvents="none">
           <BlurView
             style={styles.blur}
-            blurType={Platform.OS === 'ios' ? 'light' : 'light'}
+            blurType="light"
             blurAmount={Platform.OS === 'ios' ? 24 : 18}
             reducedTransparencyFallbackColor="rgba(255,255,255,0.92)"
             overlayColor="rgba(255,255,255,0.65)"

@@ -12,6 +12,7 @@ import { useQuery } from '@tanstack/react-query';
 import { ServicesStackParamList } from '@/types/navigation';
 import { SERVICE_FILTERS, ServiceFilter } from '@constants/index';
 import { useTheme } from '@app/providers/ThemeProvider';
+import { SearchBar } from '@components/SearchBar';
 import {
   FilterChips,
   ServiceGridCard,
@@ -19,6 +20,7 @@ import {
 } from '@features/services/components';
 import {
   filterCatalogByChip,
+  filterCatalogBySearch,
   getCatalogIconStyle,
 } from '@features/services/utils/catalogHelpers';
 import { servicesApi, servicesQueryKeys } from '@services/api';
@@ -32,6 +34,7 @@ export const AllServicesScreen: React.FC<Props> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
   const [activeFilter, setActiveFilter] = useState<ServiceFilter>('All');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const { data: catalog = [], isLoading, isError, refetch } = useQuery({
     queryKey: servicesQueryKeys.catalog(),
@@ -40,10 +43,10 @@ export const AllServicesScreen: React.FC<Props> = ({ navigation }) => {
     staleTime: 1000 * 60 * 10,
   });
 
-  const services = useMemo(
-    () => filterCatalogByChip(catalog, activeFilter),
-    [catalog, activeFilter],
-  );
+  const services = useMemo(() => {
+    const byChip = filterCatalogByChip(catalog, activeFilter);
+    return filterCatalogBySearch(byChip, searchQuery);
+  }, [activeFilter, catalog, searchQuery]);
 
   const styles = useMemo(
     () =>
@@ -59,6 +62,10 @@ export const AllServicesScreen: React.FC<Props> = ({ navigation }) => {
           borderTopRightRadius: theme.radius['3xl'],
           marginTop: -theme.spacing.lg,
           paddingTop: theme.spacing['2xl'],
+        },
+        searchWrap: {
+          paddingHorizontal: theme.spacing['2xl'],
+          marginBottom: theme.spacing.md,
         },
         grid: {
           flexDirection: 'row',
@@ -92,6 +99,15 @@ export const AllServicesScreen: React.FC<Props> = ({ navigation }) => {
       <ServiceHubHeader title={t.services.allServices} />
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.searchWrap}>
+          <SearchBar
+            placeholder={t.home.search}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            returnKeyType="search"
+          />
+        </View>
+
         <FilterChips
           filters={SERVICE_FILTERS}
           active={activeFilter}
@@ -115,7 +131,11 @@ export const AllServicesScreen: React.FC<Props> = ({ navigation }) => {
           </View>
         ) : services.length === 0 ? (
           <View style={styles.center}>
-            <Text style={styles.message}>{t.services.noServicesAvailable}</Text>
+            <Text style={styles.message}>
+              {searchQuery.trim()
+                ? t.services.noSearchResults
+                : t.services.noServicesAvailable}
+            </Text>
           </View>
         ) : (
           <View style={styles.grid}>

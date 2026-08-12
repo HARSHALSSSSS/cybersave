@@ -1,10 +1,10 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Dimensions,
   Pressable,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -28,15 +28,15 @@ import { getScreenBottomPadding, getTwoColumnWidth } from '@utils/layout';
 
 type Props = NativeStackScreenProps<BillPaymentsStackParamList, 'BillPaymentsHome'>;
 
-const SCREEN_WIDTH = Dimensions.get('window').width;
-
 export const BillPaymentsHomeScreen: React.FC<Props> = ({ navigation }) => {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
+  const { width: screenWidth } = useWindowDimensions();
   const { t } = useTranslation();
+  const [searchQuery, setSearchQuery] = useState('');
   const horizontalPad = theme.spacing['2xl'];
   const gridGap = theme.spacing.md;
-  const popularCardWidth = getTwoColumnWidth(SCREEN_WIDTH, horizontalPad, gridGap);
+  const popularCardWidth = getTwoColumnWidth(screenWidth, horizontalPad, gridGap);
 
   const {
     data: categories = [],
@@ -61,6 +61,27 @@ export const BillPaymentsHomeScreen: React.FC<Props> = ({ navigation }) => {
   );
 
   const popular = featured.length > 0 ? featured : categories.slice(0, 6);
+
+  const filteredCategories = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return categories;
+    return categories.filter(
+      cat =>
+        cat.displayName.toLowerCase().includes(q) ||
+        cat.providerCategory.toLowerCase().includes(q),
+    );
+  }, [categories, searchQuery]);
+
+  const filteredPopular = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    const source = popular;
+    if (!q) return source;
+    return source.filter(
+      cat =>
+        cat.displayName.toLowerCase().includes(q) ||
+        cat.providerCategory.toLowerCase().includes(q),
+    );
+  }, [popular, searchQuery]);
 
   const styles = useMemo(
     () =>
@@ -252,13 +273,9 @@ export const BillPaymentsHomeScreen: React.FC<Props> = ({ navigation }) => {
       <View style={styles.searchWrap}>
         <SearchBar
           placeholder={t.bills.searchBiller}
-          editable={false}
-          onPress={() => {
-            const first = categories[0];
-            if (first) {
-              openCategory(first.providerCategory, first.displayName);
-            }
-          }}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          returnKeyType="search"
         />
       </View>
 
@@ -267,13 +284,13 @@ export const BillPaymentsHomeScreen: React.FC<Props> = ({ navigation }) => {
         <View style={styles.loading}>
           <ActivityIndicator color={theme.colors.primary} />
         </View>
-      ) : popular.length === 0 ? (
+      ) : filteredPopular.length === 0 ? (
         <Text style={styles.emptyText}>
-          {t.bills.noCategories}
+          {searchQuery.trim() ? t.bills.noCategoriesSearch : t.bills.noCategories}
         </Text>
       ) : (
         <View style={styles.popularGrid}>
-          {popular.map(cat => {
+          {filteredPopular.map(cat => {
             const colors = getCategoryColors(cat.providerCategory);
             return (
               <Pressable
@@ -326,7 +343,10 @@ export const BillPaymentsHomeScreen: React.FC<Props> = ({ navigation }) => {
       ) : null}
 
       <Text style={styles.sectionTitle}>{t.bills.allCategories}</Text>
-      {categories.map(cat => {
+      {filteredCategories.length === 0 && searchQuery.trim() ? (
+        <Text style={styles.emptyText}>{t.bills.noCategoriesSearch}</Text>
+      ) : null}
+      {filteredCategories.map(cat => {
         const colors = getCategoryColors(cat.providerCategory);
         return (
           <Pressable

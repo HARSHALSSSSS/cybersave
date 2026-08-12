@@ -1,6 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -15,6 +17,7 @@ import { WalletStackParamList } from '@/types/navigation';
 import {
   addToWalletBalance,
   formatAmountInput,
+  getPaymentSourceTitle,
   getWalletBalance,
   PAYMENT_SOURCES,
   QUICK_AMOUNTS,
@@ -22,6 +25,7 @@ import {
 import { useTranslation } from '@/i18n';
 import { useTheme } from '@app/providers/ThemeProvider';
 import { Button } from '@components/Button';
+import { ScrollScreenAction } from '@components/layout';
 import {
   BackIcon,
   CardIcon,
@@ -29,6 +33,7 @@ import {
   RadioUnselectedIcon,
   UpiIcon,
 } from '@components/icons';
+import { getScrollBottomPadding } from '@utils/layout';
 
 type Props = NativeStackScreenProps<WalletStackParamList, 'AddMoney'>;
 
@@ -39,14 +44,27 @@ export const AddMoneyScreen: React.FC<Props> = ({ navigation }) => {
   const [amount, setAmount] = useState(2000);
   const [selectedSource, setSelectedSource] = useState('sbi');
   const [balance, setBalance] = useState(getWalletBalance());
+  const [confirmVisible, setConfirmVisible] = useState(false);
+  const [processing, setProcessing] = useState(false);
 
-  const handleAddMoney = () => {
+  const selectedSourceMeta = PAYMENT_SOURCES.find(s => s.id === selectedSource);
+
+  const openConfirm = () => {
     if (amount < 1) {
       Alert.alert(t.common.error, t.wallet.minAmount);
       return;
     }
-    addToWalletBalance(amount);
+    setConfirmVisible(true);
+  };
+
+  const runDemoPayment = async () => {
+    setProcessing(true);
+    await new Promise<void>(resolve => setTimeout(resolve, 1600));
+    const sourceTitle = getPaymentSourceTitle(selectedSource);
+    addToWalletBalance(amount, sourceTitle);
     setBalance(getWalletBalance());
+    setProcessing(false);
+    setConfirmVisible(false);
     Alert.alert(
       t.wallet.paymentSuccessful,
       format(t.wallet.moneyAddedSuccess, { amount: formatAmountInput(amount) }),
@@ -94,8 +112,11 @@ export const AddMoneyScreen: React.FC<Props> = ({ navigation }) => {
           borderTopLeftRadius: theme.radius['3xl'],
           borderTopRightRadius: theme.radius['3xl'],
           marginTop: -theme.spacing.lg,
+        },
+        scrollContent: {
           paddingHorizontal: theme.spacing['2xl'],
           paddingTop: theme.spacing['2xl'],
+          paddingBottom: getScrollBottomPadding(insets, theme.spacing.lg),
         },
         balanceCard: {
           flexDirection: 'row',
@@ -203,11 +224,45 @@ export const AddMoneyScreen: React.FC<Props> = ({ navigation }) => {
           color: theme.colors.textSecondary,
           marginTop: 2,
         },
-        footer: {
-          paddingHorizontal: theme.spacing['2xl'],
-          paddingBottom: insets.bottom + theme.spacing.lg,
-          paddingTop: theme.spacing.md,
+        modalBackdrop: {
+          flex: 1,
+          backgroundColor: 'rgba(15, 23, 42, 0.45)',
+          justifyContent: 'flex-end',
+        },
+        modalCard: {
           backgroundColor: theme.colors.surface,
+          borderTopLeftRadius: theme.radius['3xl'],
+          borderTopRightRadius: theme.radius['3xl'],
+          padding: theme.spacing['2xl'],
+          paddingBottom: insets.bottom + theme.spacing['2xl'],
+          gap: theme.spacing.md,
+        },
+        modalTitle: {
+          ...theme.typography.headingSmall,
+          color: theme.colors.textPrimary,
+        },
+        modalBody: {
+          ...theme.typography.bodyMedium,
+          color: theme.colors.textSecondary,
+          lineHeight: 22,
+        },
+        modalAmount: {
+          ...theme.typography.headingMedium,
+          color: theme.colors.primary,
+          textAlign: 'center',
+          marginVertical: theme.spacing.sm,
+        },
+        modalSource: {
+          backgroundColor: theme.colors.backgroundSecondary,
+          borderRadius: theme.radius.lg,
+          padding: theme.spacing.lg,
+        },
+        processingRow: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: theme.spacing.sm,
+          paddingVertical: theme.spacing.lg,
         },
       }),
     [theme, insets],
@@ -235,7 +290,10 @@ export const AddMoneyScreen: React.FC<Props> = ({ navigation }) => {
         </View>
       </LinearGradient>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}>
         <View style={styles.balanceCard}>
           <Text style={styles.balanceLabel}>{t.wallet.currentBalance}</Text>
           <Text style={styles.balanceValue}>
@@ -297,14 +355,50 @@ export const AddMoneyScreen: React.FC<Props> = ({ navigation }) => {
             </Pressable>
           );
         })}
+
+        <ScrollScreenAction>
+          <Button
+            title={format(t.wallet.proceedToPay, { amount: formatAmountInput(amount) })}
+            onPress={openConfirm}
+          />
+        </ScrollScreenAction>
       </ScrollView>
 
-      <View style={styles.footer}>
-        <Button
-          title={format(t.wallet.addAmountToWallet, { amount: formatAmountInput(amount) })}
-          onPress={handleAddMoney}
-        />
-      </View>
+      <Modal
+        visible={confirmVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => !processing && setConfirmVisible(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>{t.wallet.confirmPayment}</Text>
+            <Text style={styles.modalBody}>{t.wallet.demoPaymentHint}</Text>
+            <Text style={styles.modalAmount}>₹{formatAmountInput(amount)}.00</Text>
+            <View style={styles.modalSource}>
+              <Text style={styles.sourceTitle}>{selectedSourceMeta?.title}</Text>
+              <Text style={styles.sourceSub}>{selectedSourceMeta?.subtitle}</Text>
+            </View>
+            {processing ? (
+              <View style={styles.processingRow}>
+                <ActivityIndicator color={theme.colors.primary} />
+                <Text style={styles.modalBody}>{t.wallet.processingPayment}</Text>
+              </View>
+            ) : (
+              <>
+                <Button
+                  title={format(t.wallet.payNow, { amount: formatAmountInput(amount) })}
+                  onPress={() => void runDemoPayment()}
+                />
+                <Button
+                  title={t.common.cancel}
+                  variant="outline"
+                  onPress={() => setConfirmVisible(false)}
+                />
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };

@@ -3,17 +3,16 @@ import {
   ActivityIndicator,
   Alert,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ServicesStackParamList } from '@/types/navigation';
 import { useTheme } from '@app/providers/ThemeProvider';
 import { Button } from '@components/Button';
+import { TabStackScreenLayout } from '@components/layout';
 import {
   CheckCircleIcon,
   CloudUploadIcon,
@@ -28,7 +27,6 @@ import {
   validateDocumentForRequirement,
 } from '@features/services/utils/documentUpload';
 import { useTranslation } from '@/i18n';
-import { getScrollBottomPadding } from '@utils/layout';
 import {
   applicationsApi,
   applicationsQueryKeys,
@@ -47,7 +45,6 @@ type UploadedDoc = {
 export const UploadProofsScreen: React.FC<Props> = ({ navigation, route }) => {
   const { categoryId, optionId, applicationId, stateCode, stateName } = route.params;
   const { theme } = useTheme();
-  const insets = useSafeAreaInsets();
   const { t, format } = useTranslation();
   const queryClient = useQueryClient();
   const [uploads, setUploads] = useState<Record<string, UploadedDoc>>({});
@@ -203,15 +200,6 @@ export const UploadProofsScreen: React.FC<Props> = ({ navigation, route }) => {
           flex: 1,
           backgroundColor: theme.colors.backgroundSecondary,
         },
-        content: {
-          flex: 1,
-          backgroundColor: theme.colors.surface,
-          borderTopLeftRadius: theme.radius['3xl'],
-          borderTopRightRadius: theme.radius['3xl'],
-          marginTop: -theme.spacing.lg,
-          paddingHorizontal: theme.spacing['2xl'],
-          paddingTop: theme.spacing['2xl'],
-        },
         title: {
           ...theme.typography.headingSmall,
           color: theme.colors.textPrimary,
@@ -254,9 +242,6 @@ export const UploadProofsScreen: React.FC<Props> = ({ navigation, route }) => {
           textAlign: 'center',
           paddingHorizontal: theme.spacing.lg,
         },
-        footer: {
-          paddingBottom: getScrollBottomPadding(insets, theme.spacing.lg),
-        },
         center: {
           flex: 1,
           alignItems: 'center',
@@ -268,7 +253,7 @@ export const UploadProofsScreen: React.FC<Props> = ({ navigation, route }) => {
           marginBottom: theme.spacing.lg,
         },
       }),
-    [theme, insets],
+    [theme],
   );
 
   const requiredIds = requirements.filter(r => r.required).map(r => r.id);
@@ -325,7 +310,26 @@ export const UploadProofsScreen: React.FC<Props> = ({ navigation, route }) => {
 
   if (requirements.length === 0) {
     return (
-      <View style={styles.container}>
+      <TabStackScreenLayout
+        header={
+          <ServiceHubHeader
+            title={t.services.uploadProofs}
+            showBack
+            onBack={() => goBackInServicesStack(navigation)}
+            step={2}
+            totalSteps={5}
+          />
+        }
+        footer={<Button title={t.common.continue} onPress={handleContinue} />}
+        scroll={false}>
+        <Text style={styles.optional}>{t.services.noDocumentsRequired}</Text>
+      </TabStackScreenLayout>
+    );
+  }
+
+  return (
+    <TabStackScreenLayout
+      header={
         <ServiceHubHeader
           title={t.services.uploadProofs}
           showBack
@@ -333,84 +337,63 @@ export const UploadProofsScreen: React.FC<Props> = ({ navigation, route }) => {
           step={2}
           totalSteps={5}
         />
-        <View style={[styles.content, styles.footer]}>
-          <Text style={styles.optional}>{t.services.noDocumentsRequired}</Text>
-          <Button title={t.common.continue} onPress={handleContinue} />
-        </View>
-      </View>
-    );
-  }
-
-  return (
-    <View style={styles.container}>
-      <ServiceHubHeader
-        title={t.services.uploadProofs}
-        showBack
-        onBack={() => goBackInServicesStack(navigation)}
-        step={2}
-        totalSteps={5}
-      />
-
-      <ScrollView
-        style={styles.content}
-        contentContainerStyle={styles.footer}
-        showsVerticalScrollIndicator={false}>
-        <Text style={styles.title}>{t.services.requiredDocs}</Text>
-
-        {requirements.map(doc => {
-          const uploaded = uploads[doc.id];
-          const isUploading = uploadingId === doc.id;
-          const formats = (doc.allowedFormats ?? []).join(', ').toUpperCase() || 'PDF, JPG, PNG';
-          return (
-            <View key={doc.id}>
-              <Text style={styles.label}>
-                {doc.name}
-                {!doc.required ? ` ${t.services.optionalSuffix}` : ' *'}
-              </Text>
-              {uploaded ? (
-                <View style={styles.uploaded}>
-                  <FileDocIcon color={theme.colors.primary} size={22} />
-                  <Text style={styles.fileName} numberOfLines={1}>
-                    {uploaded.name}
-                  </Text>
-                  <Pressable
-                    accessibilityRole="button"
-                    onPress={() =>
-                      deleteMutation.mutate({
-                        requirementId: doc.id,
-                        documentId: uploaded.documentId,
-                      })
-                    }>
-                    <TrashIcon color="#EF4444" size={18} />
-                  </Pressable>
-                  <CheckCircleIcon color="#10B981" size={20} />
-                </View>
-              ) : (
-                <Pressable
-                  style={styles.uploadZone}
-                  accessibilityRole="button"
-                  disabled={isUploading}
-                  onPress={() => handleUpload(doc.id)}>
-                  {isUploading ? (
-                    <ActivityIndicator color={theme.colors.primary} />
-                  ) : (
-                    <CloudUploadIcon color={theme.colors.textSecondary} />
-                  )}
-                  <Text style={styles.uploadHint}>
-                    {doc.description ?? format(t.services.tapToChooseFile, { formats })}
-                  </Text>
-                </Pressable>
-              )}
-            </View>
-          );
-        })}
-
+      }
+      footer={
         <Button
           title={t.common.continue}
           disabled={!allRequiredUploaded || uploadMutation.isPending}
           onPress={handleContinue}
         />
-      </ScrollView>
-    </View>
+      }>
+      <Text style={styles.title}>{t.services.requiredDocs}</Text>
+
+      {requirements.map(doc => {
+        const uploaded = uploads[doc.id];
+        const isUploading = uploadingId === doc.id;
+        const formats = (doc.allowedFormats ?? []).join(', ').toUpperCase() || 'PDF, JPG, PNG';
+        return (
+          <View key={doc.id}>
+            <Text style={styles.label}>
+              {doc.name}
+              {!doc.required ? ` ${t.services.optionalSuffix}` : ' *'}
+            </Text>
+            {uploaded ? (
+              <View style={styles.uploaded}>
+                <FileDocIcon color={theme.colors.primary} size={22} />
+                <Text style={styles.fileName} numberOfLines={1}>
+                  {uploaded.name}
+                </Text>
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() =>
+                    deleteMutation.mutate({
+                      requirementId: doc.id,
+                      documentId: uploaded.documentId,
+                    })
+                  }>
+                  <TrashIcon color="#EF4444" size={18} />
+                </Pressable>
+                <CheckCircleIcon color="#10B981" size={20} />
+              </View>
+            ) : (
+              <Pressable
+                style={styles.uploadZone}
+                accessibilityRole="button"
+                disabled={isUploading}
+                onPress={() => handleUpload(doc.id)}>
+                {isUploading ? (
+                  <ActivityIndicator color={theme.colors.primary} />
+                ) : (
+                  <CloudUploadIcon color={theme.colors.textSecondary} />
+                )}
+                <Text style={styles.uploadHint}>
+                  {doc.description ?? format(t.services.tapToChooseFile, { formats })}
+                </Text>
+              </Pressable>
+            )}
+          </View>
+        );
+      })}
+    </TabStackScreenLayout>
   );
 };

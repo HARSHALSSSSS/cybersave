@@ -230,6 +230,7 @@ export const MyApplicationsScreen: React.FC<Props> = ({ navigation }) => {
           </View>
         ) : (
           <FlatList
+            style={{ flex: 1 }}
             data={applications}
             renderItem={renderItem}
             keyExtractor={item => item.id}

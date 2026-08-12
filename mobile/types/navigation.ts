@@ -71,6 +71,7 @@ export type ProfileStackParamList = {
 
 export type ServicesStackParamList = {
   ServicesMain: undefined;
+  ServiceSearch: { initialQuery?: string } | undefined;
   ServiceHub: { categoryId: string };
   StateSelect: { categoryId: string; optionId: string; optionName: string };
   ServiceDetail: {
@@ -78,17 +79,6 @@ export type ServicesStackParamList = {
     optionId: string;
     stateCode?: string;
     stateName?: string;
-  };
-  ManualApplyPayment: {
-    categoryId: string;
-    optionId: string;
-    stateCode?: string;
-    stateName?: string;
-  };
-  ManualApplySuccess: {
-    sessionId: string;
-    officialPortalUrl: string;
-    serviceName: string;
   };
   ApplyService: {
     categoryId: string;

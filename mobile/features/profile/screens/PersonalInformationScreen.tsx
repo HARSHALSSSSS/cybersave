@@ -19,6 +19,7 @@ import { GENDER_OPTIONS } from '@constants/index';
 import { useTranslation } from '@/i18n';
 import { useTheme } from '@app/providers/ThemeProvider';
 import { Button } from '@components/Button';
+import { ScrollScreenAction } from '@components/layout';
 import { GradientScreenHeader } from '@features/profile/components/GradientScreenHeader';
 import { StatusBadge } from '@features/profile/components/StatusBadge';
 import { useCitizenProfile } from '@features/profile/hooks/useCitizenProfile';
@@ -27,7 +28,7 @@ import {
   validateProfileName,
 } from '@features/profile/utils/profileSync';
 import { authApi } from '@services/api';
-import { getNestedStackFooterPadding } from '@utils/layout';
+import { getScrollBottomPadding } from '@utils/layout';
 import Svg, { Path } from 'react-native-svg';
 
 const ChevronDown = ({ color }: { color: string }) => (
@@ -53,7 +54,6 @@ export const PersonalInformationScreen: React.FC<Props> = ({ navigation, route }
   const { t } = useTranslation();
   const isEditMode = route.params?.mode === 'edit';
   const { citizen, isProfileComplete, saveProfile } = useCitizenProfile();
-  const footerBottomPad = getNestedStackFooterPadding(insets);
 
   const { data: profile, isLoading } = useQuery({
     queryKey: ['citizen', 'me'],
@@ -103,7 +103,7 @@ export const PersonalInformationScreen: React.FC<Props> = ({ navigation, route }
         scrollContent: {
           paddingHorizontal: theme.spacing['2xl'],
           paddingTop: theme.spacing['3xl'],
-          paddingBottom: theme.spacing.xl,
+          paddingBottom: getScrollBottomPadding(insets, theme.spacing.lg),
         },
         avatarSection: {
           alignItems: 'center',
@@ -192,14 +192,6 @@ export const PersonalInformationScreen: React.FC<Props> = ({ navigation, route }
           borderBottomWidth: 1,
           borderBottomColor: theme.colors.border,
         },
-        footer: {
-          paddingHorizontal: theme.spacing['2xl'],
-          paddingTop: theme.spacing.md,
-          paddingBottom: footerBottomPad,
-          backgroundColor: theme.colors.surface,
-          borderTopWidth: 1,
-          borderTopColor: theme.colors.border,
-        },
         lastUpdated: {
           ...theme.typography.bodySmall,
           color: theme.colors.textSecondary,
@@ -212,7 +204,7 @@ export const PersonalInformationScreen: React.FC<Props> = ({ navigation, route }
           justifyContent: 'center',
         },
       }),
-    [theme, footerBottomPad],
+    [theme, insets],
   );
 
   const handleSave = async () => {
@@ -364,22 +356,22 @@ export const PersonalInformationScreen: React.FC<Props> = ({ navigation, route }
                 ? new Date(profile.createdAt).toLocaleDateString('en-IN')
                 : '—'}
             </Text>
+
+            <ScrollScreenAction>
+              <Button
+                title={
+                  saving
+                    ? t.profile.saving
+                    : isEditMode
+                      ? t.profile.updateProfile
+                      : t.profile.saveChanges
+                }
+                loading={saving}
+                onPress={handleSave}
+              />
+            </ScrollScreenAction>
           </ScrollView>
         </KeyboardAvoidingView>
-      </View>
-
-      <View style={styles.footer}>
-        <Button
-          title={
-            saving
-              ? t.profile.saving
-              : isEditMode
-                ? t.profile.updateProfile
-                : t.profile.saveChanges
-          }
-          loading={saving}
-          onPress={handleSave}
-        />
       </View>
     </View>
   );

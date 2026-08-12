@@ -4,6 +4,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
@@ -100,6 +101,7 @@ const CategoryIcon = ({ icon, color }: { icon: string; color: string }) => {
 export const HomeScreen: React.FC<Props> = ({ navigation }) => {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
+  const { width: screenWidth } = useWindowDimensions();
   const { t } = useTranslation();
   const greetingKey = getGreetingKey();
   const greeting = t.home[greetingKey];
@@ -241,8 +243,16 @@ export const HomeScreen: React.FC<Props> = ({ navigation }) => {
   );
 
   const styles = useMemo(
-    () =>
-      StyleSheet.create({
+    () => {
+      const categoryCardWidth = Math.min(
+        128,
+        Math.max(
+          100,
+          (screenWidth - theme.spacing['2xl'] * 2 - theme.spacing.md * 2) / 2.5,
+        ),
+      );
+
+      return StyleSheet.create({
         container: {
           flex: 1,
           backgroundColor: theme.colors.backgroundSecondary,
@@ -310,7 +320,8 @@ export const HomeScreen: React.FC<Props> = ({ navigation }) => {
           marginTop: -theme.spacing['3xl'],
           paddingHorizontal: theme.spacing['2xl'],
           marginBottom: theme.spacing['2xl'],
-          zIndex: 2,
+          zIndex: 4,
+          elevation: 4,
         },
         scrollContent: {
           paddingHorizontal: theme.spacing['2xl'],
@@ -366,7 +377,7 @@ export const HomeScreen: React.FC<Props> = ({ navigation }) => {
           paddingRight: theme.spacing['2xl'],
         },
         categoryCard: {
-          width: 118,
+          width: categoryCardWidth,
           minHeight: 128,
           backgroundColor: theme.colors.surface,
           borderRadius: theme.radius.xl,
@@ -470,12 +481,15 @@ export const HomeScreen: React.FC<Props> = ({ navigation }) => {
           letterSpacing: 0.5,
           fontSize: 11,
         },
-      }),
-    [theme, insets],
+      });
+    },
+    [theme, insets, screenWidth],
   );
 
   const handleSearchPress = useCallback(() => {
-    navigation.navigate('GovernmentSchemes');
+    navigation
+      .getParent<BottomTabNavigationProp<MainTabParamList>>()
+      ?.navigate('ServicesTab', { screen: 'ServiceSearch' });
   }, [navigation]);
 
   const handleBellPress = useCallback(() => {

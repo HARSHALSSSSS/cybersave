@@ -15,9 +15,9 @@ import { WalletStackParamList, MainTabParamList } from '@/types/navigation';
 import {
   formatCurrency,
   getWalletBalance,
+  getWalletTransactions,
   LINKED_PAYMENT_METHOD,
   navigateWalletTransaction,
-  WALLET_TRANSACTIONS,
 } from '@constants/index';
 import { useTranslation } from '@/i18n';
 import { useTheme } from '@app/providers/ThemeProvider';
@@ -33,7 +33,7 @@ import {
 
 type Props = NativeStackScreenProps<WalletStackParamList, 'WalletMain'>;
 
-const RECENT_TRANSACTIONS = WALLET_TRANSACTIONS.slice(0, 3);
+const RECENT_TRANSACTIONS = () => getWalletTransactions().slice(0, 3);
 
 export const WalletScreen: React.FC<Props> = ({ navigation }) => {
   const { theme } = useTheme();
@@ -212,7 +212,7 @@ export const WalletScreen: React.FC<Props> = ({ navigation }) => {
   );
 
   const handleTransactionPress = useCallback(
-    (tx: (typeof WALLET_TRANSACTIONS)[number]) => {
+    (tx: ReturnType<typeof getWalletTransactions>[number]) => {
       navigateWalletTransaction(navigation, tx);
     },
     [navigation],
@@ -277,7 +277,7 @@ export const WalletScreen: React.FC<Props> = ({ navigation }) => {
           </Pressable>
         </View>
 
-        {RECENT_TRANSACTIONS.map(tx => {
+        {RECENT_TRANSACTIONS().map(tx => {
           const isCredit = tx.amount > 0;
           const iconBg = isCredit ? '#D1FAE5' : '#FEE2E2';
           const amountColor = isCredit ? '#059669' : theme.colors.textPrimary;

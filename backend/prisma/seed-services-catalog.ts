@@ -47,21 +47,60 @@ export type MainServiceSeed = {
   subServices: SubServiceSeed[];
 };
 
+/** Verified official government portal entry points (Income Tax, UIDAI, Parivahan, state e-District). */
+const OFFICIAL = {
+  panApply: 'https://onlineservices.proteantech.in/paam/endUserRegisterContact.html',
+  aadhaarMy: 'https://myaadhaar.uidai.gov.in/',
+  voterNvsp: 'https://voters.eci.gov.in/',
+  parivahanHome: 'https://parivahan.gov.in/parivahan/',
+  sarathiDl: 'https://sarathi.parivahan.gov.in/sarathiservice/stateSelection.do',
+  vahanVehicle: 'https://vahan.parivahan.gov.in/vahan/vahan/ui/login/login.xhtml',
+  crsCivilRecords: 'https://crsorgi.gov.in/web/index.php/auth/login',
+  pmKisan: 'https://pmkisan.gov.in/',
+  pmay: 'https://pmaymis.gov.in/',
+  eshramRegister: 'https://register.eshram.gov.in/#/user/self',
+  udidDisability: 'https://www.swavlambancard.gov.in/',
+  nspScholarship: 'https://scholarships.gov.in/',
+  indiaGovServices: 'https://services.india.gov.in/',
+} as const;
+
 const COMMON_STATES: StatePortalSeed[] = [
-  { code: 'MH', name: 'Maharashtra', portalUrl: 'https://aaplesarkar.mahaonline.gov.in/', platformFee: 49, baseFeeOverride: 15, processingTime: '7-15 days', department: 'Revenue Department' },
+  { code: 'MH', name: 'Maharashtra', portalUrl: 'https://aaplesarkar.mahaonline.gov.in/en', platformFee: 49, baseFeeOverride: 15, processingTime: '7-15 days', department: 'Revenue Department' },
   { code: 'KA', name: 'Karnataka', portalUrl: 'https://sevasindhu.karnataka.gov.in/', platformFee: 49, baseFeeOverride: 20, processingTime: '10-20 days', department: 'Revenue Department' },
   { code: 'DL', name: 'Delhi', portalUrl: 'https://edistrict.delhigovt.nic.in/', platformFee: 49, baseFeeOverride: 15, processingTime: '7-12 days', department: 'SDM Office' },
-  { code: 'UP', name: 'Uttar Pradesh', portalUrl: 'https://edistrict.up.gov.in/', platformFee: 49, baseFeeOverride: 10, processingTime: '10-15 days', department: 'Tehsildar' },
-  { code: 'TN', name: 'Tamil Nadu', portalUrl: 'https://www.tnesevai.tn.gov.in/', platformFee: 49, baseFeeOverride: 12, processingTime: '8-14 days', department: 'Revenue Department' },
-  { code: 'GJ', name: 'Gujarat', portalUrl: 'https://digitalgujarat.gov.in/', platformFee: 49, baseFeeOverride: 15, processingTime: '7-14 days', department: 'Revenue Department' },
+  { code: 'UP', name: 'Uttar Pradesh', portalUrl: 'https://edistrict.up.gov.in/edistrict/up/', platformFee: 49, baseFeeOverride: 10, processingTime: '10-15 days', department: 'Tehsildar' },
+  { code: 'TN', name: 'Tamil Nadu', portalUrl: 'https://www.tnesevai.tn.gov.in/Citizen/PortalLogin.aspx', platformFee: 49, baseFeeOverride: 12, processingTime: '8-14 days', department: 'Revenue Department' },
+  { code: 'GJ', name: 'Gujarat', portalUrl: 'https://www.digitalgujarat.gov.in/', platformFee: 49, baseFeeOverride: 15, processingTime: '7-14 days', department: 'Revenue Department' },
+  { code: 'RJ', name: 'Rajasthan', portalUrl: 'https://emitra.rajasthan.gov.in/', platformFee: 49, baseFeeOverride: 15, processingTime: '7-15 days', department: 'Revenue Department' },
+  { code: 'WB', name: 'West Bengal', portalUrl: 'https://edistrict.wb.gov.in/', platformFee: 49, baseFeeOverride: 12, processingTime: '10-15 days', department: 'Revenue Department' },
+  { code: 'AP', name: 'Andhra Pradesh', portalUrl: 'https://meeseva.ap.gov.in/', platformFee: 49, baseFeeOverride: 12, processingTime: '8-14 days', department: 'Revenue Department' },
+  { code: 'TS', name: 'Telangana', portalUrl: 'https://ts.meeseva.telangana.gov.in/meeseva/', platformFee: 49, baseFeeOverride: 12, processingTime: '8-14 days', department: 'Revenue Department' },
+  { code: 'KL', name: 'Kerala', portalUrl: 'https://ecitizen.kerala.gov.in/', platformFee: 49, baseFeeOverride: 12, processingTime: '7-14 days', department: 'Revenue Department' },
+  { code: 'PB', name: 'Punjab', portalUrl: 'https://eservices.punjab.gov.in/', platformFee: 49, baseFeeOverride: 12, processingTime: '7-14 days', department: 'Revenue Department' },
+  { code: 'HR', name: 'Haryana', portalUrl: 'https://saralharyana.gov.in/', platformFee: 49, baseFeeOverride: 12, processingTime: '7-14 days', department: 'Revenue Department' },
+  { code: 'MP', name: 'Madhya Pradesh', portalUrl: 'https://mpedistrict.gov.in/', platformFee: 49, baseFeeOverride: 12, processingTime: '10-15 days', department: 'Revenue Department' },
+  { code: 'BR', name: 'Bihar', portalUrl: 'https://serviceonline.bihar.gov.in/', platformFee: 49, baseFeeOverride: 10, processingTime: '10-15 days', department: 'Revenue Department' },
+  { code: 'OR', name: 'Odisha', portalUrl: 'https://sujog.odisha.gov.in/', platformFee: 49, baseFeeOverride: 12, processingTime: '7-14 days', department: 'Revenue Department' },
+  { code: 'CG', name: 'Chhattisgarh', portalUrl: 'https://edistrict.cgstate.gov.in/', platformFee: 49, baseFeeOverride: 12, processingTime: '7-14 days', department: 'Revenue Department' },
+  { code: 'JH', name: 'Jharkhand', portalUrl: 'https://jharkhand.gov.in/jharsewa', platformFee: 49, baseFeeOverride: 12, processingTime: '10-15 days', department: 'Revenue Department' },
+  { code: 'UK', name: 'Uttarakhand', portalUrl: 'https://edistrict.uk.gov.in/', platformFee: 49, baseFeeOverride: 12, processingTime: '7-14 days', department: 'Revenue Department' },
+  { code: 'HP', name: 'Himachal Pradesh', portalUrl: 'https://edistrict.hp.gov.in/', platformFee: 49, baseFeeOverride: 12, processingTime: '7-14 days', department: 'Revenue Department' },
+  { code: 'AS', name: 'Assam', portalUrl: 'https://sewasetu.assam.gov.in/', platformFee: 49, baseFeeOverride: 12, processingTime: '10-15 days', department: 'Revenue Department' },
 ];
 
-const RTO_STATES: StatePortalSeed[] = [
-  { code: 'MH', name: 'Maharashtra', portalUrl: 'https://parivahan.gov.in/', platformFee: 49, baseFeeOverride: 200, processingTime: '7-14 days', department: 'Regional Transport Office' },
-  { code: 'KA', name: 'Karnataka', portalUrl: 'https://parivahan.gov.in/', platformFee: 49, baseFeeOverride: 200, processingTime: '7-14 days', department: 'Regional Transport Office' },
-  { code: 'DL', name: 'Delhi', portalUrl: 'https://parivahan.gov.in/', platformFee: 49, baseFeeOverride: 200, processingTime: '5-10 days', department: 'Regional Transport Office' },
-  { code: 'UP', name: 'Uttar Pradesh', portalUrl: 'https://parivahan.gov.in/', platformFee: 49, baseFeeOverride: 180, processingTime: '10-15 days', department: 'Regional Transport Office' },
+const RTO_DL_STATES: StatePortalSeed[] = [
+  { code: 'MH', name: 'Maharashtra', portalUrl: OFFICIAL.sarathiDl, platformFee: 49, baseFeeOverride: 200, processingTime: '7-14 days', department: 'Regional Transport Office' },
+  { code: 'KA', name: 'Karnataka', portalUrl: OFFICIAL.sarathiDl, platformFee: 49, baseFeeOverride: 200, processingTime: '7-14 days', department: 'Regional Transport Office' },
+  { code: 'DL', name: 'Delhi', portalUrl: OFFICIAL.sarathiDl, platformFee: 49, baseFeeOverride: 200, processingTime: '5-10 days', department: 'Regional Transport Office' },
+  { code: 'UP', name: 'Uttar Pradesh', portalUrl: OFFICIAL.sarathiDl, platformFee: 49, baseFeeOverride: 180, processingTime: '10-15 days', department: 'Regional Transport Office' },
+  { code: 'TN', name: 'Tamil Nadu', portalUrl: OFFICIAL.sarathiDl, platformFee: 49, baseFeeOverride: 200, processingTime: '7-14 days', department: 'Regional Transport Office' },
+  { code: 'GJ', name: 'Gujarat', portalUrl: OFFICIAL.sarathiDl, platformFee: 49, baseFeeOverride: 200, processingTime: '7-14 days', department: 'Regional Transport Office' },
 ];
+
+const RTO_VEHICLE_STATES: StatePortalSeed[] = RTO_DL_STATES.map(state => ({
+  ...state,
+  portalUrl: OFFICIAL.vahanVehicle,
+}));
 
 function applicantFields(extra: FormFieldSeed[] = []): FormFieldSeed[] {
   return [
@@ -112,7 +151,7 @@ export const GOVERNMENT_SERVICES_CATALOG: MainServiceSeed[] = [
         baseFee: 107,
         serviceFee: 199,
         requiresState: false,
-        defaultPortalUrl: 'https://www.onlineservices.nsdl.com/paam/endUserRegisterContact.html',
+        defaultPortalUrl: OFFICIAL.panApply,
         defaultPlatformFee: 49,
         manualInstructions: 'Complete the application on the official NSDL portal and save your acknowledgment number.',
         formFields: [
@@ -137,7 +176,7 @@ export const GOVERNMENT_SERVICES_CATALOG: MainServiceSeed[] = [
         baseFee: 50,
         serviceFee: 149,
         requiresState: false,
-        defaultPortalUrl: 'https://myaadhaar.uidai.gov.in/',
+        defaultPortalUrl: OFFICIAL.aadhaarMy,
         defaultPlatformFee: 39,
         manualInstructions: 'Login with your Aadhaar on the official UIDAI portal to update details.',
         formFields: [
@@ -160,7 +199,7 @@ export const GOVERNMENT_SERVICES_CATALOG: MainServiceSeed[] = [
         baseFee: 0,
         serviceFee: 149,
         requiresState: false,
-        defaultPortalUrl: 'https://voters.eci.gov.in/',
+        defaultPortalUrl: OFFICIAL.voterNvsp,
         defaultPlatformFee: 49,
         manualInstructions: 'Complete Form 6 on the NVSP portal for new registration.',
         formFields: applicantFields([
@@ -328,6 +367,11 @@ export const GOVERNMENT_SERVICES_CATALOG: MainServiceSeed[] = [
         department: 'Municipal Corporation / Registrar',
         baseFee: 25,
         serviceFee: 199,
+        requiresState: false,
+        defaultPortalUrl: OFFICIAL.crsCivilRecords,
+        defaultPlatformFee: 49,
+        statePortals: [],
+        manualInstructions: 'Register on the CRS portal and apply for birth certificate with hospital records.',
         formFields: [
           { label: 'Child Full Name', key: 'child_name', type: 'TEXT', required: true },
           { label: 'Date of Birth', key: 'date_of_birth', type: 'DATE', required: true },
@@ -350,6 +394,11 @@ export const GOVERNMENT_SERVICES_CATALOG: MainServiceSeed[] = [
         department: 'Municipal Corporation / Registrar',
         baseFee: 25,
         serviceFee: 199,
+        requiresState: false,
+        defaultPortalUrl: OFFICIAL.crsCivilRecords,
+        defaultPlatformFee: 49,
+        statePortals: [],
+        manualInstructions: 'Register on the CRS portal and apply for death certificate with hospital records.',
         formFields: [
           { label: 'Deceased Full Name', key: 'deceased_name', type: 'TEXT', required: true },
           { label: 'Date of Death', key: 'date_of_death', type: 'DATE', required: true },
@@ -372,6 +421,11 @@ export const GOVERNMENT_SERVICES_CATALOG: MainServiceSeed[] = [
         department: 'Registrar of Marriages',
         baseFee: 50,
         serviceFee: 249,
+        requiresState: false,
+        defaultPortalUrl: OFFICIAL.crsCivilRecords,
+        defaultPlatformFee: 49,
+        statePortals: [],
+        manualInstructions: 'Register marriage on the CRS portal with both spouses identity proofs.',
         formFields: [
           { label: 'Husband Full Name', key: 'husband_name', type: 'TEXT', required: true },
           { label: 'Wife Full Name', key: 'wife_name', type: 'TEXT', required: true },
@@ -402,9 +456,9 @@ export const GOVERNMENT_SERVICES_CATALOG: MainServiceSeed[] = [
         baseFee: 200,
         serviceFee: 299,
         requiresState: true,
-        defaultPortalUrl: 'https://parivahan.gov.in/',
+        defaultPortalUrl: OFFICIAL.sarathiDl,
         defaultPlatformFee: 49,
-        statePortals: RTO_STATES,
+        statePortals: RTO_DL_STATES,
         manualInstructions: 'Login to Parivahan Sewa, select DL renewal and complete payment.',
         formFields: applicantFields([
           { label: 'Driving Licence Number', key: 'dl_number', type: 'TEXT', required: true },
@@ -425,9 +479,9 @@ export const GOVERNMENT_SERVICES_CATALOG: MainServiceSeed[] = [
         baseFee: 150,
         serviceFee: 249,
         requiresState: true,
-        defaultPortalUrl: 'https://parivahan.gov.in/',
+        defaultPortalUrl: OFFICIAL.sarathiDl,
         defaultPlatformFee: 49,
-        statePortals: RTO_STATES,
+        statePortals: RTO_DL_STATES,
         formFields: applicantFields([
           { label: 'Date of Birth', key: 'date_of_birth', type: 'DATE', required: true },
           { label: 'Vehicle Class', key: 'vehicle_class', type: 'TEXT', required: true, placeholder: 'LMV / MCWG' },
@@ -448,9 +502,9 @@ export const GOVERNMENT_SERVICES_CATALOG: MainServiceSeed[] = [
         baseFee: 600,
         serviceFee: 499,
         requiresState: true,
-        defaultPortalUrl: 'https://parivahan.gov.in/',
+        defaultPortalUrl: OFFICIAL.vahanVehicle,
         defaultPlatformFee: 49,
-        statePortals: RTO_STATES,
+        statePortals: RTO_VEHICLE_STATES,
         formFields: applicantFields([
           { label: 'Vehicle Class', key: 'vehicle_class', type: 'TEXT', required: true },
           { label: 'Chassis Number', key: 'chassis_number', type: 'TEXT', required: true },
@@ -471,9 +525,9 @@ export const GOVERNMENT_SERVICES_CATALOG: MainServiceSeed[] = [
         baseFee: 300,
         serviceFee: 349,
         requiresState: true,
-        defaultPortalUrl: 'https://parivahan.gov.in/',
+        defaultPortalUrl: OFFICIAL.vahanVehicle,
         defaultPlatformFee: 49,
-        statePortals: RTO_STATES,
+        statePortals: RTO_VEHICLE_STATES,
         formFields: applicantFields([
           { label: 'Registration Number', key: 'registration_number', type: 'TEXT', required: true },
           { label: 'Reason for Duplicate', key: 'reason', type: 'TEXT', required: true, placeholder: 'Lost / Damaged' },
@@ -519,7 +573,7 @@ export const GOVERNMENT_SERVICES_CATALOG: MainServiceSeed[] = [
         baseFee: 0,
         serviceFee: 249,
         requiresState: false,
-        defaultPortalUrl: 'https://www.swavlambancard.gov.in/',
+        defaultPortalUrl: OFFICIAL.udidDisability,
         formFields: applicantFields([
           { label: 'Type of Disability', key: 'disability_type', type: 'TEXT', required: true },
           { label: 'Percentage of Disability', key: 'disability_percentage', type: 'NUMBER', required: false },
@@ -562,7 +616,7 @@ export const GOVERNMENT_SERVICES_CATALOG: MainServiceSeed[] = [
         baseFee: 0,
         serviceFee: 199,
         requiresState: true,
-        defaultPortalUrl: 'https://pmaymis.gov.in/',
+        defaultPortalUrl: OFFICIAL.pmay,
         defaultPlatformFee: 49,
         statePortals: COMMON_STATES.map(s => ({
           ...s,
@@ -619,7 +673,7 @@ export const GOVERNMENT_SERVICES_CATALOG: MainServiceSeed[] = [
         baseFee: 0,
         serviceFee: 149,
         requiresState: false,
-        defaultPortalUrl: 'https://pmkisan.gov.in/',
+        defaultPortalUrl: OFFICIAL.pmKisan,
         defaultPlatformFee: 39,
         formFields: applicantFields([
           { label: 'Aadhaar Number', key: 'aadhaar_number', type: 'TEXT', required: true },
@@ -669,7 +723,7 @@ export const GOVERNMENT_SERVICES_CATALOG: MainServiceSeed[] = [
         baseFee: 0,
         serviceFee: 149,
         requiresState: false,
-        defaultPortalUrl: 'https://eshram.gov.in/',
+        defaultPortalUrl: OFFICIAL.eshramRegister,
         formFields: applicantFields([
           { label: 'Occupation', key: 'occupation', type: 'TEXT', required: true },
           { label: 'Years of Experience', key: 'experience_years', type: 'NUMBER', required: false },
@@ -784,7 +838,7 @@ export const GOVERNMENT_SERVICES_CATALOG: MainServiceSeed[] = [
         baseFee: 0,
         serviceFee: 199,
         requiresState: false,
-        defaultPortalUrl: 'https://scholarships.gov.in/',
+        defaultPortalUrl: OFFICIAL.nspScholarship,
         formFields: [
           { label: 'Student Full Name', key: 'student_name', type: 'TEXT', required: true },
           { label: 'Institution Name', key: 'institution_name', type: 'TEXT', required: true },

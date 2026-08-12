@@ -9,6 +9,10 @@ export const TAB_BAR_VERTICAL_PADDING = spacing.md * 2;
 /** Gap between tab bar and screen bottom (see CustomTabBar wrapper). */
 export const TAB_BAR_BOTTOM_OFFSET = spacing.xs;
 
+/** Default large button height (`Button` size `lg`). */
+export const FIXED_FOOTER_BUTTON_HEIGHT = 56;
+export const FIXED_FOOTER_PADDING_TOP = spacing.md;
+
 /** Total height reserved by the floating bottom tab bar. */
 export function getTabBarHeight(insets: EdgeInsets): number {
   return (
@@ -20,7 +24,7 @@ export function getTabBarHeight(insets: EdgeInsets): number {
   );
 }
 
-/** Bottom padding for scroll views on tab screens so CTAs stay above the nav bar. */
+/** Bottom padding for scroll views on tab screens (no pinned footer). */
 export function getScrollBottomPadding(
   insets: EdgeInsets,
   extra: number = spacing['2xl'],
@@ -28,20 +32,14 @@ export function getScrollBottomPadding(
   return getTabBarHeight(insets) + extra;
 }
 
-/** Bottom padding for fixed footers on tab screens (footer + tab bar). */
+/** Bottom inset for pinned footers sitting above the tab bar. */
 export function getTabFooterPadding(insets: EdgeInsets): number {
   return getTabBarHeight(insets) + spacing.lg;
 }
 
-/** Bottom padding for fixed footers on stack screens inside the tab navigator. */
+/** Alias — nested tab stacks use the same tab-bar clearance as tab-root footers. */
 export function getNestedStackFooterPadding(insets: EdgeInsets): number {
-  return (
-    insets.bottom +
-    TAB_BAR_BOTTOM_OFFSET +
-    TAB_BAR_MIN_HEIGHT +
-    TAB_BAR_VERTICAL_PADDING +
-    spacing.lg
-  );
+  return getTabFooterPadding(insets);
 }
 
 /** Bottom padding for full-screen stack screens (no tab bar). */
@@ -50,6 +48,24 @@ export function getScreenBottomPadding(
   extra: number = spacing['2xl'],
 ): number {
   return insets.bottom + extra;
+}
+
+/** Visual height of a pinned footer bar (padding + primary button). */
+export function getFixedFooterBarHeight(
+  extraContentHeight: number = 0,
+): number {
+  return FIXED_FOOTER_PADDING_TOP + FIXED_FOOTER_BUTTON_HEIGHT + extraContentHeight;
+}
+
+/**
+ * Scroll padding when the primary action scrolls with content (button inside ScrollView).
+ * Ensures the last item clears the floating tab bar.
+ */
+export function getScrollPaddingWithInlineAction(
+  insets: EdgeInsets,
+  extra: number = spacing.lg,
+): number {
+  return getScrollBottomPadding(insets, extra);
 }
 
 /** Responsive grid column width for 2-up cards. */

@@ -97,3 +97,73 @@ export function formatServiceFee(baseFee: string, currency = 'INR'): string {
   if (!amount) return 'Free';
   return currency === 'INR' ? `₹${amount}` : `${currency} ${amount}`;
 }
+
+export type CatalogSearchHit = {
+  categoryId: string;
+  categoryName: string;
+  categorySlug: string;
+  optionId: string;
+  optionName: string;
+  description?: string;
+};
+
+/** Flat search across main categories and sub-services. */
+export function searchCatalog(
+  catalog: MainServiceCatalogItem[],
+  query: string,
+): CatalogSearchHit[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return [];
+
+  const hits: CatalogSearchHit[] = [];
+  for (const main of catalog) {
+    const mainMatch =
+      main.name.toLowerCase().includes(q) ||
+      main.slug.toLowerCase().includes(q) ||
+      (main.description?.toLowerCase().includes(q) ?? false);
+
+    for (const sub of main.subServices) {
+      const subMatch =
+        sub.displayName.toLowerCase().includes(q) ||
+        sub.name.toLowerCase().includes(q) ||
+        (sub.shortDescription?.toLowerCase().includes(q) ?? false) ||
+        (sub.description?.toLowerCase().includes(q) ?? false);
+
+      if (mainMatch || subMatch) {
+        hits.push({
+          categoryId: main.id,
+          categoryName: main.name,
+          categorySlug: main.slug,
+          optionId: sub.id,
+          optionName: sub.displayName,
+          description: sub.shortDescription ?? sub.description ?? undefined,
+        });
+      }
+    }
+  }
+  return hits;
+}
+
+export function filterCatalogBySearch(
+  catalog: MainServiceCatalogItem[],
+  query: string,
+): MainServiceCatalogItem[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return catalog;
+
+  return catalog.filter(main => {
+    if (
+      main.name.toLowerCase().includes(q) ||
+      main.slug.toLowerCase().includes(q) ||
+      (main.description?.toLowerCase().includes(q) ?? false)
+    ) {
+      return true;
+    }
+    return main.subServices.some(
+      sub =>
+        sub.displayName.toLowerCase().includes(q) ||
+        sub.name.toLowerCase().includes(q) ||
+        (sub.shortDescription?.toLowerCase().includes(q) ?? false),
+    );
+  });
+}

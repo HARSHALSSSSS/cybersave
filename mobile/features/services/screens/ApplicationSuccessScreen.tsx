@@ -18,7 +18,7 @@ import { Button } from '@components/Button';
 import { CheckCircleIcon } from '@components/icons';
 import { applicationsApi, applicationsQueryKeys } from '@services/api';
 import { useTranslation } from '@/i18n';
-import { getTabFooterPadding } from '@utils/layout';
+import { getScrollBottomPadding } from '@utils/layout';
 
 type Props = NativeStackScreenProps<
   ServicesStackParamList,
@@ -46,7 +46,9 @@ export const ApplicationSuccessScreen: React.FC<Props> = ({
           flex: 1,
           paddingTop: insets.top + theme.spacing['4xl'],
           paddingHorizontal: theme.spacing['2xl'],
-          paddingBottom: getTabFooterPadding(insets),
+        },
+        scrollContent: {
+          paddingBottom: getScrollBottomPadding(insets, theme.spacing['3xl']),
         },
         iconWrap: {
           alignSelf: 'center',
@@ -168,7 +170,9 @@ export const ApplicationSuccessScreen: React.FC<Props> = ({
     <LinearGradient
       colors={[theme.colors.gradientHeaderStart, theme.colors.gradientHeaderEnd]}
       style={styles.gradient}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}>
         <View style={styles.iconWrap}>
           <CheckCircleIcon color={theme.colors.primary} size={44} />
         </View>

@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
-import { Dimensions, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '@app/providers/ThemeProvider';
+import { useTwoColumnCardWidth } from '@/hooks/useTwoColumnCardWidth';
 import { ServiceIcon } from './ServiceIcon';
 
 type ServiceOptionCardProps = {
@@ -15,8 +16,6 @@ type ServiceOptionCardProps = {
   variant?: 'grid' | 'certificate';
 };
 
-const SCREEN_WIDTH = Dimensions.get('window').width;
-
 export const ServiceOptionCard: React.FC<ServiceOptionCardProps> = ({
   title,
   description,
@@ -29,53 +28,52 @@ export const ServiceOptionCard: React.FC<ServiceOptionCardProps> = ({
   variant = 'grid',
 }) => {
   const { theme } = useTheme();
+  const cardWidth = useTwoColumnCardWidth();
 
-  const styles = useMemo(() => {
-    const horizontalPadding = theme.spacing['2xl'] * 2;
-    const gap = theme.spacing.md;
-    const cardWidth = (SCREEN_WIDTH - horizontalPadding - gap) / 2;
-
-    return StyleSheet.create({
-      card: {
-        width: cardWidth,
-        padding: theme.spacing.lg,
-        borderRadius: theme.radius.lg,
-        borderWidth: 1,
-        borderColor: theme.colors.border,
-        backgroundColor: theme.colors.surface,
-        ...theme.shadows.sm,
-      },
-      iconWrap: {
-        width: 44,
-        height: 44,
-        borderRadius: theme.radius.full,
-        alignItems: 'center',
-        justifyContent: 'center',
-        alignSelf: 'center',
-        marginBottom: theme.spacing.sm,
-      },
-      title: {
-        ...theme.typography.labelMedium,
-        color: theme.colors.textPrimary,
-        textAlign: 'center',
-      },
-      description: {
-        ...theme.typography.caption,
-        letterSpacing: 0,
-        color: theme.colors.textSecondary,
-        textAlign: 'center',
-        marginTop: 4,
-        lineHeight: 16,
-      },
-      meta: {
-        ...theme.typography.caption,
-        letterSpacing: 0,
-        color: theme.colors.textSecondary,
-        textAlign: 'center',
-        marginTop: theme.spacing.xs,
-      },
-    });
-  }, [theme]);
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        card: {
+          width: cardWidth,
+          padding: theme.spacing.lg,
+          borderRadius: theme.radius.lg,
+          borderWidth: 1,
+          borderColor: theme.colors.border,
+          backgroundColor: theme.colors.surface,
+          ...theme.shadows.sm,
+        },
+        iconWrap: {
+          width: 44,
+          height: 44,
+          borderRadius: theme.radius.full,
+          alignItems: 'center',
+          justifyContent: 'center',
+          alignSelf: 'center',
+          marginBottom: theme.spacing.sm,
+        },
+        title: {
+          ...theme.typography.labelMedium,
+          color: theme.colors.textPrimary,
+          textAlign: 'center',
+        },
+        description: {
+          ...theme.typography.caption,
+          letterSpacing: 0,
+          color: theme.colors.textSecondary,
+          textAlign: 'center',
+          marginTop: 4,
+          lineHeight: 16,
+        },
+        meta: {
+          ...theme.typography.caption,
+          letterSpacing: 0,
+          color: theme.colors.textSecondary,
+          textAlign: 'center',
+          marginTop: theme.spacing.xs,
+        },
+      }),
+    [cardWidth, theme],
+  );
 
   return (
     <Pressable

@@ -2,23 +2,21 @@ import React, { useCallback, useMemo } from 'react';
 import {
   ActivityIndicator,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useQuery } from '@tanstack/react-query';
 import { ServicesStackParamList } from '@/types/navigation';
 import { useTheme } from '@app/providers/ThemeProvider';
 import { Button } from '@components/Button';
+import { TabStackScreenLayout } from '@components/layout';
 import { FileDocIcon } from '@components/icons';
 import { ServiceHubHeader } from '@features/services/components';
 import { goBackInServicesStack } from '@features/services/utils/navigateToService';
 import { applicationsApi, applicationsQueryKeys, servicesApi, servicesQueryKeys } from '@services/api';
 import { useTranslation } from '@/i18n';
-import { getTabFooterPadding } from '@utils/layout';
 
 type Props = NativeStackScreenProps<
   ServicesStackParamList,
@@ -32,7 +30,6 @@ export const ReviewApplicationScreen: React.FC<Props> = ({
   const { categoryId, optionId, applicationId, stateCode, stateName } =
     route.params;
   const { theme } = useTheme();
-  const insets = useSafeAreaInsets();
   const { t } = useTranslation();
 
   const { data: application, isLoading } = useQuery({
@@ -59,19 +56,6 @@ export const ReviewApplicationScreen: React.FC<Props> = ({
   const styles = useMemo(
     () =>
       StyleSheet.create({
-        container: {
-          flex: 1,
-          backgroundColor: theme.colors.backgroundSecondary,
-        },
-        content: {
-          flex: 1,
-          backgroundColor: theme.colors.surface,
-          borderTopLeftRadius: theme.radius['3xl'],
-          borderTopRightRadius: theme.radius['3xl'],
-          marginTop: -theme.spacing.lg,
-          paddingHorizontal: theme.spacing['2xl'],
-          paddingTop: theme.spacing['2xl'],
-        },
         pageTitle: {
           ...theme.typography.headingSmall,
           color: theme.colors.textPrimary,
@@ -141,16 +125,14 @@ export const ReviewApplicationScreen: React.FC<Props> = ({
           ...theme.typography.labelLarge,
           color: theme.colors.primary,
         },
-        footer: {
-          paddingBottom: getTabFooterPadding(insets),
-        },
         center: {
           flex: 1,
           alignItems: 'center',
           justifyContent: 'center',
+          backgroundColor: theme.colors.backgroundSecondary,
         },
       }),
-    [theme, insets],
+    [theme],
   );
 
   const handlePayment = useCallback(() => {
@@ -168,7 +150,7 @@ export const ReviewApplicationScreen: React.FC<Props> = ({
 
   if (isLoading || !application) {
     return (
-      <View style={styles.container}>
+      <View style={{ flex: 1, backgroundColor: theme.colors.backgroundSecondary }}>
         <ServiceHubHeader title={t.services.reviewDetails} showBack onBack={() => goBackInServicesStack(navigation)} />
         <View style={styles.center}>
           <ActivityIndicator color={theme.colors.primary} />
@@ -182,103 +164,100 @@ export const ReviewApplicationScreen: React.FC<Props> = ({
     application.serviceVersion.subService.name;
 
   return (
-    <View style={styles.container}>
-      <ServiceHubHeader
-        title={t.services.reviewDetails}
-        showBack
-        onBack={() => goBackInServicesStack(navigation)}
-        step={3}
-        totalSteps={5}
-      />
-
-      <ScrollView
-        style={styles.content}
-        contentContainerStyle={styles.footer}
-        showsVerticalScrollIndicator={false}>
-        <Text style={styles.pageTitle}>{t.services.review}</Text>
-
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>{t.services.formDetails}</Text>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() =>
-                navigation.navigate('ApplyService', {
-                  categoryId,
-                  optionId,
-                  applicationId,
-                  stateCode,
-                  stateName,
-                })
-              }>
-              <Text style={styles.edit}>{t.common.edit}</Text>
-            </Pressable>
-          </View>
-          {application.fieldValues.map(fv => (
-            <View key={fv.id} style={styles.row}>
-              <Text style={styles.label}>{fv.fieldKey}</Text>
-              <Text style={styles.value}>{String(fv.value ?? '—')}</Text>
-            </View>
-          ))}
-        </View>
-
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>{t.services.uploadedDocuments}</Text>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() =>
-                navigation.navigate('UploadProofs', {
-                  categoryId,
-                  optionId,
-                  applicationId,
-                  stateCode,
-                  stateName,
-                })
-              }>
-              <Text style={styles.edit}>{t.common.edit}</Text>
-            </Pressable>
-          </View>
-          {(application.documents as Array<{ id: string; documentRequirement?: { name: string } }>).map(
-            doc => (
-              <View key={doc.id} style={styles.docRow}>
-                <FileDocIcon color={theme.colors.primary} />
-                <Text style={styles.docName}>
-                  {doc.documentRequirement?.name ?? t.services.documentFallback}
-                </Text>
-              </View>
-            ),
-          )}
-          {application.documents.length === 0 ? (
-            <Text style={styles.label}>{t.services.noDocumentsUploaded}</Text>
-          ) : null}
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>{t.services.paymentSummary}</Text>
-          <View style={styles.row}>
-            <Text style={styles.label}>{t.services.serviceLabel}</Text>
-            <Text style={styles.value}>{serviceName}</Text>
-          </View>
-          {config?.pricing?.platformFee && Number(config.pricing.platformFee) > 0 ? (
-            <View style={styles.row}>
-              <Text style={styles.label}>{t.services.platformFee}</Text>
-              <Text style={styles.value}>₹{Number(config.pricing.platformFee).toFixed(2)}</Text>
-            </View>
-          ) : null}
-          <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>{t.services.totalPayable}</Text>
-            <Text style={styles.totalValue}>
-              {totalAmount > 0 ? `₹${totalAmount.toFixed(2)}` : t.common.free}
-            </Text>
-          </View>
-        </View>
-
+    <TabStackScreenLayout
+      header={
+        <ServiceHubHeader
+          title={t.services.reviewDetails}
+          showBack
+          onBack={() => goBackInServicesStack(navigation)}
+          step={3}
+          totalSteps={5}
+        />
+      }
+      footer={
         <Button
           title={totalAmount > 0 ? t.services.proceedPayment : t.services.submitApp}
           onPress={handlePayment}
         />
-      </ScrollView>
-    </View>
+      }>
+      <Text style={styles.pageTitle}>{t.services.review}</Text>
+
+      <View style={styles.card}>
+        <View style={styles.cardHeader}>
+          <Text style={styles.cardTitle}>{t.services.formDetails}</Text>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() =>
+              navigation.navigate('ApplyService', {
+                categoryId,
+                optionId,
+                applicationId,
+                stateCode,
+                stateName,
+              })
+            }>
+            <Text style={styles.edit}>{t.common.edit}</Text>
+          </Pressable>
+        </View>
+        {application.fieldValues.map(fv => (
+          <View key={fv.id} style={styles.row}>
+            <Text style={styles.label}>{fv.fieldKey}</Text>
+            <Text style={styles.value}>{String(fv.value ?? '—')}</Text>
+          </View>
+        ))}
+      </View>
+
+      <View style={styles.card}>
+        <View style={styles.cardHeader}>
+          <Text style={styles.cardTitle}>{t.services.uploadedDocuments}</Text>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() =>
+              navigation.navigate('UploadProofs', {
+                categoryId,
+                optionId,
+                applicationId,
+                stateCode,
+                stateName,
+              })
+            }>
+            <Text style={styles.edit}>{t.common.edit}</Text>
+          </Pressable>
+        </View>
+        {(application.documents as Array<{ id: string; documentRequirement?: { name: string } }>).map(
+          doc => (
+            <View key={doc.id} style={styles.docRow}>
+              <FileDocIcon color={theme.colors.primary} />
+              <Text style={styles.docName}>
+                {doc.documentRequirement?.name ?? t.services.documentFallback}
+              </Text>
+            </View>
+          ),
+        )}
+        {application.documents.length === 0 ? (
+          <Text style={styles.label}>{t.services.noDocumentsUploaded}</Text>
+        ) : null}
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>{t.services.paymentSummary}</Text>
+        <View style={styles.row}>
+          <Text style={styles.label}>{t.services.serviceLabel}</Text>
+          <Text style={styles.value}>{serviceName}</Text>
+        </View>
+        {config?.pricing?.platformFee && Number(config.pricing.platformFee) > 0 ? (
+          <View style={styles.row}>
+            <Text style={styles.label}>{t.services.platformFee}</Text>
+            <Text style={styles.value}>₹{Number(config.pricing.platformFee).toFixed(2)}</Text>
+          </View>
+        ) : null}
+        <View style={styles.totalRow}>
+          <Text style={styles.totalLabel}>{t.services.totalPayable}</Text>
+          <Text style={styles.totalValue}>
+            {totalAmount > 0 ? `₹${totalAmount.toFixed(2)}` : t.common.free}
+          </Text>
+        </View>
+      </View>
+    </TabStackScreenLayout>
   );
 };

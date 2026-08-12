@@ -181,7 +181,11 @@ export const HelpSupportScreen: React.FC<Props> = ({ navigation }) => {
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.searchWrap}>
-          <SearchBar placeholder={t.profile.searchHelp} editable={false} />
+          <SearchBar
+            placeholder={t.profile.searchHelp}
+            editable={false}
+            onPress={() => navigation.navigate('FAQSupport')}
+          />
         </View>
 
         <View style={styles.openTicketWrap}>

@@ -297,6 +297,21 @@ export const GovernmentSchemesScreen: React.FC<Props> = ({ navigation }) => {
   const listHeader = useMemo(
     () => (
       <>
+        <View style={styles.searchWrapper}>
+          <SearchBar
+            placeholder={t.home.searchSchemes}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            returnKeyType="search"
+          />
+        </View>
+
+        <FilterChips
+          filters={schemeFilters}
+          active={activeFilter}
+          onChange={setActiveFilter}
+        />
+
         {linkedBanners.length > 0 ? (
           <>
             <Text style={styles.sectionLabel}>{t.home.featuredSchemes}</Text>
@@ -316,7 +331,19 @@ export const GovernmentSchemesScreen: React.FC<Props> = ({ navigation }) => {
         ) : null}
       </>
     ),
-    [goToServiceDetail, linkedBanners, styles.bannerSection, styles.sectionLabel, t.home.allSchemes, t.home.featuredSchemes],
+    [
+      activeFilter,
+      goToServiceDetail,
+      linkedBanners,
+      schemeFilters,
+      searchQuery,
+      styles.bannerSection,
+      styles.searchWrapper,
+      styles.sectionLabel,
+      t.home.allSchemes,
+      t.home.featuredSchemes,
+      t.home.searchSchemes,
+    ],
   );
 
   return (
@@ -337,27 +364,29 @@ export const GovernmentSchemesScreen: React.FC<Props> = ({ navigation }) => {
       </LinearGradient>
 
       <View style={styles.content}>
-        <View style={styles.searchWrapper}>
-          <SearchBar
-            placeholder={t.home.searchSchemes}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-        </View>
-
-        <FilterChips
-          filters={schemeFilters}
-          active={activeFilter}
-          onChange={setActiveFilter}
-        />
-
         <FlatList
+          style={{ flex: 1 }}
           data={filtered}
           renderItem={renderItem}
           keyExtractor={item => item.id}
           ListHeaderComponent={listHeader}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
           contentContainerStyle={styles.listContent}
+          ListEmptyComponent={
+            <Text
+              style={{
+                ...theme.typography.bodyMedium,
+                color: theme.colors.textSecondary,
+                textAlign: 'center',
+                marginTop: theme.spacing['3xl'],
+                paddingHorizontal: theme.spacing['2xl'],
+              }}>
+              {searchQuery.trim()
+                ? t.services.noSearchResults
+                : t.home.noServices}
+            </Text>
+          }
         />
       </View>
     </View>

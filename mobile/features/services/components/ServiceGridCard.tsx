@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
-import { Dimensions, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '@app/providers/ThemeProvider';
+import { useTwoColumnCardWidth } from '@/hooks/useTwoColumnCardWidth';
 import { ServiceIcon } from './ServiceIcon';
 
 type ServiceGridCardProps = {
@@ -11,8 +12,6 @@ type ServiceGridCardProps = {
   onPress: () => void;
 };
 
-const SCREEN_WIDTH = Dimensions.get('window').width;
-
 export const ServiceGridCard: React.FC<ServiceGridCardProps> = ({
   label,
   icon,
@@ -21,41 +20,40 @@ export const ServiceGridCard: React.FC<ServiceGridCardProps> = ({
   onPress,
 }) => {
   const { theme } = useTheme();
+  const cardWidth = useTwoColumnCardWidth();
 
-  const styles = useMemo(() => {
-    const horizontalPadding = theme.spacing['2xl'] * 2;
-    const gap = theme.spacing.md;
-    const cardWidth = (SCREEN_WIDTH - horizontalPadding - gap) / 2;
-
-    return StyleSheet.create({
-      card: {
-        width: cardWidth,
-        aspectRatio: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: theme.spacing.lg,
-        paddingHorizontal: theme.spacing.md,
-        borderRadius: theme.radius.lg,
-        borderWidth: 1,
-        borderColor: theme.colors.border,
-        backgroundColor: theme.colors.surface,
-        ...theme.shadows.sm,
-      },
-      iconWrap: {
-        width: 52,
-        height: 52,
-        borderRadius: theme.radius.full,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: theme.spacing.sm,
-      },
-      label: {
-        ...theme.typography.labelMedium,
-        color: theme.colors.textPrimary,
-        textAlign: 'center',
-      },
-    });
-  }, [theme]);
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        card: {
+          width: cardWidth,
+          aspectRatio: 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+          paddingVertical: theme.spacing.lg,
+          paddingHorizontal: theme.spacing.md,
+          borderRadius: theme.radius.lg,
+          borderWidth: 1,
+          borderColor: theme.colors.border,
+          backgroundColor: theme.colors.surface,
+          ...theme.shadows.sm,
+        },
+        iconWrap: {
+          width: 52,
+          height: 52,
+          borderRadius: theme.radius.full,
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: theme.spacing.sm,
+        },
+        label: {
+          ...theme.typography.labelMedium,
+          color: theme.colors.textPrimary,
+          textAlign: 'center',
+        },
+      }),
+    [cardWidth, theme],
+  );
 
   return (
     <Pressable

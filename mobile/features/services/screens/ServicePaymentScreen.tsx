@@ -2,23 +2,21 @@ import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { ServicesStackParamList } from '@/types/navigation';
 import { useTheme } from '@app/providers/ThemeProvider';
 import { Button } from '@components/Button';
+import { TabStackScreenLayout } from '@components/layout';
 import { LockSmallIcon } from '@components/icons';
 import { ServiceHubHeader } from '@features/services/components';
 import { goBackInServicesStack } from '@features/services/utils/navigateToService';
 import { applicationsApi, applicationsQueryKeys, servicesApi, servicesQueryKeys } from '@services/api';
 import { useTranslation } from '@/i18n';
-import { getTabFooterPadding } from '@utils/layout';
 
 type Props = NativeStackScreenProps<ServicesStackParamList, 'ServicePayment'>;
 
@@ -32,7 +30,6 @@ export const ServicePaymentScreen: React.FC<Props> = ({
 }) => {
   const { categoryId, optionId, applicationId, stateCode } = route.params;
   const { theme } = useTheme();
-  const insets = useSafeAreaInsets();
   const { t, format } = useTranslation();
   const [idempotencyKey] = useState(randomIdempotencyKey);
 
@@ -79,39 +76,23 @@ export const ServicePaymentScreen: React.FC<Props> = ({
       });
     },
     onError: () => {
-      Alert.alert(
-        t.services.paymentFailed,
-        t.services.paymentFailedMessage,
-      );
+      Alert.alert(t.common.error, t.services.paymentFailed);
     },
   });
 
   const styles = useMemo(
     () =>
       StyleSheet.create({
-        container: {
-          flex: 1,
-          backgroundColor: theme.colors.backgroundSecondary,
-        },
-        content: {
-          flex: 1,
-          backgroundColor: theme.colors.surface,
-          borderTopLeftRadius: theme.radius['3xl'],
-          borderTopRightRadius: theme.radius['3xl'],
-          marginTop: -theme.spacing.lg,
-          paddingHorizontal: theme.spacing['2xl'],
-          paddingTop: theme.spacing['2xl'],
-        },
         billCard: {
           flexDirection: 'row',
           justifyContent: 'space-between',
           alignItems: 'center',
-          padding: theme.spacing.lg,
           borderRadius: theme.radius['2xl'],
-          backgroundColor: theme.colors.backgroundSecondary,
           borderWidth: 1,
           borderColor: theme.colors.border,
+          padding: theme.spacing.lg,
           marginBottom: theme.spacing.lg,
+          backgroundColor: theme.colors.surface,
           ...theme.shadows.sm,
         },
         billLabel: {
@@ -144,16 +125,14 @@ export const ServicePaymentScreen: React.FC<Props> = ({
           ...theme.typography.bodySmall,
           color: theme.colors.success,
         },
-        footer: {
-          paddingBottom: getTabFooterPadding(insets),
-        },
         center: {
           flex: 1,
           alignItems: 'center',
           justifyContent: 'center',
+          backgroundColor: theme.colors.backgroundSecondary,
         },
       }),
-    [theme, insets],
+    [theme],
   );
 
   const total = useMemo(() => {
@@ -179,7 +158,7 @@ export const ServicePaymentScreen: React.FC<Props> = ({
 
   if (isLoading || !application) {
     return (
-      <View style={styles.container}>
+      <View style={{ flex: 1, backgroundColor: theme.colors.backgroundSecondary }}>
         <ServiceHubHeader title={t.services.payment} showBack onBack={() => goBackInServicesStack(navigation)} />
         <View style={styles.center}>
           <ActivityIndicator color={theme.colors.primary} />
@@ -191,43 +170,18 @@ export const ServicePaymentScreen: React.FC<Props> = ({
   const isFree = total <= 0;
 
   return (
-    <View style={styles.container}>
-      <ServiceHubHeader
-        title={isFree ? t.services.submitApp : t.services.payment}
-        subtitle={t.services.secureGateway}
-        showBack
-        onBack={() => goBackInServicesStack(navigation)}
-        step={4}
-        totalSteps={5}
-      />
-
-      <ScrollView
-        style={styles.content}
-        contentContainerStyle={styles.footer}
-        showsVerticalScrollIndicator={false}>
-        <View style={styles.billCard}>
-          <View>
-            <Text style={styles.billLabel}>{t.services.applicationLabel}</Text>
-            <Text style={styles.billTitle}>{serviceName}</Text>
-          </View>
-          <Text style={styles.billAmount}>
-            {isFree ? t.common.free : `₹${total.toFixed(2)}`}
-          </Text>
-        </View>
-
-        <Text style={styles.note}>
-          {isFree
-            ? t.services.noPaymentRequired
-            : t.services.mockPaymentNote}
-        </Text>
-
-        <View style={styles.secure}>
-          <LockSmallIcon color={theme.colors.success} />
-          <Text style={styles.secureText}>
-            {t.services.sslSecured}
-          </Text>
-        </View>
-
+    <TabStackScreenLayout
+      header={
+        <ServiceHubHeader
+          title={isFree ? t.services.submitApp : t.services.payment}
+          subtitle={t.services.secureGateway}
+          showBack
+          onBack={() => goBackInServicesStack(navigation)}
+          step={4}
+          totalSteps={5}
+        />
+      }
+      footer={
         <Button
           title={
             isFree
@@ -237,7 +191,25 @@ export const ServicePaymentScreen: React.FC<Props> = ({
           loading={payMutation.isPending}
           onPress={handlePay}
         />
-      </ScrollView>
-    </View>
+      }>
+      <View style={styles.billCard}>
+        <View>
+          <Text style={styles.billLabel}>{t.services.applicationLabel}</Text>
+          <Text style={styles.billTitle}>{serviceName}</Text>
+        </View>
+        <Text style={styles.billAmount}>
+          {isFree ? t.common.free : `₹${total.toFixed(2)}`}
+        </Text>
+      </View>
+
+      <Text style={styles.note}>
+        {isFree ? t.services.noPaymentRequired : t.services.mockPaymentNote}
+      </Text>
+
+      <View style={styles.secure}>
+        <LockSmallIcon color={theme.colors.success} />
+        <Text style={styles.secureText}>{t.services.sslSecured}</Text>
+      </View>
+    </TabStackScreenLayout>
   );
 };

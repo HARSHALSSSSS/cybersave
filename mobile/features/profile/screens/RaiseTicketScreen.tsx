@@ -1,6 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -12,6 +13,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useQueryClient } from '@tanstack/react-query';
 import Svg, { Path } from 'react-native-svg';
 import { ProfileStackParamList } from '@/types/navigation';
 import {
@@ -20,16 +22,35 @@ import {
   TICKET_CATEGORIES,
 } from '@constants/index';
 import { useTranslation } from '@/i18n';
-import { supportApi } from '@services/api';
+import { supportApi, supportQueryKeys } from '@services/api';
+import { getString, StorageKeys } from '@services/storage';
 import { useTheme } from '@app/providers/ThemeProvider';
 import { Button } from '@components/Button';
+import { ScrollScreenAction } from '@components/layout';
 import { GradientScreenHeader } from '@features/profile/components/GradientScreenHeader';
 import {
+  formatAttachmentLines,
+  isTicketAttachmentWithinSizeLimit,
+  pickTicketAttachment,
+  TICKET_ATTACHMENT_MAX_COUNT,
+  uploadTicketAttachment,
+} from '@features/profile/utils/ticketAttachmentUpload';
+import type { PickedDocument } from '@features/services/utils/documentUpload';
+import {
   CloudUploadIcon,
+  FileDocIcon,
   InfoCircleIcon,
   RadioSelectedIcon,
   RadioUnselectedIcon,
+  TrashIcon,
 } from '@components/icons';
+import { extractRequestError } from '@utils/apiDiscovery';
+import { getScrollBottomPadding } from '@utils/layout';
+
+type TicketAttachmentDraft = {
+  id: string;
+  file: PickedDocument;
+};
 
 type Props = NativeStackScreenProps<ProfileStackParamList, 'RaiseTicket'>;
 
@@ -43,6 +64,7 @@ export const RaiseTicketScreen: React.FC<Props> = ({ navigation }) => {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
   const [category, setCategory] = useState<(typeof TICKET_CATEGORIES)[number]>(
     TICKET_CATEGORIES[0],
   );
@@ -50,6 +72,9 @@ export const RaiseTicketScreen: React.FC<Props> = ({ navigation }) => {
   const [subject, setSubject] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<PriorityLevel>('Medium');
+  const [attachments, setAttachments] = useState<TicketAttachmentDraft[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [pickingAttachment, setPickingAttachment] = useState(false);
 
   const styles = useMemo(
     () =>
@@ -159,6 +184,48 @@ export const RaiseTicketScreen: React.FC<Props> = ({ navigation }) => {
           color: theme.colors.textSecondary,
           marginTop: theme.spacing.xs,
         },
+        attachmentList: {
+          flexDirection: 'row',
+          flexWrap: 'wrap',
+          gap: theme.spacing.md,
+          marginBottom: theme.spacing.lg,
+        },
+        attachmentItem: {
+          width: 88,
+          alignItems: 'center',
+        },
+        attachmentPreview: {
+          width: 88,
+          height: 88,
+          borderRadius: theme.radius.md,
+          borderWidth: 1,
+          borderColor: theme.colors.border,
+          backgroundColor: theme.colors.backgroundSecondary,
+          alignItems: 'center',
+          justifyContent: 'center',
+          overflow: 'hidden',
+        },
+        attachmentImage: {
+          width: '100%',
+          height: '100%',
+        },
+        attachmentName: {
+          ...theme.typography.caption,
+          color: theme.colors.textSecondary,
+          marginTop: theme.spacing.xs,
+          textAlign: 'center',
+        },
+        removeAttachmentBtn: {
+          position: 'absolute',
+          top: 4,
+          right: 4,
+          width: 24,
+          height: 24,
+          borderRadius: theme.radius.full,
+          backgroundColor: 'rgba(0,0,0,0.55)',
+          alignItems: 'center',
+          justifyContent: 'center',
+        },
         hint: {
           flexDirection: 'row',
           alignItems: 'center',
@@ -173,39 +240,87 @@ export const RaiseTicketScreen: React.FC<Props> = ({ navigation }) => {
           ...theme.typography.bodySmall,
           color: theme.colors.primary,
         },
-        footer: {
-          paddingHorizontal: theme.spacing['2xl'],
-          paddingBottom: insets.bottom + theme.spacing.lg,
-          paddingTop: theme.spacing.md,
-          backgroundColor: theme.colors.surface,
-        },
         scrollContent: {
-          paddingBottom: theme.spacing.xl,
+          paddingBottom: getScrollBottomPadding(insets, theme.spacing.lg),
         },
       }),
     [theme, insets],
   );
 
+  const handlePickAttachment = useCallback(async () => {
+    if (attachments.length >= TICKET_ATTACHMENT_MAX_COUNT) {
+      Alert.alert(t.common.error, t.support.maxAttachmentsReached);
+      return;
+    }
+
+    setPickingAttachment(true);
+    try {
+      const file = await pickTicketAttachment();
+      if (!file) return;
+
+      if (!isTicketAttachmentWithinSizeLimit(file)) {
+        Alert.alert(t.common.error, t.support.attachmentTooLarge);
+        return;
+      }
+
+      setAttachments(current => [
+        ...current,
+        { id: `${Date.now()}-${file.name}`, file },
+      ]);
+    } catch (error) {
+      Alert.alert(
+        t.profile.pickerError,
+        error instanceof Error ? error.message : t.profile.couldNotOpenPicker,
+      );
+    } finally {
+      setPickingAttachment(false);
+    }
+  }, [attachments.length, t]);
+
+  const handleRemoveAttachment = useCallback((id: string) => {
+    setAttachments(current => current.filter(item => item.id !== id));
+  }, []);
+
   const handleSubmit = async () => {
+    if (!getString(StorageKeys.AUTH_TOKEN)) {
+      Alert.alert(t.common.error, t.profile.couldNotSubmitTicket);
+      return;
+    }
+
     if (!subject.trim() || !description.trim()) {
       Alert.alert(t.common.missingFields, t.profile.enterSubjectDescription);
       return;
     }
+
+    if (submitting) return;
+
+    setSubmitting(true);
     try {
+      const uploadedAttachments = [];
+      for (const attachment of attachments) {
+        uploadedAttachments.push(await uploadTicketAttachment(attachment.file));
+      }
+
       const fullSubject = `[${category}] [${priority}] ${subject.trim()}`;
       const fullContent = [
         `Category: ${category}`,
         `Priority: ${priority}`,
         '',
         description.trim(),
+        ...formatAttachmentLines(uploadedAttachments),
       ].join('\n');
+
       await supportApi.createTicket(fullSubject, fullContent);
+      void queryClient.invalidateQueries({ queryKey: supportQueryKeys.all });
+
       Alert.alert(t.profile.ticketSubmitted, t.profile.ticketCreated, [
         { text: t.support.viewTickets, onPress: () => navigation.replace('MyTickets') },
         { text: t.common.ok, onPress: () => navigation.goBack() },
       ]);
-    } catch {
-      Alert.alert(t.common.error, t.profile.couldNotSubmitTicket);
+    } catch (error) {
+      Alert.alert(t.common.error, extractRequestError(error) || t.profile.couldNotSubmitTicket);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -288,10 +403,51 @@ export const RaiseTicketScreen: React.FC<Props> = ({ navigation }) => {
           </View>
 
           <Text style={styles.label}>{t.support.uploadScreenshots}</Text>
-          <Pressable style={styles.uploadZone} accessibilityRole="button">
-            <CloudUploadIcon />
-            <Text style={styles.uploadTitle}>{t.support.uploadHint}</Text>
+          {attachments.length > 0 ? (
+            <View style={styles.attachmentList}>
+              {attachments.map(attachment => {
+                const isImage = attachment.file.mimeType.startsWith('image/');
+                return (
+                  <View key={attachment.id} style={styles.attachmentItem}>
+                    <View style={styles.attachmentPreview}>
+                      {isImage ? (
+                        <Image
+                          source={{ uri: attachment.file.uri }}
+                          style={styles.attachmentImage}
+                          resizeMode="cover"
+                        />
+                      ) : (
+                        <FileDocIcon color={theme.colors.primary} size={28} />
+                      )}
+                      <Pressable
+                        style={styles.removeAttachmentBtn}
+                        accessibilityRole="button"
+                        accessibilityLabel={t.common.delete}
+                        onPress={() => handleRemoveAttachment(attachment.id)}>
+                        <TrashIcon color="#FFFFFF" size={14} />
+                      </Pressable>
+                    </View>
+                    <Text style={styles.attachmentName} numberOfLines={2}>
+                      {attachment.file.name}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+          ) : null}
+          <Pressable
+            style={styles.uploadZone}
+            accessibilityRole="button"
+            disabled={pickingAttachment || submitting}
+            onPress={() => void handlePickAttachment()}>
+            <CloudUploadIcon color={theme.colors.primary} />
+            <Text style={styles.uploadTitle}>
+              {pickingAttachment ? t.common.loading : t.support.uploadHint}
+            </Text>
             <Text style={styles.uploadSub}>{t.support.uploadFileTypes}</Text>
+            <Text style={[styles.uploadSub, { marginTop: theme.spacing.sm }]}>
+              {t.support.tapToAddAttachment}
+            </Text>
           </Pressable>
 
           <Pressable
@@ -303,12 +459,17 @@ export const RaiseTicketScreen: React.FC<Props> = ({ navigation }) => {
               {t.support.faqHint}
             </Text>
           </Pressable>
+
+          <ScrollScreenAction>
+            <Button
+              title={t.profile.submitTicket}
+              loading={submitting}
+              disabled={submitting || pickingAttachment}
+              onPress={() => void handleSubmit()}
+            />
+          </ScrollScreenAction>
         </ScrollView>
       </KeyboardAvoidingView>
-
-      <View style={styles.footer}>
-        <Button title={t.profile.submitTicket} onPress={handleSubmit} />
-      </View>
     </View>
   );
 };

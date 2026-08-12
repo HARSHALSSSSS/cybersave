@@ -13,9 +13,9 @@ import { WalletStackParamList } from '@/types/navigation';
 import {
   DATE_RANGE_LABEL,
   formatCurrency,
+  getWalletTransactions,
   navigateWalletTransaction,
   TransactionFilter,
-  WALLET_TRANSACTIONS,
   WalletTransaction,
 } from '@constants/index';
 import { useTranslation } from '@/i18n';
@@ -61,12 +61,13 @@ export const TransactionHistoryScreen: React.FC<Props> = ({ navigation }) => {
   const [activeFilter, setActiveFilter] = useState<TransactionFilter>('All');
 
   const filtered = useMemo(() => {
-    if (activeFilter === 'All') return WALLET_TRANSACTIONS;
+    const all = getWalletTransactions();
+    if (activeFilter === 'All') return all;
     if (activeFilter === 'Credits')
-      return WALLET_TRANSACTIONS.filter(t => t.type === 'credit');
+      return all.filter(tx => tx.type === 'credit');
     if (activeFilter === 'Debits')
-      return WALLET_TRANSACTIONS.filter(t => t.type === 'debit');
-    return WALLET_TRANSACTIONS.filter(t => t.type === 'refund');
+      return all.filter(tx => tx.type === 'debit');
+    return all.filter(tx => tx.type === 'refund');
   }, [activeFilter]);
 
   const sections = useMemo(() => {
