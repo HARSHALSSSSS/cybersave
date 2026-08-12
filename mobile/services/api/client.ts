@@ -2,13 +2,18 @@ import axios from 'axios';
 import type { AxiosError, InternalAxiosRequestConfig } from 'axios';
 
 import { API_CONFIG } from '@app/config/api';
-import { ENV } from '@app/config/env';
+import { ENV, USE_HOSTED_API, shouldUseDevDiscovery } from '@app/config/env';
 import { getString, remove, setString, StorageKeys } from '@services/storage';
 import type { AuthTokens } from './auth.api';
 
 export const apiClient = axios.create(API_CONFIG);
 
-const savedDevBase = __DEV__ ? getString(StorageKeys.API_BASE_URL) : undefined;
+if (USE_HOSTED_API) {
+  apiClient.defaults.baseURL = ENV.API_BASE_URL;
+}
+
+const savedDevBase =
+  shouldUseDevDiscovery() ? getString(StorageKeys.API_BASE_URL) : undefined;
 if (savedDevBase) {
   try {
     const savedHost = new URL(savedDevBase).hostname;
@@ -24,7 +29,7 @@ if (savedDevBase) {
   } catch {
     apiClient.defaults.baseURL = ENV.API_BASE_URL;
   }
-} else if (__DEV__) {
+} else if (shouldUseDevDiscovery()) {
   apiClient.defaults.baseURL = ENV.API_BASE_URL;
 }
 
@@ -57,6 +62,10 @@ apiClient.interceptors.request.use(
     }
     const language = getString(StorageKeys.LANGUAGE) ?? 'en';
     config.headers.set('Accept-Language', language);
+    // Let axios set multipart boundary for React Native FormData uploads.
+    if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+      config.headers.delete('Content-Type');
+    }
     return config;
   },
   (error: AxiosError) => Promise.reject(error),

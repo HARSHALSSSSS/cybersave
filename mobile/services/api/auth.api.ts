@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-import { USE_HOSTED_API } from '@app/config/env';
+import { USE_HOSTED_API, shouldUseDevDiscovery } from '@app/config/env';
 import { setString, StorageKeys } from '@services/storage';
 import {
   extractRequestError,
@@ -44,7 +44,7 @@ async function postAuth<T>(
   path: string,
   body: Record<string, unknown>,
 ): Promise<T> {
-  if (!__DEV__ || USE_HOSTED_API) {
+  if (!shouldUseDevDiscovery()) {
     const response = await apiClient.post(path, body);
     return unwrapApiResponse<T>(response);
   }

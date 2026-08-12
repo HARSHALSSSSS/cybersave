@@ -192,6 +192,12 @@ export async function uploadFileViaApi(
     timeout: UPLOAD_TIMEOUT_MS,
     maxBodyLength: Infinity,
     maxContentLength: Infinity,
+    transformRequest: (data, headers) => {
+      if (headers) {
+        delete headers['Content-Type'];
+      }
+      return data;
+    },
   });
 }
 

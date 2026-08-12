@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-import { ENV } from '@app/config/env';
+import { ENV, USE_HOSTED_API, shouldUseDevDiscovery } from '@app/config/env';
 import { findWorkingDevApiBase, getDevApiBaseUrls } from '@utils/apiDiscovery';
 import { getString, setString, StorageKeys } from '@services/storage';
 import { apiClient } from './client';
@@ -56,8 +56,14 @@ function persistBase(baseURL: string): string {
  * Fast-fails in dev when the backend is down instead of hanging on a bad saved URL.
  */
 export async function ensureApiReachable(timeoutMs = 3500): Promise<string | null> {
-  if (!__DEV__) {
-    return apiClient.defaults.baseURL ?? ENV.API_BASE_URL;
+  if (!shouldUseDevDiscovery()) {
+    const hostedTimeout = USE_HOSTED_API ? Math.max(timeoutMs, 60000) : timeoutMs;
+    const base = ENV.API_BASE_URL;
+    if (await pingBase(base, hostedTimeout)) {
+      return persistBase(base);
+    }
+    apiClient.defaults.baseURL = base;
+    return base;
   }
 
   const saved =

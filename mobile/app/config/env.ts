@@ -1,5 +1,15 @@
 import { NativeModules, Platform } from 'react-native';
 
+/** Hosted Render API — used for testing production backend from admin/mobile */
+export const HOSTED_API_BASE_URL =
+  'https://cybersave-l972.onrender.com/api/v1';
+
+/**
+ * true  → mobile talks to Render (Metro dev + release builds)
+ * false → mobile talks to local backend (localhost / LAN / emulator)
+ */
+export const USE_HOSTED_API = true;
+
 /**
  * If auto-detect fails on your phone, set your PC's Wi‑Fi IP here (e.g. '192.168.1.42').
  * Leave null to auto-detect from Metro / use adb reverse.
@@ -42,10 +52,23 @@ function resolveDevApiHost(): string {
   return 'localhost';
 }
 
+function resolveApiBaseUrl(): string {
+  if (USE_HOSTED_API) {
+    return HOSTED_API_BASE_URL;
+  }
+  if (__DEV__) {
+    return `http://${resolveDevApiHost()}:8000/api/v1`;
+  }
+  return HOSTED_API_BASE_URL;
+}
+
 export const ENV = {
-  API_BASE_URL: __DEV__
-    ? `http://${resolveDevApiHost()}:8000/api/v1`
-    : 'https://api.cybersave.gov.in/api/v1',
-  APP_ENV: __DEV__ ? 'development' : 'production',
-  DEV_API_HOST: __DEV__ ? resolveDevApiHost() : null,
+  API_BASE_URL: resolveApiBaseUrl(),
+  APP_ENV: USE_HOSTED_API ? 'production' : __DEV__ ? 'development' : 'production',
+  DEV_API_HOST: __DEV__ && !USE_HOSTED_API ? resolveDevApiHost() : null,
 } as const;
+
+/** Metro dev builds that should probe localhost/LAN instead of the hosted API. */
+export function shouldUseDevDiscovery(): boolean {
+  return __DEV__ && !USE_HOSTED_API;
+}

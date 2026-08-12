@@ -1,3 +1,4 @@
+import { shouldUseDevDiscovery } from '@app/config/env';
 import { apiClient } from './client';
 import {
   devAwareDelete,
@@ -90,7 +91,7 @@ function unwrapEnvelope<T>(body: unknown): T {
 }
 
 export async function listAddresses() {
-  if (__DEV__) {
+  if (shouldUseDevDiscovery()) {
     return devAwareGet<unknown>('/profile/addresses').then(unwrapEnvelope<CitizenAddress[]>);
   }
   const response = await apiClient.get('/profile/addresses');
@@ -98,7 +99,7 @@ export async function listAddresses() {
 }
 
 export async function createAddress(payload: CreateAddressPayload) {
-  if (__DEV__) {
+  if (shouldUseDevDiscovery()) {
     return devAwarePost<unknown>('/profile/addresses', payload).then(
       unwrapEnvelope<CitizenAddress>,
     );
@@ -108,7 +109,7 @@ export async function createAddress(payload: CreateAddressPayload) {
 }
 
 export async function updateAddress(id: string, payload: UpdateAddressPayload) {
-  if (__DEV__) {
+  if (shouldUseDevDiscovery()) {
     return devAwarePatch<unknown>(`/profile/addresses/${id}`, payload).then(
       unwrapEnvelope<CitizenAddress>,
     );
@@ -118,7 +119,7 @@ export async function updateAddress(id: string, payload: UpdateAddressPayload) {
 }
 
 export async function deleteAddress(id: string) {
-  if (__DEV__) {
+  if (shouldUseDevDiscovery()) {
     return devAwareDelete<unknown>(`/profile/addresses/${id}`).then(
       unwrapEnvelope<{ id: string; deleted: boolean }>,
     );
@@ -128,7 +129,7 @@ export async function deleteAddress(id: string) {
 }
 
 export async function listSavedDocuments() {
-  if (__DEV__) {
+  if (shouldUseDevDiscovery()) {
     return devAwareGet<unknown>('/profile/documents').then(
       unwrapEnvelope<CitizenSavedDocument[]>,
     );
@@ -138,7 +139,7 @@ export async function listSavedDocuments() {
 }
 
 export async function createSavedDocument(payload: CreateSavedDocumentPayload) {
-  if (__DEV__) {
+  if (shouldUseDevDiscovery()) {
     return devAwarePost<unknown>('/profile/documents', payload).then(
       unwrapEnvelope<CitizenSavedDocument>,
     );
@@ -148,7 +149,7 @@ export async function createSavedDocument(payload: CreateSavedDocumentPayload) {
 }
 
 export async function deleteSavedDocument(id: string) {
-  if (__DEV__) {
+  if (shouldUseDevDiscovery()) {
     return devAwareDelete<unknown>(`/profile/documents/${id}`).then(
       unwrapEnvelope<{ id: string; deleted: boolean }>,
     );
@@ -159,7 +160,7 @@ export async function deleteSavedDocument(id: string) {
 
 export async function requestDocumentUpload(originalFileName: string, mimeType: string) {
   const body = { originalFileName, mimeType };
-  if (__DEV__) {
+  if (shouldUseDevDiscovery()) {
     return devAwarePost<unknown>('/profile/documents/uploads/request', body).then(
       unwrapEnvelope<ProfileDocumentUploadSession>,
     );
@@ -170,7 +171,7 @@ export async function requestDocumentUpload(originalFileName: string, mimeType: 
 
 export async function completeDocumentUpload(uploadSessionId: string, storedFileId: string) {
   const body = { uploadSessionId, storedFileId };
-  if (__DEV__) {
+  if (shouldUseDevDiscovery()) {
     return devAwarePost<unknown>('/profile/documents/uploads/complete', body).then(
       unwrapEnvelope<{
         storedFileId: string;
@@ -190,7 +191,7 @@ export async function completeDocumentUpload(uploadSessionId: string, storedFile
 }
 
 export async function getSavedDocumentDownload(id: string) {
-  if (__DEV__) {
+  if (shouldUseDevDiscovery()) {
     return devAwareGet<unknown>(`/profile/documents/${id}/download`).then(
       unwrapEnvelope<{ downloadUrl: string }>,
     );

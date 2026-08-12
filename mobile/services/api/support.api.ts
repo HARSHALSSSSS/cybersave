@@ -1,3 +1,4 @@
+import { shouldUseDevDiscovery } from '@app/config/env';
 import { apiClient } from './client';
 import { devAwareGet, devAwarePost } from './devRequest';
 import { unwrapApiResponse, unwrapPaginated } from './types';
@@ -40,7 +41,7 @@ function unwrapPaginatedBody<T>(body: unknown): { data: T; meta: Record<string, 
 }
 
 export async function createTicket(subject: string, content: string) {
-  if (__DEV__) {
+  if (shouldUseDevDiscovery()) {
     return devAwarePost<unknown>('/support/tickets', { subject, content }).then(
       unwrapEnvelope<SupportTicket>,
     );
@@ -51,7 +52,7 @@ export async function createTicket(subject: string, content: string) {
 
 export async function listTickets(page = 1, limit = 20) {
   const params = { page, limit };
-  if (__DEV__) {
+  if (shouldUseDevDiscovery()) {
     return devAwareGet<unknown>('/support/tickets', params).then(
       body => unwrapPaginatedBody<SupportTicket[]>(body),
     );
@@ -61,7 +62,7 @@ export async function listTickets(page = 1, limit = 20) {
 }
 
 export async function getTicket(ticketId: string) {
-  if (__DEV__) {
+  if (shouldUseDevDiscovery()) {
     return devAwareGet<unknown>(`/support/tickets/${ticketId}`).then(
       unwrapEnvelope<SupportTicket>,
     );
@@ -71,7 +72,7 @@ export async function getTicket(ticketId: string) {
 }
 
 export async function addTicketMessage(ticketId: string, content: string) {
-  if (__DEV__) {
+  if (shouldUseDevDiscovery()) {
     return devAwarePost<unknown>(`/support/tickets/${ticketId}/messages`, { content }).then(
       unwrapEnvelope<TicketMessage>,
     );

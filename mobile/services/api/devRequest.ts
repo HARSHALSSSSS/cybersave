@@ -1,5 +1,6 @@
 import axios, { type AxiosRequestConfig } from 'axios';
 
+import { ENV, USE_HOSTED_API, shouldUseDevDiscovery } from '@app/config/env';
 import { getString, setString, StorageKeys } from '@services/storage';
 import {
   extractRequestError,
@@ -19,17 +20,23 @@ function authHeaders(): Record<string, string> {
 
 function persistBase(baseURL: string) {
   apiClient.defaults.baseURL = baseURL;
-  if (__DEV__) {
+  if (shouldUseDevDiscovery()) {
     setString(StorageKeys.API_BASE_URL, baseURL);
   }
 }
 
-/** Dev-only: find a reachable API host, then run the request against it. */
+function hostedTimeoutMs(): number {
+  return USE_HOSTED_API ? 60_000 : 12_000;
+}
+
+/** Dev-only: find a reachable local API host. Hosted API always uses apiClient base URL. */
 export async function devAwareRequest<T>(
   run: (baseURL: string, config: AxiosRequestConfig) => Promise<T>,
 ): Promise<T> {
-  if (!__DEV__) {
-    return run(apiClient.defaults.baseURL!, { headers: authHeaders() });
+  const baseURL = apiClient.defaults.baseURL ?? ENV.API_BASE_URL;
+
+  if (!shouldUseDevDiscovery()) {
+    return run(baseURL, { headers: authHeaders(), timeout: hostedTimeoutMs() });
   }
 
   const discovered = await findWorkingDevApiBase(4000);
@@ -38,10 +45,13 @@ export async function devAwareRequest<T>(
     : getDevApiBaseUrls();
 
   let lastError: unknown;
-  for (const baseURL of bases) {
+  for (const candidate of bases) {
     try {
-      const result = await run(baseURL, { headers: authHeaders(), timeout: 12000 });
-      persistBase(baseURL);
+      const result = await run(candidate, {
+        headers: authHeaders(),
+        timeout: 12_000,
+      });
+      persistBase(candidate);
       return result;
     } catch (error) {
       lastError = error;

@@ -1,3 +1,4 @@
+import { shouldUseDevDiscovery } from '@app/config/env';
 import { apiClient } from './client';
 import { devAwareDelete, devAwareGet, devAwarePost } from './devRequest';
 import { unwrapApiResponse, unwrapPaginated } from './types';
@@ -143,7 +144,7 @@ function unwrapPaginatedBody<T>(body: unknown): { data: T; meta: Record<string, 
 
 export const billPaymentsApi = {
   getSettings(): Promise<BbpsSettings> {
-    if (__DEV__) {
+    if (shouldUseDevDiscovery()) {
       return devAwareGet<unknown>('/bill-payments/settings').then(unwrapEnvelope<BbpsSettings>);
     }
     return apiClient
@@ -152,7 +153,7 @@ export const billPaymentsApi = {
   },
 
   listCategories(): Promise<BbpsCategory[]> {
-    if (__DEV__) {
+    if (shouldUseDevDiscovery()) {
       return devAwareGet<unknown>('/bill-payments/categories').then(unwrapEnvelope<BbpsCategory[]>);
     }
     return apiClient
@@ -172,7 +173,7 @@ export const billPaymentsApi = {
       limit: params.limit,
     };
     const path = `/bill-payments/categories/${encodeURIComponent(params.category)}/billers`;
-    if (__DEV__) {
+    if (shouldUseDevDiscovery()) {
       return devAwareGet<unknown>(path, query).then(
         body => unwrapPaginatedBody<BbpsBillerSummary[]>(body),
       );
@@ -188,7 +189,7 @@ export const billPaymentsApi = {
   },
 
   getBiller(billerId: string): Promise<BbpsBillerDetail> {
-    if (__DEV__) {
+    if (shouldUseDevDiscovery()) {
       return devAwareGet<unknown>(`/bill-payments/billers/${billerId}`).then(
         unwrapEnvelope<BbpsBillerDetail>,
       );
@@ -202,7 +203,7 @@ export const billPaymentsApi = {
     billerId: string,
     accountHolder: Record<string, string>,
   ): Promise<BbpsBillRequest> {
-    if (__DEV__) {
+    if (shouldUseDevDiscovery()) {
       return devAwarePost<unknown>(`/bill-payments/billers/${billerId}/bill-requests`, {
         accountHolder,
       }).then(unwrapEnvelope<BbpsBillRequest>);
@@ -214,7 +215,7 @@ export const billPaymentsApi = {
 
   getBillRequest(requestId: string, poll = false): Promise<BbpsBillRequest> {
     const params = poll ? { poll: 'true' } : undefined;
-    if (__DEV__) {
+    if (shouldUseDevDiscovery()) {
       return devAwareGet<unknown>(`/bill-payments/bill-requests/${requestId}`, params).then(
         unwrapEnvelope<BbpsBillRequest>,
       );
@@ -226,7 +227,7 @@ export const billPaymentsApi = {
 
   createPaymentIntent(billRequestId: string): Promise<BbpsBillPayment> {
     const body = { idempotencyKey: randomIdempotencyKey() };
-    if (__DEV__) {
+    if (shouldUseDevDiscovery()) {
       return devAwarePost<unknown>(
         `/bill-payments/bill-requests/${billRequestId}/payment-intent`,
         body,
@@ -253,7 +254,7 @@ export const billPaymentsApi = {
       razorpaySignature: options?.razorpaySignature,
     };
     const params = mockCapture ? { mock: 'true' } : undefined;
-    if (__DEV__) {
+    if (shouldUseDevDiscovery()) {
       return devAwarePost<unknown>(`/bill-payments/payments/${paymentId}/confirm`, body, params).then(
         unwrapEnvelope<BbpsBillPayment>,
       );
@@ -265,7 +266,7 @@ export const billPaymentsApi = {
 
   getPayment(paymentId: string, poll = false): Promise<BbpsBillPayment> {
     const params = poll ? { poll: 'true' } : undefined;
-    if (__DEV__) {
+    if (shouldUseDevDiscovery()) {
       return devAwareGet<unknown>(`/bill-payments/payments/${paymentId}`, params).then(
         unwrapEnvelope<BbpsBillPayment>,
       );
@@ -281,7 +282,7 @@ export const billPaymentsApi = {
     limit = 20,
   ): Promise<{ data: BbpsBillPayment[]; meta: Record<string, unknown> }> {
     const params = { filter, page, limit };
-    if (__DEV__) {
+    if (shouldUseDevDiscovery()) {
       return devAwareGet<unknown>('/bill-payments/history', params).then(
         body => unwrapPaginatedBody<BbpsBillPayment[]>(body),
       );
@@ -297,7 +298,7 @@ export const billPaymentsApi = {
   },
 
   listRecentBillers(): Promise<RecentBiller[]> {
-    if (__DEV__) {
+    if (shouldUseDevDiscovery()) {
       return devAwareGet<unknown>('/bill-payments/recent-billers').then(
         unwrapEnvelope<RecentBiller[]>,
       );
@@ -308,7 +309,7 @@ export const billPaymentsApi = {
   },
 
   listSavedBillers(): Promise<SavedBiller[]> {
-    if (__DEV__) {
+    if (shouldUseDevDiscovery()) {
       return devAwareGet<unknown>('/bill-payments/saved-billers').then(
         unwrapEnvelope<SavedBiller[]>,
       );
@@ -324,7 +325,7 @@ export const billPaymentsApi = {
     nickname?: string,
   ): Promise<unknown> {
     const body = { accountHolder, nickname };
-    if (__DEV__) {
+    if (shouldUseDevDiscovery()) {
       return devAwarePost<unknown>(`/bill-payments/saved-billers/${billerId}`, body).then(
         unwrapEnvelope,
       );
@@ -335,7 +336,7 @@ export const billPaymentsApi = {
   },
 
   deleteSavedBiller(savedId: string): Promise<void> {
-    if (__DEV__) {
+    if (shouldUseDevDiscovery()) {
       return devAwareDelete<unknown>(`/bill-payments/saved-billers/${savedId}`).then(
         () => undefined,
       );

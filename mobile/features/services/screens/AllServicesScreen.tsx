@@ -36,6 +36,8 @@ export const AllServicesScreen: React.FC<Props> = ({ navigation }) => {
   const { data: catalog = [], isLoading, isError, refetch } = useQuery({
     queryKey: servicesQueryKeys.catalog(),
     queryFn: servicesApi.getServicesCatalog,
+    retry: 1,
+    staleTime: 1000 * 60 * 10,
   });
 
   const services = useMemo(
