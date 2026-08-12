@@ -85,8 +85,22 @@ if (autoSeed) {
   }
 }
 
+function resolveMainEntry() {
+  const candidates = [
+    path.join(process.cwd(), 'dist', 'main.js'),
+    path.join(process.cwd(), 'dist', 'src', 'main.js'),
+  ];
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) {
+      return candidate;
+    }
+  }
+  console.error('[cybersave] ERROR: Nest build output not found (expected dist/main.js)');
+  process.exit(1);
+}
+
 console.log('[cybersave] Launching NestJS...');
-const child = spawnSync(process.execPath, [path.join(process.cwd(), 'dist', 'main.js')], {
+const child = spawnSync(process.execPath, [resolveMainEntry()], {
   stdio: 'inherit',
   env: process.env,
 });
