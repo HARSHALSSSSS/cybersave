@@ -117,9 +117,18 @@ export async function listBillPaymentTransactions(params: {
   return unwrapPaginated<BbpsTransactionRow[]>(res);
 }
 
-export async function getBillPaymentTransaction(id: string) {
+export interface BbpsTransactionDetail extends BbpsTransactionRow {
+  paidAt: string | null;
+  razorpayOrderId: string | null;
+  errorMessage: string | null;
+  billRequest: {
+    billDetails: Record<string, unknown> | null;
+  } | null;
+}
+
+export async function getBillPaymentTransaction(id: string): Promise<BbpsTransactionDetail> {
   const res = await apiClient.get(`/admin/bill-payments/transactions/${id}`);
-  return unwrapApiResponse(res);
+  return unwrapApiResponse<BbpsTransactionDetail>(res);
 }
 
 export async function getBillPaymentsIntegrationStatus(): Promise<BbpsIntegrationStatus> {

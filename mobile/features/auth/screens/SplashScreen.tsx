@@ -36,15 +36,13 @@ import {
 
 } from '@features/auth/utils/restoreSession';
 
+import { USE_HOSTED_API } from '@app/config/env';
 import { getBoolean, StorageKeys } from '@services/storage';
-
-
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Splash'>;
 
-
-
-const BOOTSTRAP_MAX_MS = 9000;
+/** Hosted Render cold starts can exceed local dev bootstrap time. */
+const BOOTSTRAP_MAX_MS = USE_HOSTED_API ? 70000 : 9000;
 
 
 

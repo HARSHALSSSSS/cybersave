@@ -39,14 +39,25 @@ if (__DEV__) {
   console.log(`[API] baseURL = ${ENV.API_BASE_URL}`);
 }
 
+const RETRYABLE_STATUSES = new Set([502, 503, 504]);
+const MAX_TRANSIENT_RETRIES = 2;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function getApiBaseUrl(): string {
+  return apiClient.defaults.baseURL ?? API_CONFIG.baseURL;
+}
+
 let refreshPromise: Promise<string | null> | null = null;
 
 async function refreshAccessToken(refreshToken: string): Promise<AuthTokens | null> {
   try {
     const response = await axios.post<{ success: boolean; data: AuthTokens }>(
-      `${API_CONFIG.baseURL}/auth/refresh`,
+      `${getApiBaseUrl()}/auth/refresh`,
       { refreshToken },
-      { headers: API_CONFIG.headers },
+      { headers: API_CONFIG.headers, timeout: API_CONFIG.timeout },
     );
     return response.data.data;
   } catch {
@@ -74,40 +85,62 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   response => response,
   async (error: AxiosError) => {
-    const original = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
-    if (error.response?.status !== 401 || !original || original._retry) {
+    const original = error.config as InternalAxiosRequestConfig & {
+      _retry?: boolean;
+      _transientRetryCount?: number;
+    };
+    if (!original) {
       return Promise.reject(error);
     }
 
-    const refreshToken = getString(StorageKeys.REFRESH_TOKEN);
-    if (!refreshToken) {
-      return Promise.reject(error);
+    if (error.response?.status === 401 && !original._retry) {
+      const refreshToken = getString(StorageKeys.REFRESH_TOKEN);
+      if (!refreshToken) {
+        return Promise.reject(error);
+      }
+
+      original._retry = true;
+
+      if (!refreshPromise) {
+        refreshPromise = refreshAccessToken(refreshToken)
+          .then(tokens => {
+            if (!tokens) {
+              clearAuthTokens();
+              return null;
+            }
+            setAuthTokens(tokens.accessToken, tokens.refreshToken);
+            return tokens.accessToken;
+          })
+          .finally(() => {
+            refreshPromise = null;
+          });
+      }
+
+      const newToken = await refreshPromise;
+      if (!newToken) {
+        return Promise.reject(error);
+      }
+
+      original.headers.set('Authorization', `Bearer ${newToken}`);
+      return apiClient(original);
     }
 
-    original._retry = true;
+    const status = error.response?.status;
+    const transientRetryCount = original._transientRetryCount ?? 0;
+    const isTransient =
+      USE_HOSTED_API &&
+      transientRetryCount < MAX_TRANSIENT_RETRIES &&
+      (RETRYABLE_STATUSES.has(status ?? 0) ||
+        error.code === 'ECONNABORTED' ||
+        (!error.response && Boolean(error.code)));
 
-    if (!refreshPromise) {
-      refreshPromise = refreshAccessToken(refreshToken)
-        .then(tokens => {
-          if (!tokens) {
-            clearAuthTokens();
-            return null;
-          }
-          setAuthTokens(tokens.accessToken, tokens.refreshToken);
-          return tokens.accessToken;
-        })
-        .finally(() => {
-          refreshPromise = null;
-        });
+    if (isTransient) {
+      original._transientRetryCount = transientRetryCount + 1;
+      await sleep(1000 * (transientRetryCount + 1));
+      return apiClient(original);
     }
 
-    const newToken = await refreshPromise;
-    if (!newToken) {
-      return Promise.reject(error);
-    }
-
-    original.headers.set('Authorization', `Bearer ${newToken}`);
-    return apiClient(original);
+    return Promise.reject(error);
   },
 );
 

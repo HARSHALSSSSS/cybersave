@@ -46,13 +46,11 @@ export const BillPaymentsHomeScreen: React.FC<Props> = ({ navigation }) => {
   } = useQuery({
     queryKey: billPaymentsQueryKeys.categories(),
     queryFn: () => billPaymentsApi.listCategories(),
-    retry: 2,
   });
 
   const { data: recentBillers = [] } = useQuery({
     queryKey: billPaymentsQueryKeys.recent(),
     queryFn: () => billPaymentsApi.listRecentBillers(),
-    retry: 1,
   });
 
   const featured = useMemo(

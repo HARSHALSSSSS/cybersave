@@ -187,7 +187,7 @@ export function HomeBannersPage() {
                     <TableCell>
                       <div className="text-sm">{banner.servicePath ?? `${banner.mainServiceName} → ${banner.subServiceName}`}</div>
                       {!banner.isPublished ? (
-                        <Badge variant="destructive" className="mt-1">Not published</Badge>
+                        <Badge variant="danger" className="mt-1">Not published</Badge>
                       ) : (
                         <Badge variant="outline" className="mt-1">Published</Badge>
                       )}

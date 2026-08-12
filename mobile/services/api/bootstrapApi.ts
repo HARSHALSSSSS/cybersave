@@ -7,20 +7,33 @@ import { apiClient } from './client';
 
 const HEALTH_PATH = '/health';
 
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 function normalizeBaseUrl(url: string): string {
   return url.replace(/\/+$/, '');
 }
 
-async function pingBase(baseURL: string, timeoutMs: number): Promise<boolean> {
-  try {
-    await axios.get(`${normalizeBaseUrl(baseURL)}${HEALTH_PATH}`, {
-      timeout: timeoutMs,
-      headers: { Accept: 'application/json' },
-    });
-    return true;
-  } catch {
-    return false;
+async function pingBase(
+  baseURL: string,
+  timeoutMs: number,
+  attempts = 1,
+): Promise<boolean> {
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      await axios.get(`${normalizeBaseUrl(baseURL)}${HEALTH_PATH}`, {
+        timeout: timeoutMs,
+        headers: { Accept: 'application/json' },
+      });
+      return true;
+    } catch {
+      if (attempt < attempts - 1) {
+        await sleep(1500 * (attempt + 1));
+      }
+    }
   }
+  return false;
 }
 
 /** Saved emulator/USB hosts break when switching to a physical device on Wi‑Fi. */
@@ -58,8 +71,9 @@ function persistBase(baseURL: string): string {
 export async function ensureApiReachable(timeoutMs = 3500): Promise<string | null> {
   if (!shouldUseDevDiscovery()) {
     const hostedTimeout = USE_HOSTED_API ? Math.max(timeoutMs, 60000) : timeoutMs;
+    const pingAttempts = USE_HOSTED_API ? 3 : 1;
     const base = ENV.API_BASE_URL;
-    if (await pingBase(base, hostedTimeout)) {
+    if (await pingBase(base, hostedTimeout, pingAttempts)) {
       return persistBase(base);
     }
     apiClient.defaults.baseURL = base;

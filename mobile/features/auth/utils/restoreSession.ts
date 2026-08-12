@@ -5,7 +5,7 @@ import {
   clearAuthTokens,
   setAuthTokens,
 } from '@services/api';
-import { shouldUseDevDiscovery } from '@app/config/env';
+import { shouldUseDevDiscovery, USE_HOSTED_API } from '@app/config/env';
 import {
   ensureApiReachable,
   withTimeout,
@@ -14,7 +14,24 @@ import { getBoolean, getString, setBoolean, StorageKeys } from '@services/storag
 
 export type BootstrapRoute = 'Main' | 'Auth' | 'Onboarding';
 
-const AUTH_TIMEOUT_MS = 5000;
+const AUTH_TIMEOUT_MS = USE_HOSTED_API ? 25000 : 5000;
+const HOSTED_WARMUP_MS = 45000;
+
+async function withHostedRetry<T>(
+  action: () => Promise<T>,
+  timeoutMs: number,
+  message: string,
+): Promise<T> {
+  try {
+    return await withTimeout(action(), timeoutMs, message);
+  } catch (firstError) {
+    if (!USE_HOSTED_API) {
+      throw firstError;
+    }
+    await ensureApiReachable(HOSTED_WARMUP_MS).catch(() => undefined);
+    return withTimeout(action(), timeoutMs, message);
+  }
+}
 
 /** Decide first screen after splash — restores persisted login when tokens are valid. */
 export async function resolveBootstrapRoute(
@@ -22,6 +39,8 @@ export async function resolveBootstrapRoute(
 ): Promise<BootstrapRoute> {
   if (shouldUseDevDiscovery()) {
     await ensureApiReachable(3000).catch(() => undefined);
+  } else if (USE_HOSTED_API) {
+    await ensureApiReachable(HOSTED_WARMUP_MS).catch(() => undefined);
   }
 
   const accessToken = getString(StorageKeys.AUTH_TOKEN);
@@ -29,8 +48,8 @@ export async function resolveBootstrapRoute(
 
   if (accessToken && refreshToken) {
     try {
-      const citizen = await withTimeout(
-        authApi.getMe(),
+      const citizen = await withHostedRetry(
+        () => authApi.getMe(),
         AUTH_TIMEOUT_MS,
         'Session check timed out',
       );
@@ -39,14 +58,14 @@ export async function resolveBootstrapRoute(
       return 'Main';
     } catch {
       try {
-        const tokens = await withTimeout(
-          authApi.refreshTokens(refreshToken),
+        const tokens = await withHostedRetry(
+          () => authApi.refreshTokens(refreshToken),
           AUTH_TIMEOUT_MS,
           'Token refresh timed out',
         );
         setAuthTokens(tokens.accessToken, tokens.refreshToken);
-        const citizen = await withTimeout(
-          authApi.getMe(),
+        const citizen = await withHostedRetry(
+          () => authApi.getMe(),
           AUTH_TIMEOUT_MS,
           'Session check timed out',
         );

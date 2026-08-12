@@ -127,7 +127,6 @@ export const HomeScreen: React.FC<Props> = ({ navigation }) => {
   const { data: catalogue = [] } = useQuery({
     queryKey: servicesQueryKeys.catalog(),
     queryFn: () => servicesApi.getServicesCatalog(),
-    retry: 1,
     staleTime: 1000 * 60 * 10,
     placeholderData: previous => previous ?? [],
   });
@@ -135,14 +134,12 @@ export const HomeScreen: React.FC<Props> = ({ navigation }) => {
   const { data: recentApps } = useQuery({
     queryKey: applicationsQueryKeys.all,
     queryFn: () => applicationsApi.listApplications({ page: 1, limit: 1 }),
-    retry: 1,
     staleTime: 1000 * 60 * 2,
   });
 
   const { data: homeBanners = [] } = useQuery({
     queryKey: homeBannersQueryKeys.list('home'),
     queryFn: () => homeBannersApi.getHomeBanners('home'),
-    retry: 1,
     staleTime: 1000 * 60 * 10,
     placeholderData: previous => previous ?? [],
   });

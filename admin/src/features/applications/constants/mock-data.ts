@@ -297,6 +297,7 @@ export function buildApplicationExtras(application: ApplicationSummary): Omit<Ap
     timeline: DEFAULT_TIMELINE,
     notes: DEFAULT_NOTES,
     formFieldKeys: [],
+    formFields: [],
     documentRequirementOptions: DEFAULT_DOCUMENTS.filter((doc) => doc.documentRequirementId).map(
       (doc) => ({
         id: doc.documentRequirementId!,
