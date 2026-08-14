@@ -16,6 +16,7 @@ export function DashboardPage() {
   const { data: kpis, isLoading } = useQuery({
     queryKey: ['dashboard', 'kpis'],
     queryFn: getDashboardKpis,
+    staleTime: 0,
   });
 
   return (

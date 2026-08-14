@@ -133,8 +133,18 @@ export const NotificationsScreen: React.FC<Props> = ({ navigation }) => {
       if (!item.readAt) {
         markReadMutation.mutate(item.id);
       }
+      const ticketId = item.metadata?.ticketId;
+      if (typeof ticketId === 'string') {
+        navigation
+          .getParent<BottomTabNavigationProp<MainTabParamList>>()
+          ?.navigate('ProfileTab', {
+            screen: 'TicketDetail',
+            params: { ticketId },
+          });
+        return;
+      }
       const applicationId = item.metadata?.applicationId;
-      if (applicationId) {
+      if (typeof applicationId === 'string') {
         navigation
           .getParent<BottomTabNavigationProp<MainTabParamList>>()
           ?.navigate('ApplicationsTab', {

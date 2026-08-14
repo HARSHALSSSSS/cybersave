@@ -83,14 +83,17 @@ export function mapTicketDetail(ticket: BackendTicketDetail): TicketDetail {
   return {
     ...summary,
     description: firstMessage?.content ?? ticket.subject,
-    messages: ticket.messages.map((msg) => ({
-      id: msg.id,
-      author: msg.senderType === 'ADMIN' ? 'Support Agent' : summary.reporterName,
-      authorInitials: msg.senderType === 'ADMIN' ? 'SA' : summary.reporterInitials,
-      role: (msg.senderType === 'ADMIN' ? 'agent' : 'customer') as MessageRole,
-      timestamp: msg.createdAt,
-      body: msg.content,
-    })),
+    messages: ticket.messages.map((msg) => {
+      const isAgent = msg.senderType.toLowerCase() === 'admin';
+      return {
+        id: msg.id,
+        author: isAgent ? 'Support Agent' : summary.reporterName,
+        authorInitials: isAgent ? 'SA' : summary.reporterInitials,
+        role: (isAgent ? 'agent' : 'customer') as MessageRole,
+        timestamp: msg.createdAt,
+        body: msg.content,
+      };
+    }),
     internalNotes: [],
   };
 }

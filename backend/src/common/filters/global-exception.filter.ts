@@ -32,7 +32,9 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         const body = exceptionResponse as Record<string, unknown>;
         message = (body.message as string) ?? message;
         code = (body.error as string) ?? (HttpStatus[status] ?? 'HTTP_ERROR');
-        details = body.details;
+        details =
+          body.details ??
+          (Array.isArray(body.errors) ? { errors: body.errors } : undefined);
       }
     } else if (exception instanceof Error) {
       this.logger.error(exception.message, exception.stack);

@@ -7,6 +7,7 @@ export function CollectionsSummary() {
   const { data, isLoading } = useQuery({
     queryKey: ['dashboard', 'collections-summary'],
     queryFn: getCollectionsSummary,
+    staleTime: 0,
   });
 
   return (

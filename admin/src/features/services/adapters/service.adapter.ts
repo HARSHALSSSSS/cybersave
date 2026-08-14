@@ -14,15 +14,33 @@ function mapSubServiceStatus(sub: SubServiceSummary): ServiceStatus {
   return 'maintenance';
 }
 
+function parseProcessingHours(processingTime?: string | null): number {
+  if (!processingTime) return 48;
+  const match = processingTime.match(/(\d+)/);
+  if (!match) return 48;
+  const days = Number(match[1]);
+  return Number.isFinite(days) ? days * 24 : 48;
+}
+
 export function mapSubServiceToUi(sub: SubServiceSummary, categoryName: string): SubService {
-  const pricing = 0;
+  const summary = sub.publishedSummary;
   return {
     id: sub.id,
     name: sub.name,
+    slug: sub.slug,
     categoryName,
-    slaHours: 48,
-    govtFee: pricing,
+    slaHours: parseProcessingHours(summary?.processingTime),
+    govtFee: summary?.baseFee ?? 0,
     status: mapSubServiceStatus(sub),
+    versionStatus: sub.latestVersion?.lifecycleStatus ?? 'NONE',
+    publishedVersionId: summary?.versionId,
+    processingTime: summary?.processingTime ?? undefined,
+    assistedEnabled: summary?.assistedEnabled ?? false,
+    manualEnabled: summary?.manualEnabled ?? false,
+    requiresStateSelection: summary?.requiresStateSelection ?? false,
+    stateCount: summary?.stateCount ?? 0,
+    formFieldCount: summary?.formFieldCount ?? 0,
+    documentCount: summary?.documentCount ?? 0,
   };
 }
 
@@ -41,7 +59,7 @@ export function computeServicesStats(categories: ServiceCategory[]): ServicesSta
   return {
     total: allSubs.length,
     active: allSubs.filter((s) => s.status === 'active').length,
-    underMaintenance: allSubs.filter((s) => s.status === 'maintenance').length,
+    underMaintenance: allSubs.filter((s) => s.status !== 'active').length,
     totalRequestsYtd: 0,
   };
 }

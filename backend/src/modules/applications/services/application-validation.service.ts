@@ -33,7 +33,11 @@ const FILE_FIELD_TYPES: FormFieldType[] = [
 export class ApplicationValidationService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async validateApplication(applicationId: string): Promise<ValidationResult> {
+  async validateApplication(
+    applicationId: string,
+    options?: { scope?: 'form' | 'documents' | 'all' },
+  ): Promise<ValidationResult> {
+    const scope = options?.scope ?? 'all';
     const application = await this.prisma.application.findUnique({
       where: { id: applicationId },
       include: {
@@ -88,26 +92,29 @@ export class ApplicationValidationService {
 
     const errors: ValidationIssue[] = [];
 
-    for (const field of fields) {
-      if (FILE_FIELD_TYPES.includes(field.type)) {
-        continue;
+    if (scope === 'form' || scope === 'all') {
+      for (const field of fields) {
+        if (FILE_FIELD_TYPES.includes(field.type)) {
+          continue;
+        }
+
+        if (scopedFieldKeys && !scopedFieldKeys.has(field.key)) {
+          continue;
+        }
+
+        const isRequired =
+          visibleRequiredKeys.has(field.key) ||
+          (scopedFieldKeys?.has(field.key) ?? false);
+
+        const rawValue = valueMap.get(field.key);
+        const fieldErrors = this.validateFieldValue(field, rawValue, isRequired);
+        errors.push(...fieldErrors);
       }
-
-      if (scopedFieldKeys && !scopedFieldKeys.has(field.key)) {
-        continue;
-      }
-
-      const isRequired =
-        visibleRequiredKeys.has(field.key) ||
-        (scopedFieldKeys?.has(field.key) ?? false);
-
-      const rawValue = valueMap.get(field.key);
-      const fieldErrors = this.validateFieldValue(field, rawValue, isRequired);
-      errors.push(...fieldErrors);
     }
 
-    const documentRequirements = application.serviceVersion.documentRequirements;
-    for (const requirement of documentRequirements) {
+    if (scope !== 'form') {
+      const documentRequirements = application.serviceVersion.documentRequirements;
+      for (const requirement of documentRequirements) {
       if (scopedDocumentIds && !scopedDocumentIds.has(requirement.id)) {
         continue;
       }
@@ -136,6 +143,7 @@ export class ApplicationValidationService {
           field: `document:${requirement.id}`,
           message: `Too many files for "${requirement.name}" (max ${requirement.maxFiles})`,
         });
+      }
       }
     }
 
@@ -270,11 +278,17 @@ export class ApplicationValidationService {
           errors.push({ field: field.key, message: 'Invalid email address' });
         }
         break;
-      case FormFieldType.PHONE:
-        if (typeof rawValue !== 'string' || !/^\+?[\d\s-]{8,15}$/.test(rawValue)) {
-          errors.push({ field: field.key, message: 'Invalid phone number' });
+      case FormFieldType.PHONE: {
+        const digits = String(rawValue).replace(/\D/g, '');
+        const national =
+          digits.length === 12 && digits.startsWith('91')
+            ? digits.slice(2)
+            : digits;
+        if (!/^[6-9]\d{9}$/.test(national)) {
+          errors.push({ field: field.key, message: 'Enter a valid 10-digit mobile number' });
         }
         break;
+      }
       case FormFieldType.NUMBER: {
         const num = Number(rawValue);
         if (Number.isNaN(num)) {
@@ -338,7 +352,11 @@ export class ApplicationValidationService {
       }
       case FormFieldType.CHECKBOX:
       case FormFieldType.MULTI_SELECT: {
+        if (field.type === FormFieldType.CHECKBOX && (rawValue === true || rawValue === false)) {
+          break;
+        }
         const allowed = new Set(field.options.map((o) => o.value));
+        if (allowed.size === 0) break;
         const values = Array.isArray(rawValue) ? rawValue : [rawValue];
         if (!values.every((v) => typeof v === 'string' && allowed.has(v))) {
           errors.push({ field: field.key, message: 'Invalid option selected' });

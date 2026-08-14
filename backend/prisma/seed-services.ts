@@ -110,6 +110,85 @@ async function syncPublishedMetadata(
       });
     }
   }
+
+  const formVersion = await prisma.formVersion.findFirst({
+    where: { serviceVersionId: versionId },
+    orderBy: { versionNumber: 'desc' },
+  });
+  if (formVersion) {
+    await prisma.formField.deleteMany({ where: { formVersionId: formVersion.id } });
+    for (const [index, field] of seed.formFields.entries()) {
+      await prisma.formField.create({
+        data: {
+          formVersionId: formVersion.id,
+          key: field.key,
+          label: field.label,
+          type: field.type,
+          sortOrder: index,
+          required: field.required ?? false,
+          placeholder: field.placeholder,
+        },
+      });
+    }
+  }
+
+  const existingDocs = await prisma.documentRequirement.findMany({
+    where: { serviceVersionId: versionId },
+  });
+  for (const [index, docName] of seed.documents.entries()) {
+    const existing = existingDocs.find(d => d.name === docName);
+    if (existing) {
+      await prisma.documentRequirement.update({
+        where: { id: existing.id },
+        data: {
+          required: true,
+          sortOrder: index,
+          allowedFormats: ['pdf', 'jpg', 'png'],
+          allowedMimeTypes: ['application/pdf', 'image/jpeg', 'image/png'],
+          maxFileSizeBytes: 5_242_880,
+        },
+      });
+    } else {
+      await prisma.documentRequirement.create({
+        data: {
+          serviceVersionId: versionId,
+          name: docName,
+          required: true,
+          allowedFormats: ['pdf', 'jpg', 'png'],
+          allowedMimeTypes: ['application/pdf', 'image/jpeg', 'image/png'],
+          maxFileSizeBytes: 5_242_880,
+          sortOrder: index,
+        },
+      });
+    }
+  }
+
+  const pricing = await prisma.pricingConfig.findFirst({
+    where: { serviceVersionId: versionId },
+  });
+  if (pricing) {
+    await prisma.pricingConfig.update({
+      where: { id: pricing.id },
+      data: { baseFee: new Prisma.Decimal(seed.baseFee) },
+    });
+    await prisma.additionalCharge.deleteMany({ where: { pricingConfigId: pricing.id } });
+    if (seed.serviceFee && seed.serviceFee > 0) {
+      await prisma.additionalCharge.create({
+        data: {
+          pricingConfigId: pricing.id,
+          name: 'Cybersave Service Fee',
+          amount: new Prisma.Decimal(seed.serviceFee),
+        },
+      });
+    }
+  }
+
+  const workflow = await prisma.workflowDefinition.findFirst({
+    where: { serviceVersionId: versionId },
+  });
+  if (!workflow) {
+    await createWorkflow(prisma, versionId);
+  }
 }
 
 async function publishSubService(

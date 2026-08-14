@@ -211,6 +211,7 @@ export function ApplicationsPage() {
                 <SelectItem value="all">All Statuses</SelectItem>
                 <SelectItem value="submitted">Submitted</SelectItem>
                 <SelectItem value="under_review">Under Review</SelectItem>
+                <SelectItem value="action_required">Action Required</SelectItem>
                 <SelectItem value="processing">Processing</SelectItem>
                 <SelectItem value="approved">Approved</SelectItem>
                 <SelectItem value="completed">Completed</SelectItem>
@@ -312,7 +313,7 @@ export function ApplicationsPage() {
                             to={`/applications/${application.id}`}
                             className="font-medium text-[#2563EB] hover:underline"
                           >
-                            {application.id}
+                            {application.publicRef ?? application.id}
                           </Link>
                         </TableCell>
                         <TableCell>

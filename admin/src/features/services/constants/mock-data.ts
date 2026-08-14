@@ -1,4 +1,18 @@
-import type { ServiceCategory, ServicesStats, WorkflowStage } from '../types';
+import type { ServiceCategory, ServicesStats, SubService, WorkflowStage } from '../types';
+
+function mockSub(partial: Pick<SubService, 'id' | 'name' | 'categoryName' | 'slaHours' | 'govtFee' | 'status'> & { slug?: string }): SubService {
+  return {
+    slug: partial.slug ?? partial.id,
+    versionStatus: partial.status === 'active' ? 'PUBLISHED' : 'DRAFT',
+    assistedEnabled: true,
+    manualEnabled: true,
+    requiresStateSelection: false,
+    stateCount: 0,
+    formFieldCount: 4,
+    documentCount: 2,
+    ...partial,
+  };
+}
 
 export const SERVICES_STATS: ServicesStats = {
   total: 32,
@@ -14,12 +28,12 @@ export const SERVICE_CATEGORIES: ServiceCategory[] = [
     description: 'Enrollment, updates, and corrections for Aadhaar cards',
     status: 'active',
     subServices: [
-      { id: 'svc-1', name: 'Aadhaar Address Update', categoryName: 'Aadhaar Services', slaHours: 48, govtFee: 50, status: 'active' },
-      { id: 'svc-2', name: 'Aadhaar Mobile Number Update', categoryName: 'Aadhaar Services', slaHours: 24, govtFee: 50, status: 'active' },
-      { id: 'svc-3', name: 'Aadhaar New Enrollment', categoryName: 'Aadhaar Services', slaHours: 72, govtFee: 0, status: 'active' },
-      { id: 'svc-4', name: 'Aadhaar Biometric Update', categoryName: 'Aadhaar Services', slaHours: 48, govtFee: 100, status: 'active' },
-      { id: 'svc-5', name: 'Aadhaar Card Reprint', categoryName: 'Aadhaar Services', slaHours: 24, govtFee: 50, status: 'active' },
-      { id: 'svc-6', name: 'Aadhaar Name Correction', categoryName: 'Aadhaar Services', slaHours: 48, govtFee: 50, status: 'active' },
+      mockSub({ id: 'svc-1', slug: 'aadhaar-address-update', name: 'Aadhaar Address Update', categoryName: 'Aadhaar Services', slaHours: 48, govtFee: 50, status: 'active' }),
+      mockSub({ id: 'svc-2', slug: 'aadhaar-mobile-update', name: 'Aadhaar Mobile Number Update', categoryName: 'Aadhaar Services', slaHours: 24, govtFee: 50, status: 'active' }),
+      mockSub({ id: 'svc-3', slug: 'aadhaar-new-enrollment', name: 'Aadhaar New Enrollment', categoryName: 'Aadhaar Services', slaHours: 72, govtFee: 0, status: 'active' }),
+      mockSub({ id: 'svc-4', slug: 'aadhaar-biometric-update', name: 'Aadhaar Biometric Update', categoryName: 'Aadhaar Services', slaHours: 48, govtFee: 100, status: 'active' }),
+      mockSub({ id: 'svc-5', slug: 'aadhaar-reprint', name: 'Aadhaar Card Reprint', categoryName: 'Aadhaar Services', slaHours: 24, govtFee: 50, status: 'active' }),
+      mockSub({ id: 'svc-6', slug: 'aadhaar-name-correction', name: 'Aadhaar Name Correction', categoryName: 'Aadhaar Services', slaHours: 48, govtFee: 50, status: 'active' }),
     ],
   },
   {
@@ -28,10 +42,10 @@ export const SERVICE_CATEGORIES: ServiceCategory[] = [
     description: 'New PAN applications, corrections, and reprints',
     status: 'active',
     subServices: [
-      { id: 'svc-7', name: 'PAN Card - New Application', categoryName: 'PAN Card Services', slaHours: 72, govtFee: 107, status: 'active' },
-      { id: 'svc-8', name: 'PAN Card - Correction', categoryName: 'PAN Card Services', slaHours: 48, govtFee: 110, status: 'active' },
-      { id: 'svc-9', name: 'e-PAN Download', categoryName: 'PAN Card Services', slaHours: 4, govtFee: 8, status: 'active' },
-      { id: 'svc-10', name: 'PAN Card Reprint', categoryName: 'PAN Card Services', slaHours: 48, govtFee: 50, status: 'active' },
+      mockSub({ id: 'svc-7', slug: 'pan-new', name: 'PAN Card - New Application', categoryName: 'PAN Card Services', slaHours: 72, govtFee: 107, status: 'active' }),
+      mockSub({ id: 'svc-8', slug: 'pan-correction', name: 'PAN Card - Correction', categoryName: 'PAN Card Services', slaHours: 48, govtFee: 110, status: 'active' }),
+      mockSub({ id: 'svc-9', slug: 'epan-download', name: 'e-PAN Download', categoryName: 'PAN Card Services', slaHours: 4, govtFee: 8, status: 'active' }),
+      mockSub({ id: 'svc-10', slug: 'pan-reprint', name: 'PAN Card Reprint', categoryName: 'PAN Card Services', slaHours: 48, govtFee: 50, status: 'active' }),
     ],
   },
   {
@@ -40,9 +54,9 @@ export const SERVICE_CATEGORIES: ServiceCategory[] = [
     description: 'Fresh passport applications, renewals, and reissues',
     status: 'active',
     subServices: [
-      { id: 'svc-11', name: 'Passport - New Application', categoryName: 'Passport Services', slaHours: 240, govtFee: 1500, status: 'active' },
-      { id: 'svc-12', name: 'Passport Renewal', categoryName: 'Passport Services', slaHours: 168, govtFee: 1500, status: 'active' },
-      { id: 'svc-13', name: 'Passport Reissue (Lost/Damaged)', categoryName: 'Passport Services', slaHours: 240, govtFee: 3000, status: 'active' },
+      mockSub({ id: 'svc-11', slug: 'passport-new', name: 'Passport - New Application', categoryName: 'Passport Services', slaHours: 240, govtFee: 1500, status: 'active' }),
+      mockSub({ id: 'svc-12', slug: 'passport-renewal', name: 'Passport Renewal', categoryName: 'Passport Services', slaHours: 168, govtFee: 1500, status: 'active' }),
+      mockSub({ id: 'svc-13', slug: 'passport-reissue', name: 'Passport Reissue (Lost/Damaged)', categoryName: 'Passport Services', slaHours: 240, govtFee: 3000, status: 'active' }),
     ],
   },
   {
@@ -51,9 +65,9 @@ export const SERVICE_CATEGORIES: ServiceCategory[] = [
     description: 'Registration and correction of birth and death records',
     status: 'maintenance',
     subServices: [
-      { id: 'svc-14', name: 'Birth Certificate', categoryName: 'Birth & Death Certificates', slaHours: 24, govtFee: 50, status: 'maintenance' },
-      { id: 'svc-15', name: 'Death Certificate', categoryName: 'Birth & Death Certificates', slaHours: 24, govtFee: 50, status: 'maintenance' },
-      { id: 'svc-16', name: 'Certificate Correction', categoryName: 'Birth & Death Certificates', slaHours: 48, govtFee: 30, status: 'maintenance' },
+      mockSub({ id: 'svc-14', slug: 'birth-certificate', name: 'Birth Certificate', categoryName: 'Birth & Death Certificates', slaHours: 24, govtFee: 50, status: 'maintenance' }),
+      mockSub({ id: 'svc-15', slug: 'death-certificate', name: 'Death Certificate', categoryName: 'Birth & Death Certificates', slaHours: 24, govtFee: 50, status: 'maintenance' }),
+      mockSub({ id: 'svc-16', slug: 'certificate-correction', name: 'Certificate Correction', categoryName: 'Birth & Death Certificates', slaHours: 48, govtFee: 30, status: 'maintenance' }),
     ],
   },
   {
@@ -62,10 +76,10 @@ export const SERVICE_CATEGORIES: ServiceCategory[] = [
     description: 'Income, caste, domicile, and asset certification services',
     status: 'active',
     subServices: [
-      { id: 'svc-17', name: 'Income Certificate', categoryName: 'Income & Asset Certificates', slaHours: 24, govtFee: 30, status: 'active' },
-      { id: 'svc-18', name: 'Caste Certificate', categoryName: 'Income & Asset Certificates', slaHours: 48, govtFee: 30, status: 'active' },
-      { id: 'svc-19', name: 'Domicile Certificate', categoryName: 'Income & Asset Certificates', slaHours: 48, govtFee: 30, status: 'active' },
-      { id: 'svc-20', name: 'Asset Certificate', categoryName: 'Income & Asset Certificates', slaHours: 72, govtFee: 50, status: 'active' },
+      mockSub({ id: 'svc-17', slug: 'income-certificate', name: 'Income Certificate', categoryName: 'Income & Asset Certificates', slaHours: 24, govtFee: 30, status: 'active' }),
+      mockSub({ id: 'svc-18', slug: 'caste-certificate', name: 'Caste Certificate', categoryName: 'Income & Asset Certificates', slaHours: 48, govtFee: 30, status: 'active' }),
+      mockSub({ id: 'svc-19', slug: 'domicile-certificate', name: 'Domicile Certificate', categoryName: 'Income & Asset Certificates', slaHours: 48, govtFee: 30, status: 'active' }),
+      mockSub({ id: 'svc-20', slug: 'asset-certificate', name: 'Asset Certificate', categoryName: 'Income & Asset Certificates', slaHours: 72, govtFee: 50, status: 'active' }),
     ],
   },
 ];

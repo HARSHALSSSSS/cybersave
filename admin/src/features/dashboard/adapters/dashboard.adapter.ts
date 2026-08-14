@@ -38,6 +38,7 @@ interface BackendRecentApplication {
     overview?: { displayName?: string | null };
     subService?: { name?: string };
   };
+  payment?: { amount?: unknown; status?: string };
   pricingSnapshot?: { totalAmount?: unknown };
 }
 
@@ -125,12 +126,13 @@ export function mapRecentApplication(app: BackendRecentApplication): RecentAppli
     'Service';
 
   return {
-    id: app.publicRef ?? app.id,
+    id: app.id,
+    publicRef: app.publicRef ?? null,
     applicantName: citizenName,
     applicantInitials: initials(app.citizen?.firstName, app.citizen?.lastName),
     service: serviceName,
     status: mapApplicationStatus(app.status),
-    amount: decimalToNumber(app.pricingSnapshot?.totalAmount),
+    amount: decimalToNumber(app.payment?.amount ?? app.pricingSnapshot?.totalAmount),
     submittedAt: app.submittedAt ?? app.createdAt,
   };
 }

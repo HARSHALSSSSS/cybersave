@@ -44,6 +44,7 @@ export function RecentApplicationsTable() {
   const { data, isLoading } = useQuery({
     queryKey: ['dashboard', 'recent-applications'],
     queryFn: getRecentApplications,
+    staleTime: 0,
   });
 
   return (
@@ -89,7 +90,7 @@ export function RecentApplicationsTable() {
                         to={`/applications/${application.id}`}
                         className="font-medium text-[#2563EB] hover:underline"
                       >
-                        {application.id}
+                        {application.publicRef ?? application.id}
                       </Link>
                     </TableCell>
                     <TableCell>

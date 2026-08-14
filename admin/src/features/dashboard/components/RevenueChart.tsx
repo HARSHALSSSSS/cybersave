@@ -23,6 +23,7 @@ export function RevenueChart() {
   const { data, isLoading } = useQuery({
     queryKey: ['dashboard', 'revenue-overview', range],
     queryFn: () => getRevenueOverview(range),
+    staleTime: 0,
   });
 
   return (

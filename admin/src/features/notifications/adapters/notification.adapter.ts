@@ -13,7 +13,7 @@ function inferCategory(title: string, body: string): NotificationCategory {
   const text = `${title} ${body}`.toLowerCase();
   if (text.includes('security') || text.includes('login')) return 'security';
   if (text.includes('expir')) return 'expiry';
-  if (text.includes('document')) return 'document';
+  if (text.includes('application') || text.includes('submitted') || text.includes('review')) return 'document';
   if (text.includes('support') || text.includes('ticket')) return 'support';
   return 'document';
 }

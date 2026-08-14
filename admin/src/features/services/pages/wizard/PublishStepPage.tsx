@@ -40,14 +40,22 @@ export function PublishStepPage() {
     const docCount = bundle?.documentRequirements?.length ?? 0;
     const fee = decimalToNumber(bundle?.pricingConfig?.baseFee);
     const stepCount = bundle?.workflowDefinition?.steps?.length ?? 0;
+    const fulfillment = bundle?.fulfillmentConfig;
+    const assisted = Boolean(fulfillment?.assistedEnabled ?? true);
+    const manual = Boolean(fulfillment?.manualEnabled);
+    const stateCount = fulfillment?.stateVariants?.length ?? 0;
 
     return [
       { label: 'Main Service definition registered', ok: Boolean(bundle?.subService?.mainService?.id) },
       { label: 'Sub Service configuration finalized', ok: Boolean(bundle?.subService?.id) },
       { label: 'Overview information complete', ok: Boolean(bundle?.overview?.displayName) },
-      { label: `Citizen Form Schema validated (${fieldCount} inputs)`, ok: fieldCount > 0 },
+      { label: `Citizen Form Schema validated (${fieldCount} inputs)`, ok: fieldCount > 0 || !assisted },
       { label: `Attachment requirements assigned (${docCount} files)`, ok: docCount >= 0 },
       { label: `Base pricing configured (₹${fee})`, ok: fee >= 0 },
+      {
+        label: `Fulfillment paths (${assisted ? 'assisted' : ''}${assisted && manual ? ' + ' : ''}${manual ? 'manual' : ''}${stateCount ? `, ${stateCount} states` : ''})`,
+        ok: assisted || manual,
+      },
       { label: `Approval routing workflow compiled (${stepCount} nodes)`, ok: stepCount > 0 },
     ];
   }, [bundle]);

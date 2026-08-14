@@ -78,11 +78,13 @@ export function ApplicationDetailPage() {
   const [instructions, setInstructions] = useState('');
   const [requiredFieldKeysInput, setRequiredFieldKeysInput] = useState('');
   const [requiredDocumentIdsInput, setRequiredDocumentIdsInput] = useState('');
+  const [deadline, setDeadline] = useState('');
   const queryClient = useQueryClient();
 
-  const { data: application, isLoading } = useQuery({
+  const { data: application, isLoading, isError } = useQuery({
     queryKey: ['applications', 'detail', applicationId],
     queryFn: () => getApplicationById(applicationId),
+    enabled: Boolean(applicationId),
   });
 
   const { data: transitionsData } = useQuery({
@@ -108,12 +110,14 @@ export function ApplicationDetailPage() {
       instructions?: string;
       requiredFieldKeys?: string[];
       requiredDocumentIds?: string[];
+      deadline?: string;
     }) =>
       executeApplicationTransition(applicationId, payload.actionKey, {
         comment: payload.comment,
         instructions: payload.instructions,
         requiredFieldKeys: payload.requiredFieldKeys,
         requiredDocumentIds: payload.requiredDocumentIds,
+        deadline: payload.deadline,
       }),
     onSuccess: () => {
       toast.success('Application updated');
@@ -130,6 +134,7 @@ export function ApplicationDetailPage() {
       instructions?: string;
       requiredFieldKeys?: string[];
       requiredDocumentIds?: string[];
+      deadline?: string;
     }) => requestCorrection(applicationId, payload),
     onSuccess: () => {
       toast.success('Correction requested');
@@ -191,6 +196,12 @@ export function ApplicationDetailPage() {
     [requiredDocumentIdsInput],
   );
 
+  function defaultDeadlineDate() {
+    const next = new Date();
+    next.setDate(next.getDate() + 7);
+    return next.toISOString().slice(0, 10);
+  }
+
   function closeActionDialog() {
     setActionDialogOpen(false);
     setPendingTransition(null);
@@ -198,6 +209,7 @@ export function ApplicationDetailPage() {
     setInstructions('');
     setRequiredFieldKeysInput('');
     setRequiredDocumentIdsInput('');
+    setDeadline('');
   }
 
   function openTransitionDialog(transition: PendingTransition) {
@@ -207,6 +219,7 @@ export function ApplicationDetailPage() {
     setInstructions('');
     setRequiredFieldKeysInput('');
     setRequiredDocumentIdsInput('');
+    setDeadline(transition.createsActionRequest ? defaultDeadlineDate() : '');
     setActionDialogOpen(true);
   }
 
@@ -217,6 +230,7 @@ export function ApplicationDetailPage() {
     setInstructions('');
     setRequiredFieldKeysInput('');
     setRequiredDocumentIdsInput('');
+    setDeadline(defaultDeadlineDate());
     setActionDialogOpen(true);
   }
 
@@ -241,6 +255,7 @@ export function ApplicationDetailPage() {
         instructions: instructions.trim() || undefined,
         requiredFieldKeys: selectedFieldKeys.length > 0 ? selectedFieldKeys : undefined,
         requiredDocumentIds: selectedDocumentIds.length > 0 ? selectedDocumentIds : undefined,
+        deadline: deadline ? new Date(`${deadline}T23:59:59`).toISOString() : undefined,
       });
       return;
     }
@@ -255,12 +270,16 @@ export function ApplicationDetailPage() {
         isCorrectionDialog && selectedFieldKeys.length > 0 ? selectedFieldKeys : undefined,
       requiredDocumentIds:
         isCorrectionDialog && selectedDocumentIds.length > 0 ? selectedDocumentIds : undefined,
+      deadline:
+        isCorrectionDialog && deadline
+          ? new Date(`${deadline}T23:59:59`).toISOString()
+          : undefined,
     });
   }
 
   const actionPending = transitionMutation.isPending || correctionMutation.isPending;
 
-  if (isLoading || !application) {
+  if (isLoading) {
     return (
       <div className="space-y-6">
         <Skeleton className="h-8 w-64" />
@@ -269,6 +288,22 @@ export function ApplicationDetailPage() {
       </div>
     );
   }
+
+  if (isError || !application) {
+    return (
+      <div className="space-y-4 rounded-2xl border border-red-100 bg-red-50/60 p-8 text-center">
+        <p className="text-lg font-semibold text-red-700">Could not load application</p>
+        <p className="text-sm text-red-600/80">
+          The application may not exist, or you may not have permission to view it.
+        </p>
+        <Button asChild variant="outline">
+          <Link to="/applications">Back to applications</Link>
+        </Button>
+      </div>
+    );
+  }
+
+  const displayRef = application.publicRef ?? application.id;
 
   const slaPercent = Math.max(
     0,
@@ -294,7 +329,7 @@ export function ApplicationDetailPage() {
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
-            <BreadcrumbPage>{application.id}</BreadcrumbPage>
+            <BreadcrumbPage>{displayRef}</BreadcrumbPage>
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
@@ -304,7 +339,7 @@ export function ApplicationDetailPage() {
           <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
             <div>
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-xl font-bold text-gray-900">{application.id}</h1>
+                <h1 className="text-xl font-bold text-gray-900">{displayRef}</h1>
                 <ApplicationStatusBadge status={application.status} />
                 <Badge variant="outline" className="border-red-100 bg-red-50 text-red-700">
                   {application.priority === 'high' ? 'High Priority' : application.priority === 'medium' ? 'Medium Priority' : 'Low Priority'}
@@ -393,7 +428,10 @@ export function ApplicationDetailPage() {
                 </Avatar>
                 <div>
                   <p className="text-sm font-semibold text-gray-900">{application.citizenName}</p>
-                  <p className="text-xs text-gray-500">{application.citizenId}</p>
+                  <p className="text-xs text-gray-500">
+                    {[application.citizenPhone, application.citizenEmail].filter(Boolean).join(' · ') ||
+                      application.citizenId}
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -424,7 +462,10 @@ export function ApplicationDetailPage() {
               <CardTitle className="text-base font-semibold text-gray-900">Supporting Documents</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {application.documents.map((doc) => (
+              {application.documents.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No documents submitted yet.</p>
+              ) : (
+                application.documents.map((doc) => (
                 <div
                   key={doc.id}
                   className="flex items-center justify-between gap-3 rounded-xl border border-gray-100 px-4 py-3"
@@ -435,7 +476,10 @@ export function ApplicationDetailPage() {
                     </span>
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium text-gray-900">{doc.name}</p>
-                      <p className="text-xs text-gray-500">{doc.type}</p>
+                      <p className="text-xs text-gray-500">
+                        {doc.type}
+                        {doc.uploadedAt ? ` · ${formatDate(doc.uploadedAt, 'DD MMM YYYY')}` : ''}
+                      </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -462,7 +506,8 @@ export function ApplicationDetailPage() {
                     </Button>
                   </div>
                 </div>
-              ))}
+                ))
+              )}
             </CardContent>
           </Card>
 
@@ -615,8 +660,8 @@ export function ApplicationDetailPage() {
             </DialogTitle>
             <DialogDescription>
               {isCorrectionDialog
-                ? 'Tell the citizen what needs to be corrected. A comment is required.'
-                : 'A comment is required before continuing.'}
+                ? 'Tell the citizen what to fix and by when. They will be notified on web and mobile.'
+                : 'A comment is required before continuing. The citizen will be notified.'}
             </DialogDescription>
           </DialogHeader>
 
@@ -635,19 +680,32 @@ export function ApplicationDetailPage() {
             {isCorrectionDialog ? (
               <>
                 <div className="space-y-1.5">
-                  <Label htmlFor="action-instructions">Instructions (optional)</Label>
+                  <Label htmlFor="action-instructions">Instructions for citizen</Label>
                   <Textarea
                     id="action-instructions"
                     rows={3}
                     value={instructions}
                     onChange={(e) => setInstructions(e.target.value)}
-                    placeholder="Extra guidance for the citizen…"
+                    placeholder="Clear steps the citizen should follow on web or mobile…"
                   />
                 </div>
 
                 <div className="space-y-1.5">
+                  <Label htmlFor="action-deadline">Update deadline</Label>
+                  <Input
+                    id="action-deadline"
+                    type="date"
+                    value={deadline}
+                    onChange={(e) => setDeadline(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Citizen gets time until this date to update their application.
+                  </p>
+                </div>
+
+                <div className="space-y-1.5">
                   <Label htmlFor="action-field-keys">Required field keys (optional)</Label>
-                  {application.formFieldKeys.length > 0 ? (
+                  {application.formFields.length > 0 ? (
                     <Select
                       onValueChange={(value) => {
                         const next = new Set(selectedFieldKeys);
@@ -659,9 +717,9 @@ export function ApplicationDetailPage() {
                         <SelectValue placeholder="Add a form field key" />
                       </SelectTrigger>
                       <SelectContent>
-                        {application.formFieldKeys.map((key) => (
-                          <SelectItem key={key} value={key}>
-                            {key}
+                        {application.formFields.map((field) => (
+                          <SelectItem key={field.key} value={field.key}>
+                            {field.label}
                           </SelectItem>
                         ))}
                       </SelectContent>

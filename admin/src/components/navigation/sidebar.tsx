@@ -16,6 +16,7 @@ import {
   Users,
   Receipt,
   Image,
+  Globe,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -40,6 +41,7 @@ const iconMap: Record<LucideIconName, LucideIcon> = {
   Settings,
   Receipt,
   Image,
+  Globe,
 };
 
 export interface SidebarProps {

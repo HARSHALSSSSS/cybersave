@@ -41,8 +41,10 @@ export class DashboardService {
         take: 10,
         orderBy: { createdAt: 'desc' },
         include: {
-          citizen: { select: { phone: true, firstName: true } },
+          citizen: { select: { phone: true, firstName: true, lastName: true } },
           serviceVersion: { include: { overview: true, subService: true } },
+          payment: { select: { amount: true, status: true } },
+          pricingSnapshot: true,
         },
       }),
     ]);

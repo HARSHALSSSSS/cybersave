@@ -3,7 +3,13 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 
 import { PERMISSIONS } from '@/common/constants/permissions.constants';
-import { AuthType, Public, RequirePermissions } from '@/common/decorators/auth.decorators';
+import {
+  AuthType,
+  CurrentUser,
+  Public,
+  RequirePermissions,
+} from '@/common/decorators/auth.decorators';
+import type { AuthenticatedCitizen } from '@/common/decorators/auth.decorators';
 import { RazorpayPaymentProvider } from '@/integrations/payment/razorpay-payment.provider';
 import { PaymentsService } from './payments.service';
 
@@ -42,6 +48,20 @@ export class PaymentsController {
     }
 
     return { success: true };
+  }
+}
+
+@ApiTags('Citizen Payments')
+@ApiBearerAuth('citizen-auth')
+@Controller('payments')
+@AuthType('citizen')
+export class CitizenPaymentsController {
+  constructor(private readonly paymentsService: PaymentsService) {}
+
+  @Get()
+  @ApiOperation({ summary: 'List captured payments for the signed-in citizen' })
+  listMine(@CurrentUser() user: AuthenticatedCitizen) {
+    return this.paymentsService.listForCitizen(user.id);
   }
 }
 

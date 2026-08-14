@@ -250,23 +250,47 @@ export const ApplicationDetailScreen: React.FC<Props> = ({
 
         {application.backendStatus === 'ACTION_REQUIRED' &&
         application.openActionRequest ? (
-          <Pressable
+          <View
             style={[
-              styles.receiptBtn,
+              styles.summaryCard,
               {
-                backgroundColor: theme.colors.primary,
-                borderColor: theme.colors.primary,
+                borderColor: '#F59E0B',
+                backgroundColor: '#FFFBEB',
                 marginBottom: theme.spacing.md,
               },
-            ]}
-            accessibilityRole="button"
-            onPress={() =>
-              navigation.navigate('SubmitCorrections', { applicationId })
-            }>
-            <Text style={[styles.receiptText, { color: theme.colors.textInverse }]}>
+            ]}>
+            <Text style={[styles.title, { color: '#92400E' }]}>
               {t.applications.submitCorrections}
             </Text>
-          </Pressable>
+            <Text style={[styles.meta, { color: '#B45309' }]}>
+              {application.openActionRequest.instructions ??
+                application.openActionRequest.reason}
+            </Text>
+            {application.openActionRequest.deadline ? (
+              <Text style={[styles.meta, { color: '#92400E', fontWeight: '600' }]}>
+                Update by{' '}
+                {new Date(application.openActionRequest.deadline).toLocaleDateString()}
+              </Text>
+            ) : null}
+            <Pressable
+              style={[
+                styles.receiptBtn,
+                {
+                  backgroundColor: theme.colors.primary,
+                  borderColor: theme.colors.primary,
+                  marginBottom: 0,
+                  marginTop: theme.spacing.md,
+                },
+              ]}
+              accessibilityRole="button"
+              onPress={() =>
+                navigation.navigate('SubmitCorrections', { applicationId })
+              }>
+              <Text style={[styles.receiptText, { color: theme.colors.textInverse }]}>
+                {t.applications.submitCorrections}
+              </Text>
+            </Pressable>
+          </View>
         ) : null}
 
         <Pressable

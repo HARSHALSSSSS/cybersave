@@ -21,6 +21,7 @@ export const APPLICATIONS_STATS: ApplicationsStats = {
 export const PIPELINE_STAGES: PipelineStage[] = [
   { key: 'submitted', label: 'Submitted', count: 1247 },
   { key: 'under_review', label: 'Under Review', count: 342 },
+  { key: 'action_required', label: 'Action Required', count: 48 },
   { key: 'processing', label: 'Processing', count: 189 },
   { key: 'approved', label: 'Approved', count: 214 },
   { key: 'completed', label: 'Completed', count: 856 },

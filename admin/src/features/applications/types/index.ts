@@ -7,15 +7,25 @@ export type ApplicationCategory =
   | 'Utility'
   | 'Other';
 
-export type ApplicationStatus = 'submitted' | 'under_review' | 'processing' | 'approved' | 'completed' | 'rejected';
+export type ApplicationStatus =
+  | 'submitted'
+  | 'under_review'
+  | 'action_required'
+  | 'processing'
+  | 'approved'
+  | 'completed'
+  | 'rejected';
 
 export type ApplicationPriority = 'low' | 'medium' | 'high';
 
 export interface ApplicationSummary {
   id: string;
+  publicRef?: string | null;
   citizenId: string;
   citizenName: string;
   citizenInitials: string;
+  citizenPhone?: string | null;
+  citizenEmail?: string | null;
   service: string;
   category: ApplicationCategory;
   priority: ApplicationPriority;

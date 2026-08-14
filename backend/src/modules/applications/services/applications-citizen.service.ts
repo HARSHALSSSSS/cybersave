@@ -8,6 +8,7 @@ import {
 import {
   ApplicationStatus,
   PaymentStatus,
+  Prisma,
   ServiceVersionLifecycleStatus,
   StoredFileStatus,
   UploadSessionStatus,
@@ -29,6 +30,7 @@ import { LocalStorageProvider } from '@/integrations/storage/local-storage.provi
 import { StorageService } from '@/integrations/storage/storage.service';
 import { ServiceVersionsBundleService } from '@/modules/service-versions/services/service-versions-bundle.service';
 import { calculateAssistedTotalAmount } from '@/modules/service-versions/utils/assisted-pricing.util';
+import { NotificationsService } from '@/modules/notifications/notifications.service';
 import { PaymentsService } from '@/modules/payments/payments.service';
 import { generateApplicationPublicRef } from '../constants/public-ref.util';
 import { CompleteUploadDto } from '../dto/citizen-application.dto';
@@ -37,6 +39,20 @@ import { ApplicationStateMachineService } from './application-state-machine.serv
 import { ApplicationValidationService } from './application-validation.service';
 
 const UPLOAD_SESSION_TTL_MS = 15 * 60 * 1000;
+
+function toPrismaJson(value: unknown): Prisma.InputJsonValue {
+  if (value === undefined || value === null) return '';
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+    return value;
+  }
+  try {
+    const serialized = JSON.stringify(value);
+    if (!serialized || serialized === 'null' || serialized === 'undefined') return '';
+    return JSON.parse(serialized) as Prisma.InputJsonValue;
+  } catch {
+    return String(value);
+  }
+}
 
 @Injectable()
 export class ApplicationsCitizenService {
@@ -49,6 +65,7 @@ export class ApplicationsCitizenService {
     private readonly validationService: ApplicationValidationService,
     private readonly stateMachine: ApplicationStateMachineService,
     private readonly paymentsService: PaymentsService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async createDraft(
@@ -219,19 +236,6 @@ export class ApplicationsCitizenService {
       throw new NotFoundException('Form version not found');
     }
 
-    const errors = this.validationService.validateFieldValues(
-      formVersion.fields,
-      formVersion.conditions,
-      values,
-    );
-
-    if (errors.length > 0) {
-      throw new BadRequestException({
-        message: 'Form validation failed',
-        errors,
-      });
-    }
-
     const nextStatus =
       application.status === ApplicationStatus.DRAFT
         ? ApplicationStatus.FORM_IN_PROGRESS
@@ -246,12 +250,13 @@ export class ApplicationsCitizenService {
 
     await this.prisma.$transaction(async (tx) => {
       for (const [fieldKey, value] of Object.entries(values)) {
+        const jsonValue = toPrismaJson(value);
         await tx.applicationFieldValue.upsert({
           where: {
             applicationId_fieldKey: { applicationId, fieldKey },
           },
-          create: { applicationId, fieldKey, value: value as object },
-          update: { value: value as object },
+          create: { applicationId, fieldKey, value: jsonValue },
+          update: { value: jsonValue },
         });
       }
 
@@ -322,7 +327,7 @@ export class ApplicationsCitizenService {
         applicationId,
         documentRequirementId: requirement.id,
         expectedMimeType: normalizedMime,
-        expectedMaxSizeBytes: requirement.maxFileSizeBytes,
+        expectedMaxSizeBytes: Math.max(requirement.maxFileSizeBytes || 0, 10 * 1024 * 1024),
         originalFileName: dto.originalFileName,
         status: UploadSessionStatus.PENDING,
         expiresAt,
@@ -341,10 +346,12 @@ export class ApplicationsCitizenService {
       },
     });
 
+    const maxSizeBytes = Math.max(requirement.maxFileSizeBytes || 0, 10 * 1024 * 1024);
+
     const presigned = await this.storageService.requestUploadUrl({
       storageKey,
       mimeType: normalizedMime,
-      maxSizeBytes: requirement.maxFileSizeBytes,
+      maxSizeBytes,
       originalFileName: dto.originalFileName,
     });
 
@@ -536,7 +543,11 @@ export class ApplicationsCitizenService {
     return this.getById(applicationId, citizenId);
   }
 
-  async validateApplication(applicationId: string, citizenId: string) {
+  async validateApplication(
+    applicationId: string,
+    citizenId: string,
+    scope?: 'form' | 'documents' | 'all',
+  ) {
     const application = await this.findOwnedApplication(
       applicationId,
       citizenId,
@@ -545,6 +556,7 @@ export class ApplicationsCitizenService {
 
     const result = await this.validationService.validateApplication(
       applicationId,
+      { scope: scope ?? 'all' },
     );
 
     if (result.valid) {
@@ -765,7 +777,60 @@ export class ApplicationsCitizenService {
       });
     });
 
+    await this.notifyApplicationSubmitted(updated);
+
     return updated;
+  }
+
+  private async notifyApplicationSubmitted(application: {
+    id: string;
+    citizenId: string;
+    publicRef: string | null;
+    serviceVersion?: {
+      overview?: { displayName?: string | null } | null;
+      subService?: { name: string } | null;
+    } | null;
+  }) {
+    const serviceName =
+      application.serviceVersion?.overview?.displayName ??
+      application.serviceVersion?.subService?.name ??
+      'your service';
+    const ref = application.publicRef ?? application.id;
+
+    try {
+      await this.notificationsService.create({
+        citizenId: application.citizenId,
+        title: 'Application submitted',
+        body: `Your ${serviceName} application (${ref}) has been submitted. We will notify you as it is reviewed.`,
+        metadata: {
+          applicationId: application.id,
+          publicRef: application.publicRef,
+          status: ApplicationStatus.SUBMITTED,
+        },
+      });
+
+      const admins = await this.prisma.adminUser.findMany({
+        where: { status: 'ACTIVE' },
+        select: { id: true },
+      });
+
+      await Promise.all(
+        admins.map(admin =>
+          this.notificationsService.create({
+            adminUserId: admin.id,
+            title: 'New application submitted',
+            body: `${serviceName} application ${ref} is ready for review.`,
+            metadata: {
+              applicationId: application.id,
+              publicRef: application.publicRef,
+              status: ApplicationStatus.SUBMITTED,
+            },
+          }),
+        ),
+      );
+    } catch {
+      // Submission must succeed even if notification delivery fails.
+    }
   }
 
   async submitCorrection(
@@ -822,8 +887,8 @@ export class ApplicationsCitizenService {
       for (const [fieldKey, value] of Object.entries(filteredValues)) {
         await this.prisma.applicationFieldValue.upsert({
           where: { applicationId_fieldKey: { applicationId, fieldKey } },
-          create: { applicationId, fieldKey, value: value as object },
-          update: { value: value as object },
+          create: { applicationId, fieldKey, value: toPrismaJson(value) },
+          update: { value: toPrismaJson(value) },
         });
       }
     }

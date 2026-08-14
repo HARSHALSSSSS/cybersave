@@ -30,7 +30,7 @@ export const INDIAN_STATES = [
   { code: 'TG', name: 'Telangana' },
   { code: 'TR', name: 'Tripura' },
   { code: 'UP', name: 'Uttar Pradesh' },
-  { code: 'UT', name: 'Uttarakhand' },
+  { code: 'UK', name: 'Uttarakhand' },
   { code: 'WB', name: 'West Bengal' },
 ] as const;
 

@@ -24,6 +24,22 @@ export interface SubServiceSummary {
     id: string;
     versionNumber: number;
     lifecycleStatus: string;
+    publishedAt?: string | null;
+  } | null;
+  publishedSummary?: {
+    versionId: string;
+    versionNumber: number;
+    displayName: string;
+    processingTime?: string | null;
+    baseFee: number;
+    assistedEnabled: boolean;
+    manualEnabled: boolean;
+    requiresStateSelection: boolean;
+    assistedCtaLabel?: string | null;
+    manualCtaLabel?: string | null;
+    stateCount: number;
+    formFieldCount: number;
+    documentCount: number;
   } | null;
 }
 
@@ -123,6 +139,13 @@ export async function publishVersion(versionId: string) {
   return unwrapApiResponse(response);
 }
 
+export async function previewVersion(versionId: string, stateCode?: string) {
+  const response = await apiClient.get(`/admin/service-versions/${versionId}/preview`, {
+    params: stateCode ? { state: stateCode } : undefined,
+  });
+  return unwrapApiResponse<Record<string, unknown>>(response);
+}
+
 export const servicesApi = {
   listMainServices,
   getMainService,
@@ -138,4 +161,5 @@ export const servicesApi = {
   saveWorkflow,
   validateVersion,
   publishVersion,
+  previewVersion,
 };

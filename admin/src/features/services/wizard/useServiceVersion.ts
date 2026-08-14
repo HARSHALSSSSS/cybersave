@@ -49,6 +49,14 @@ export interface ServiceVersionBundle {
       condition?: string | null;
     }>;
   } | null;
+  fulfillmentConfig?: {
+    assistedEnabled?: boolean;
+    manualEnabled?: boolean;
+    requiresStateSelection?: boolean;
+    assistedCtaLabel?: string | null;
+    manualCtaLabel?: string | null;
+    stateVariants?: unknown[];
+  } | null;
   workflowDefinition?: {
     steps?: Array<{
       id: string;

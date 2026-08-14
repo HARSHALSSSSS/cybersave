@@ -1,11 +1,26 @@
 /** Official redirect URLs for manual apply — mirrors backend seed catalog. */
 export const STATE_EDISTRICT_PORTALS: Record<string, { name: string; url: string }> = {
   MH: { name: 'Maharashtra', url: 'https://aaplesarkar.mahaonline.gov.in/' },
+  GJ: { name: 'Gujarat', url: 'https://www.digitalgujarat.gov.in/' },
+  BR: { name: 'Bihar', url: 'https://serviceonline.bihar.gov.in/' },
   KA: { name: 'Karnataka', url: 'https://sevasindhu.karnataka.gov.in/' },
   DL: { name: 'Delhi', url: 'https://edistrict.delhigovt.nic.in/' },
   UP: { name: 'Uttar Pradesh', url: 'https://edistrict.up.gov.in/' },
   TN: { name: 'Tamil Nadu', url: 'https://www.tnesevai.tn.gov.in/' },
-  GJ: { name: 'Gujarat', url: 'https://digitalgujarat.gov.in/' },
+  RJ: { name: 'Rajasthan', url: 'https://emitra.rajasthan.gov.in/' },
+  MP: { name: 'Madhya Pradesh', url: 'https://mpedistrict.gov.in/' },
+  WB: { name: 'West Bengal', url: 'https://edistrict.wb.gov.in/' },
+  AP: { name: 'Andhra Pradesh', url: 'https://meeseva.ap.gov.in/' },
+  TG: { name: 'Telangana', url: 'https://ts.meeseva.telangana.gov.in/' },
+  KL: { name: 'Kerala', url: 'https://ecitizen.kerala.gov.in/' },
+  HR: { name: 'Haryana', url: 'https://saralharyana.gov.in/' },
+  PB: { name: 'Punjab', url: 'https://eservices.punjab.gov.in/' },
+  OD: { name: 'Odisha', url: 'https://sujog.odisha.gov.in/' },
+  CT: { name: 'Chhattisgarh', url: 'https://edistrict.cgstate.gov.in/' },
+  JH: { name: 'Jharkhand', url: 'https://jharkhand.gov.in/jharsewa' },
+  UK: { name: 'Uttarakhand', url: 'https://edistrict.uk.gov.in/' },
+  HP: { name: 'Himachal Pradesh', url: 'https://edistrict.hp.gov.in/' },
+  AS: { name: 'Assam', url: 'https://sewasetu.assam.gov.in/' },
 };
 
 const PARIVAHAN = 'https://parivahan.gov.in/';
@@ -50,6 +65,14 @@ export const STATE_MANUAL_PORTAL_PRESETS: Record<
   'government-job-noc': 'edistrict',
   'bonafide-certificate': 'edistrict',
   'transfer-certificate': 'edistrict',
+  'ration-card': 'edistrict',
+  'non-creamy-layer-certificate': 'edistrict',
+  'legal-heir-certificate': 'edistrict',
+  'age-nationality-domicile': 'edistrict',
+  'mukhyamantri-kanya-vivah-yojana': 'edistrict',
+  'municipal-property-tax': 'edistrict',
+  'labour-welfare-registration': 'edistrict',
+  'birth-registration-state': 'edistrict',
 };
 
 export type PortalPresetRow = {
@@ -69,7 +92,8 @@ function edistrictRows(platformFee = 49): PortalPresetRow[] {
 }
 
 function parivahanRows(platformFee = 49): PortalPresetRow[] {
-  return ['MH', 'KA', 'DL', 'UP'].map(code => ({
+  const codes = ['MH', 'GJ', 'BR', 'KA', 'DL', 'UP', 'TN', 'RJ', 'MP', 'WB'];
+  return codes.map(code => ({
     stateCode: code,
     stateName: STATE_EDISTRICT_PORTALS[code]?.name ?? code,
     officialPortalUrl: PARIVAHAN,

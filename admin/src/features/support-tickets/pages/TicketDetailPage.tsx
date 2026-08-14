@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, CheckCircle2, Paperclip, UserCog } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -23,23 +23,36 @@ import {
 } from '@/components/ui';
 import { cn } from '@/lib/utils';
 import { formatDate } from '@/utils/format';
-import { getTicketByParam } from '../services/tickets.service';
+import { getTicketByParam, replyToTicket } from '../services/tickets.service';
 import { TicketStatusBadge } from '../components/TicketStatusBadge';
 import type { TicketInternalNote } from '../types';
 
 export function TicketDetailPage() {
   const { ticketId = '' } = useParams<{ ticketId: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [reply, setReply] = useState('');
   const [noteDraft, setNoteDraft] = useState('');
   const [extraNotes, setExtraNotes] = useState<TicketInternalNote[]>([]);
 
-  const { data: ticket, isLoading } = useQuery({
+  const { data: ticket, isLoading, isError } = useQuery({
     queryKey: ['support-tickets', 'detail', ticketId],
     queryFn: () => getTicketByParam(ticketId),
+    enabled: Boolean(ticketId),
   });
 
-  if (isLoading || !ticket) {
+  const replyMutation = useMutation({
+    mutationFn: (content: string) => replyToTicket(ticketId, content),
+    onSuccess: () => {
+      toast.success('Reply sent to citizen');
+      setReply('');
+      void queryClient.invalidateQueries({ queryKey: ['support-tickets', 'detail', ticketId] });
+      void queryClient.invalidateQueries({ queryKey: ['support-tickets'] });
+    },
+    onError: () => toast.error('Failed to send reply'),
+  });
+
+  if (isLoading) {
     return (
       <div className="space-y-6">
         <Skeleton className="h-8 w-64" />
@@ -51,18 +64,24 @@ export function TicketDetailPage() {
     );
   }
 
-  function handleSendReply() {
-    if (!reply.trim()) return;
-    toast.success('Reply sent to reporter');
-    setReply('');
+  if (isError || !ticket) {
+    return (
+      <div className="space-y-4 rounded-2xl border border-red-100 bg-red-50/60 p-8 text-center">
+        <p className="text-lg font-semibold text-red-700">Could not load ticket</p>
+        <Button asChild variant="outline">
+          <Link to="/support-tickets">Back to tickets</Link>
+        </Button>
+      </div>
+    );
   }
 
-  function handleSaveDraft() {
-    toast.info('Draft saved');
+  function handleSendReply() {
+    if (!reply.trim()) return;
+    replyMutation.mutate(reply.trim());
   }
 
   function handleAddNote() {
-    if (!noteDraft.trim() || !ticket) return;
+    if (!noteDraft.trim()) return;
     setExtraNotes((prev) => [
       ...prev,
       {
@@ -78,6 +97,7 @@ export function TicketDetailPage() {
   }
 
   const allNotes = [...ticket.internalNotes, ...extraNotes];
+  const canReply = ticket.status !== 'resolved' && ticket.status !== 'escalated';
 
   return (
     <div className="space-y-6">
@@ -103,7 +123,9 @@ export function TicketDetailPage() {
 
       <div className="space-y-1.5">
         <div className="flex flex-wrap items-center gap-2.5">
-          <h1 className="text-2xl leading-8 font-semibold tracking-tight text-foreground">{ticket.subject}</h1>
+          <h1 className="text-2xl leading-8 font-semibold tracking-tight text-foreground">
+            {ticket.subject}
+          </h1>
           <TicketStatusBadge status={ticket.status} />
         </div>
         <p className="text-sm leading-5 text-muted-foreground">{ticket.description}</p>
@@ -122,7 +144,9 @@ export function TicketDetailPage() {
                     <AvatarFallback
                       className={cn(
                         'text-xs font-semibold',
-                        message.role === 'agent' ? 'bg-accent text-accent-foreground' : 'bg-muted text-foreground',
+                        message.role === 'agent'
+                          ? 'bg-accent text-accent-foreground'
+                          : 'bg-muted text-foreground',
                       )}
                     >
                       {message.authorInitials}
@@ -145,30 +169,37 @@ export function TicketDetailPage() {
 
               <div className="space-y-2.5 border-t border-border-subtle pt-4">
                 <p className="text-sm font-medium text-foreground">Write a Response</p>
-                <Textarea
-                  rows={4}
-                  placeholder="Type your response to the reporter..."
-                  value={reply}
-                  onChange={(e) => setReply(e.target.value)}
-                />
-                <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
-                    onClick={() => toast.info('Attachment picker coming soon')}
-                  >
-                    <Paperclip className="h-3.5 w-3.5" />
-                    Attach file
-                  </button>
-                  <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" onClick={handleSaveDraft}>
-                      Save Draft
-                    </Button>
-                    <Button size="sm" disabled={!reply.trim()} onClick={handleSendReply}>
-                      Send Reply
-                    </Button>
-                  </div>
-                </div>
+                {canReply ? (
+                  <>
+                    <Textarea
+                      rows={4}
+                      placeholder="Type your response to the reporter..."
+                      value={reply}
+                      onChange={(e) => setReply(e.target.value)}
+                    />
+                    <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+                        onClick={() => toast.info('Attachment picker coming soon')}
+                      >
+                        <Paperclip className="h-3.5 w-3.5" />
+                        Attach file
+                      </button>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          disabled={!reply.trim() || replyMutation.isPending}
+                          onClick={handleSendReply}
+                        >
+                          {replyMutation.isPending ? 'Sending…' : 'Send Reply'}
+                        </Button>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">This ticket is closed for replies.</p>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -183,7 +214,7 @@ export function TicketDetailPage() {
               <div className="space-y-3 text-sm leading-5">
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Ticket ID</span>
-                  <span className="font-medium text-foreground">{ticket.id}</span>
+                  <span className="font-medium text-foreground">{ticket.shortId}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Category</span>
@@ -191,17 +222,29 @@ export function TicketDetailPage() {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Priority</span>
-                  <Badge variant={ticket.priority === 'low' ? 'muted' : ticket.priority === 'medium' ? 'warning' : 'danger'}>
+                  <Badge
+                    variant={
+                      ticket.priority === 'low'
+                        ? 'muted'
+                        : ticket.priority === 'medium'
+                          ? 'warning'
+                          : 'danger'
+                    }
+                  >
                     {ticket.priority.charAt(0).toUpperCase() + ticket.priority.slice(1)}
                   </Badge>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Created</span>
-                  <span className="font-medium text-foreground">{formatDate(ticket.createdAt, 'DD MMM YYYY, hh:mm A')}</span>
+                  <span className="font-medium text-foreground">
+                    {formatDate(ticket.createdAt, 'DD MMM YYYY, hh:mm A')}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Updated</span>
-                  <span className="font-medium text-foreground">{formatDate(ticket.updatedAt, 'DD MMM YYYY, hh:mm A')}</span>
+                  <span className="font-medium text-foreground">
+                    {formatDate(ticket.updatedAt, 'DD MMM YYYY, hh:mm A')}
+                  </span>
                 </div>
               </div>
 
@@ -214,7 +257,9 @@ export function TicketDetailPage() {
                         {ticket.assignedToInitials ?? '—'}
                       </AvatarFallback>
                     </Avatar>
-                    <span className="text-sm font-medium text-foreground">{ticket.assignedTo ?? 'Unassigned'}</span>
+                    <span className="text-sm font-medium text-foreground">
+                      {ticket.assignedTo ?? 'Unassigned'}
+                    </span>
                   </div>
                 </div>
                 <div className="flex items-center justify-between gap-2">
@@ -228,6 +273,7 @@ export function TicketDetailPage() {
                     <span className="text-sm font-medium text-foreground">{ticket.reporterName}</span>
                   </div>
                 </div>
+                <p className="text-xs text-muted-foreground">{ticket.reporterEmail}</p>
               </div>
 
               <div className="flex flex-col gap-2 border-t border-border-subtle pt-3">
@@ -235,7 +281,7 @@ export function TicketDetailPage() {
                   variant="outline"
                   size="sm"
                   className="justify-center gap-1.5 border-danger-border bg-danger-bg text-danger-text hover:bg-danger-bg/80"
-                  onClick={() => toast.success(`${ticket.id} escalated`)}
+                  onClick={() => toast.info('Escalation workflow coming soon')}
                 >
                   <AlertTriangle className="h-3.5 w-3.5" />
                   Escalate Ticket
@@ -245,6 +291,7 @@ export function TicketDetailPage() {
                   size="sm"
                   className="justify-center gap-1.5 border-success-border bg-success-bg text-success-text hover:bg-success-bg/80"
                   onClick={() => navigate(`/support-tickets/${ticketId}/resolve`)}
+                  disabled={ticket.status === 'resolved'}
                 >
                   <CheckCircle2 className="h-3.5 w-3.5" />
                   Mark as Resolved
@@ -261,38 +308,40 @@ export function TicketDetailPage() {
               </div>
             </CardContent>
           </Card>
+
+          <Card className="border-border">
+            <CardHeader>
+              <CardTitle>Internal Notes</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {allNotes.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No private notes yet.</p>
+              ) : (
+                allNotes.map((note) => (
+                  <div key={note.id} className="rounded-xl border border-border p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-medium">{note.author}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatDate(note.createdAt, 'DD MMM, hh:mm A')}
+                      </p>
+                    </div>
+                    <p className="mt-1 text-sm text-muted-foreground">{note.content}</p>
+                  </div>
+                ))
+              )}
+              <Textarea
+                rows={3}
+                placeholder="Add a private note…"
+                value={noteDraft}
+                onChange={(e) => setNoteDraft(e.target.value)}
+              />
+              <Button size="sm" disabled={!noteDraft.trim()} onClick={handleAddNote}>
+                Add Note
+              </Button>
+            </CardContent>
+          </Card>
         </div>
       </div>
-
-      <Card className="border-border">
-        <CardHeader>
-          <CardTitle>Internal Team Notes &amp; Activity</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {allNotes.map((note) => (
-            <div key={note.id} className="rounded-xl border border-warning-border bg-warning-bg p-3.5">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-sm font-semibold text-foreground">{note.author}</span>
-                <span className="text-xs text-muted-foreground">{formatDate(note.createdAt, 'DD MMM, hh:mm A')}</span>
-              </div>
-              <p className="mt-1 text-sm leading-5 text-foreground/90">{note.content}</p>
-            </div>
-          ))}
-
-          <div className="flex items-center gap-2 pt-1">
-            <Textarea
-              rows={2}
-              placeholder="Add a private note visible only to the team..."
-              value={noteDraft}
-              onChange={(e) => setNoteDraft(e.target.value)}
-              className="flex-1"
-            />
-          </div>
-          <Button variant="outline" size="sm" disabled={!noteDraft.trim()} onClick={handleAddNote}>
-            + Add Private Note
-          </Button>
-        </CardContent>
-      </Card>
     </div>
   );
 }

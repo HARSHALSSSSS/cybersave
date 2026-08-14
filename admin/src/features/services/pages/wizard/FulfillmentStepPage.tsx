@@ -23,6 +23,7 @@ import {
   buildRecommendedFulfillment,
   getRecommendedDefaultPortalUrl,
   isStateBasedManualService,
+  STATE_EDISTRICT_PORTALS,
 } from '../../constants/manual-portal-presets';
 
 type StateRow = {
@@ -58,6 +59,8 @@ export function FulfillmentStepPage() {
 
   const [assistedEnabled, setAssistedEnabled] = useState(true);
   const [manualEnabled, setManualEnabled] = useState(false);
+  const [assistedCtaLabel, setAssistedCtaLabel] = useState('Get it done by us');
+  const [manualCtaLabel, setManualCtaLabel] = useState('Apply on official portal');
   const [requiresState, setRequiresState] = useState(false);
   const [defaultPlatformFee, setDefaultPlatformFee] = useState(49);
   const [defaultPortalUrl, setDefaultPortalUrl] = useState('');
@@ -94,6 +97,8 @@ export function FulfillmentStepPage() {
     if (!f) return;
     setAssistedEnabled(Boolean(f.assistedEnabled ?? true));
     setManualEnabled(Boolean(f.manualEnabled));
+    setAssistedCtaLabel(String(f.assistedCtaLabel ?? 'Get it done by us'));
+    setManualCtaLabel(String(f.manualCtaLabel ?? 'Apply on official portal'));
     setRequiresState(Boolean(f.requiresStateSelection));
     setDefaultPlatformFee(Number(f.defaultPlatformFee ?? 49));
     setDefaultPortalUrl(String(f.defaultPortalUrl ?? ''));
@@ -131,6 +136,8 @@ export function FulfillmentStepPage() {
       servicesApi.saveFulfillment(versionId!, {
         assistedEnabled,
         manualEnabled,
+        assistedCtaLabel: assistedCtaLabel.trim() || undefined,
+        manualCtaLabel: manualCtaLabel.trim() || undefined,
         requiresStateSelection: requiresState,
         defaultPlatformFee,
         defaultPortalUrl: defaultPortalUrl.trim() || undefined,
@@ -188,6 +195,30 @@ export function FulfillmentStepPage() {
     } catch {
       toast.error('Failed to save fulfillment settings');
     }
+  };
+
+  const addAllRolloutStates = () => {
+    const recommended = subServiceSlug
+      ? buildRecommendedFulfillment(subServiceSlug, defaultPlatformFee)
+      : null;
+    if (recommended?.stateVariants.length) {
+      setStateVariants(recommended.stateVariants);
+      setRequiresState(true);
+      toast.success(`Added ${recommended.stateVariants.length} recommended states`);
+      return;
+    }
+    const rows = INDIAN_STATES.filter(
+      s => STATE_EDISTRICT_PORTALS[s.code as keyof typeof STATE_EDISTRICT_PORTALS],
+    ).map(s => ({
+      stateCode: s.code,
+      stateName: s.name,
+      officialPortalUrl:
+        STATE_EDISTRICT_PORTALS[s.code as keyof typeof STATE_EDISTRICT_PORTALS]?.url ?? '',
+      platformFee: defaultPlatformFee,
+    }));
+    setStateVariants(rows);
+    setRequiresState(true);
+    toast.success(`Added ${rows.length} states with e-District portal links`);
   };
 
   const addState = () => {
@@ -286,6 +317,25 @@ export function FulfillmentStepPage() {
             <Switch checked={requiresState} onCheckedChange={setRequiresState} />
           </div>
 
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <Label>Assisted button label</Label>
+              <Input
+                value={assistedCtaLabel}
+                onChange={e => setAssistedCtaLabel(e.target.value)}
+                placeholder="Get it done by us"
+              />
+            </div>
+            <div>
+              <Label>Manual portal button label</Label>
+              <Input
+                value={manualCtaLabel}
+                onChange={e => setManualCtaLabel(e.target.value)}
+                placeholder="Apply on official portal"
+              />
+            </div>
+          </div>
+
           {manualEnabled && recommendedHint ? (
             <p className="rounded-lg border border-dashed bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
               Recommended redirect: {recommendedHint}
@@ -343,9 +393,14 @@ export function FulfillmentStepPage() {
                     Each state must have an official redirect URL for manual apply.
                   </p>
                 </div>
-                <Button type="button" variant="outline" size="sm" onClick={addState}>
-                  <Plus className="mr-1 size-4" /> Add state
-                </Button>
+                <div className="flex gap-2">
+                  <Button type="button" variant="outline" size="sm" onClick={addAllRolloutStates}>
+                    Add all rollout states
+                  </Button>
+                  <Button type="button" variant="outline" size="sm" onClick={addState}>
+                    <Plus className="mr-1 size-4" /> Add state
+                  </Button>
+                </div>
               </div>
               {stateVariants.length === 0 ? (
                 <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">

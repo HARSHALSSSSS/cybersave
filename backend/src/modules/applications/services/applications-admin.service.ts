@@ -351,7 +351,7 @@ export class ApplicationsAdminService {
             instructions: dto.instructions ?? dto.comment,
             requiredDocumentIds: dto.requiredDocumentIds ?? [],
             requiredFieldKeys: dto.requiredFieldKeys ?? [],
-            deadline: dto.deadline,
+            deadline: dto.deadline ?? this.defaultCorrectionDeadline(),
             status: ActionRequestStatus.OPEN,
           },
         });
@@ -374,7 +374,13 @@ export class ApplicationsAdminService {
       await this.notifyCitizenOfStatusChange(
         application,
         toStep.applicationStatus,
-        dto.comment,
+        {
+          comment: dto.comment,
+          instructions: dto.instructions,
+          deadline: dto.deadline ?? (transition.createsActionRequest
+            ? this.defaultCorrectionDeadline()
+            : undefined),
+        },
       );
     }
 
@@ -446,7 +452,7 @@ export class ApplicationsAdminService {
         instructions: dto.instructions,
         requiredDocumentIds: dto.requiredDocumentIds ?? [],
         requiredFieldKeys: dto.requiredFieldKeys ?? [],
-        deadline: dto.deadline,
+        deadline: dto.deadline ?? this.defaultCorrectionDeadline(),
         status: ActionRequestStatus.OPEN,
       },
     });
@@ -488,7 +494,11 @@ export class ApplicationsAdminService {
     await this.notifyCitizenOfStatusChange(
       application,
       ApplicationStatus.ACTION_REQUIRED,
-      dto.reason,
+      {
+        comment: dto.reason,
+        instructions: dto.instructions,
+        deadline: dto.deadline ?? this.defaultCorrectionDeadline(),
+      },
     );
 
     return {
@@ -532,6 +542,13 @@ export class ApplicationsAdminService {
     return notifyCitizenFlag || ALWAYS_NOTIFY_ACTION_KEYS.has(actionKey);
   }
 
+  private defaultCorrectionDeadline(days = 7) {
+    const deadline = new Date();
+    deadline.setDate(deadline.getDate() + days);
+    deadline.setHours(23, 59, 59, 999);
+    return deadline;
+  }
+
   private async notifyCitizenOfStatusChange(
     application: {
       id: string;
@@ -539,20 +556,65 @@ export class ApplicationsAdminService {
       publicRef?: string | null;
     },
     newStatus: ApplicationStatus,
-    comment?: string,
+    options?: {
+      comment?: string;
+      instructions?: string;
+      deadline?: Date | string | null;
+    },
   ) {
-    const statusLabel = newStatus.replace(/_/g, ' ').toLowerCase();
     const ref = application.publicRef ?? application.id;
-    const commentSuffix = comment?.trim() ? ` Reason: ${comment.trim()}` : '';
+    const statusLabel = newStatus.replace(/_/g, ' ').toLowerCase();
+    const comment = options?.comment?.trim();
+    const instructions = options?.instructions?.trim();
+    const deadline =
+      options?.deadline != null ? new Date(options.deadline) : null;
+    const deadlineText =
+      deadline && !Number.isNaN(deadline.getTime())
+        ? deadline.toLocaleDateString('en-IN', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+          })
+        : null;
+
+    let title = `Application ${statusLabel}`;
+    let body = `Your application ${ref} status is now ${statusLabel}.`;
+
+    if (newStatus === ApplicationStatus.ACTION_REQUIRED) {
+      title = `Action needed on application ${ref}`;
+      body = `Please update your application on the Cybersave website or mobile app`;
+      if (deadlineText) {
+        body += ` by ${deadlineText}`;
+      }
+      body += '.';
+      if (instructions || comment) {
+        body += ` ${instructions || comment}`;
+      }
+    } else if (newStatus === ApplicationStatus.APPROVED) {
+      title = `Application ${ref} approved`;
+      body = `Good news — application ${ref} has been approved.`;
+      if (comment) body += ` ${comment}`;
+    } else if (newStatus === ApplicationStatus.COMPLETED) {
+      title = `Application ${ref} completed`;
+      body = `Application ${ref} is complete. You can download your certificate from Cybersave.`;
+    } else if (newStatus === ApplicationStatus.REJECTED) {
+      title = `Application ${ref} rejected`;
+      body = `Application ${ref} was rejected.`;
+      if (comment) body += ` Reason: ${comment}`;
+    } else if (comment) {
+      body += ` ${comment}`;
+    }
 
     await this.notificationsService.create({
       citizenId: application.citizenId,
-      title: `Application ${statusLabel}`,
-      body: `Your application ${ref} status is now ${statusLabel}.${commentSuffix}`,
+      title,
+      body,
       metadata: {
         applicationId: application.id,
         publicRef: application.publicRef,
         status: newStatus,
+        deadline: deadline?.toISOString() ?? null,
+        type: 'application',
       },
     });
   }
@@ -561,8 +623,10 @@ export class ApplicationsAdminService {
     applicationId: string,
     admin: AuthenticatedAdmin,
   ) {
-    const application = await this.prisma.application.findUnique({
-      where: { id: applicationId },
+    const application = await this.prisma.application.findFirst({
+      where: {
+        OR: [{ id: applicationId }, { publicRef: applicationId }],
+      },
       include: this.adminDetailInclude(),
     });
 

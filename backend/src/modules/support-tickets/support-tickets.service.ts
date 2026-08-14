@@ -12,6 +12,7 @@ import {
   paginationMeta,
 } from '@/common/dto/pagination.dto';
 import { PrismaService } from '@/database/database.module';
+import { NotificationsService } from '@/modules/notifications/notifications.service';
 
 export interface CreateTicketParams {
   citizenId: string;
@@ -32,7 +33,10 @@ export interface SupportTicketsQuery extends PaginationQueryDto {
 
 @Injectable()
 export class SupportTicketsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   async createTicket(params: CreateTicketParams) {
     return this.prisma.supportTicket.create({
@@ -128,6 +132,7 @@ export class SupportTicketsService {
             select: {
               id: true,
               phone: true,
+              email: true,
               firstName: true,
               lastName: true,
             },
@@ -172,29 +177,53 @@ export class SupportTicketsService {
   }
 
   async replyAdmin(adminId: string, ticketId: string, content: string) {
-    await this.getAdmin(ticketId);
+    const ticket = await this.getAdmin(ticketId);
 
     await this.prisma.supportTicket.update({
       where: { id: ticketId },
       data: { status: SupportTicketStatus.IN_PROGRESS },
     });
 
-    return this.addMessage({
+    const message = await this.addMessage({
       ticketId,
       senderType: ActorType.ADMIN,
       senderId: adminId,
       content,
     });
+
+    await this.notificationsService.create({
+      citizenId: ticket.citizenId,
+      title: 'New reply on your support ticket',
+      body: `Support replied to "${ticket.subject}": ${content.slice(0, 160)}`,
+      metadata: {
+        ticketId: ticket.id,
+        type: 'support',
+      },
+    });
+
+    return message;
   }
 
   async resolveAdmin(ticketId: string) {
-    await this.getAdmin(ticketId);
+    const ticket = await this.getAdmin(ticketId);
 
-    return this.prisma.supportTicket.update({
+    const resolved = await this.prisma.supportTicket.update({
       where: { id: ticketId },
       data: { status: SupportTicketStatus.RESOLVED },
       include: { messages: { orderBy: { createdAt: 'asc' } } },
     });
+
+    await this.notificationsService.create({
+      citizenId: ticket.citizenId,
+      title: 'Support ticket resolved',
+      body: `Your ticket "${ticket.subject}" has been marked as resolved.`,
+      metadata: {
+        ticketId: ticket.id,
+        type: 'support',
+      },
+    });
+
+    return resolved;
   }
 
   private async addMessage(params: AddMessageParams) {

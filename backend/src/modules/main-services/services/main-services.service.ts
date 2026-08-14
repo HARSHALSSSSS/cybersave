@@ -64,12 +64,28 @@ export class MainServicesService {
           include: {
             versions: {
               orderBy: { versionNumber: 'desc' },
-              take: 1,
+              take: 3,
               select: {
                 id: true,
                 versionNumber: true,
                 lifecycleStatus: true,
                 publishedAt: true,
+                overview: { select: { processingTime: true, displayName: true } },
+                pricingConfig: { select: { baseFee: true } },
+                fulfillmentConfig: {
+                  select: {
+                    assistedEnabled: true,
+                    manualEnabled: true,
+                    requiresStateSelection: true,
+                    assistedCtaLabel: true,
+                    manualCtaLabel: true,
+                    stateVariants: { select: { id: true } },
+                  },
+                },
+                formVersion: {
+                  select: { _count: { select: { fields: true } } },
+                },
+                _count: { select: { documentRequirements: true } },
               },
             },
           },
@@ -83,17 +99,58 @@ export class MainServicesService {
 
     return {
       ...mainService,
-      subServices: mainService.subServices.map((sub) => ({
-        id: sub.id,
-        name: sub.name,
-        slug: sub.slug,
-        description: sub.description,
-        sortOrder: sub.sortOrder,
-        status: sub.status,
-        latestVersion: sub.versions[0] ?? null,
-        createdAt: sub.createdAt,
-        updatedAt: sub.updatedAt,
-      })),
+      subServices: mainService.subServices.map((sub) => {
+        const latestVersion = sub.versions[0] ?? null;
+        const publishedVersion =
+          sub.versions.find((v) => v.lifecycleStatus === 'PUBLISHED') ?? null;
+
+        return {
+          id: sub.id,
+          name: sub.name,
+          slug: sub.slug,
+          description: sub.description,
+          sortOrder: sub.sortOrder,
+          status: sub.status,
+          latestVersion: latestVersion
+            ? {
+                id: latestVersion.id,
+                versionNumber: latestVersion.versionNumber,
+                lifecycleStatus: latestVersion.lifecycleStatus,
+                publishedAt: latestVersion.publishedAt,
+              }
+            : null,
+          publishedSummary: publishedVersion
+            ? {
+                versionId: publishedVersion.id,
+                versionNumber: publishedVersion.versionNumber,
+                displayName:
+                  publishedVersion.overview?.displayName ?? sub.name,
+                processingTime: publishedVersion.overview?.processingTime ?? null,
+                baseFee: publishedVersion.pricingConfig
+                  ? Number(publishedVersion.pricingConfig.baseFee)
+                  : 0,
+                assistedEnabled:
+                  publishedVersion.fulfillmentConfig?.assistedEnabled ?? true,
+                manualEnabled:
+                  publishedVersion.fulfillmentConfig?.manualEnabled ?? false,
+                requiresStateSelection:
+                  publishedVersion.fulfillmentConfig?.requiresStateSelection ??
+                  false,
+                assistedCtaLabel:
+                  publishedVersion.fulfillmentConfig?.assistedCtaLabel ?? null,
+                manualCtaLabel:
+                  publishedVersion.fulfillmentConfig?.manualCtaLabel ?? null,
+                stateCount:
+                  publishedVersion.fulfillmentConfig?.stateVariants.length ?? 0,
+                formFieldCount:
+                  publishedVersion.formVersion?._count.fields ?? 0,
+                documentCount: publishedVersion._count.documentRequirements,
+              }
+            : null,
+          createdAt: sub.createdAt,
+          updatedAt: sub.updatedAt,
+        };
+      }),
     };
   }
 

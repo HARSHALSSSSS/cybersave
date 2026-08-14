@@ -67,6 +67,10 @@ const PublishStepPageLazy = lazy(() =>
   import('@/features/services').then(m => ({ default: m.PublishStepPage })),
 );
 
+const ManualApplySessionsPageLazy = lazy(() =>
+  import('@/features/manual-apply').then(m => ({ default: m.ManualApplySessionsPage })),
+);
+
 const HomeBannersPageLazy = lazy(() =>
   import('@/features/home-banners').then(m => ({ default: m.HomeBannersPage })),
 );
@@ -141,6 +145,7 @@ export const router = createBrowserRouter([
       { path: 'users/:citizenId', element: <RouteSuspense><CitizenDetailPageLazy /></RouteSuspense> },
       { path: 'applications', element: <RouteSuspense><ApplicationsPageLazy /></RouteSuspense> },
       { path: 'applications/:applicationId', element: <RouteSuspense><ApplicationDetailPageLazy /></RouteSuspense> },
+      { path: 'manual-apply', element: <RouteSuspense><ManualApplySessionsPageLazy /></RouteSuspense> },
       { path: 'services', element: <RouteSuspense><ServicesPageLazy /></RouteSuspense> },
       { path: 'services/new', element: <RouteSuspense><MainServiceStepPageLazy /></RouteSuspense> },
       { path: 'services/new/:mainServiceId/sub-services', element: <RouteSuspense><SubServiceStepPageLazy /></RouteSuspense> },

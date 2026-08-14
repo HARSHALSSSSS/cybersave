@@ -56,6 +56,7 @@ interface BackendApplicationDetail extends BackendApplicationListItem {
     amount?: unknown;
     provider?: string;
     id?: string;
+    providerRef?: string | null;
     updatedAt?: string;
   } | null;
   statusHistory?: Array<{
@@ -105,11 +106,13 @@ function extractFormFields(app: BackendApplicationDetail): Array<{
   const payload = app.configSnapshot?.payload;
 
   if (payload && typeof payload === 'object') {
-    const formVersion = (
-      payload as { formVersion?: { fields?: Array<{ key?: string; label?: string; type?: string }> } }
-    ).formVersion;
-    if (Array.isArray(formVersion?.fields)) {
-      snapshotFields.push(...formVersion.fields);
+    const formPayload = payload as {
+      form?: { fields?: Array<{ key?: string; label?: string; type?: string }> };
+      formVersion?: { fields?: Array<{ key?: string; label?: string; type?: string }> };
+    };
+    const fields = formPayload.form?.fields ?? formPayload.formVersion?.fields;
+    if (Array.isArray(fields)) {
+      snapshotFields.push(...fields);
     }
   }
 
@@ -118,7 +121,6 @@ function extractFormFields(app: BackendApplicationDetail): Array<{
   for (const field of snapshotFields) {
     if (!field.key) continue;
     const raw = valuesMap.get(field.key);
-    if (raw == null || raw === '') continue;
     result.push({
       key: field.key,
       label: field.label ?? field.key,
@@ -129,7 +131,6 @@ function extractFormFields(app: BackendApplicationDetail): Array<{
 
   for (const fv of app.fieldValues ?? []) {
     if (result.some((row) => row.key === fv.fieldKey)) continue;
-    if (fv.value == null || fv.value === '') continue;
     result.push({
       key: fv.fieldKey,
       label: fv.fieldKey,
@@ -185,7 +186,7 @@ function mapStatus(status: string): ApplicationStatus {
     APPROVED: 'approved',
     COMPLETED: 'completed',
     REJECTED: 'rejected',
-    ACTION_REQUIRED: 'under_review',
+    ACTION_REQUIRED: 'action_required',
     PAYMENT_PENDING: 'submitted',
     DOCUMENTS_PENDING: 'submitted',
     FORM_IN_PROGRESS: 'submitted',
@@ -225,10 +226,13 @@ export function mapApplicationSummary(app: BackendApplicationListItem): Applicat
     'Service';
 
   return {
-    id: app.publicRef ?? app.id,
+    id: app.id,
+    publicRef: app.publicRef ?? null,
     citizenId: app.citizenId,
     citizenName,
     citizenInitials: initials(app.citizen?.firstName, app.citizen?.lastName),
+    citizenPhone: app.citizen?.phone ?? null,
+    citizenEmail: app.citizen?.email ?? null,
     service: serviceName,
     category: inferCategory(app),
     priority: inferPriority(app.status),
@@ -278,7 +282,7 @@ export function mapApplicationDetail(app: BackendApplicationDetail): Application
         status: mapPaymentStatus(app.payment.status),
         amount: decimalToNumber(app.payment.amount),
         method: app.payment.provider ?? 'Online',
-        transactionId: app.payment.id ?? '—',
+        transactionId: app.payment.providerRef ?? app.payment.id ?? '—',
         paidAt: app.payment.status === 'CAPTURED' ? (app.payment.updatedAt ?? null) : null,
       }
     : {
@@ -323,6 +327,7 @@ export function buildPipelineStages(items: BackendApplicationListItem[]): Pipeli
   const counts: Record<ApplicationStatus, number> = {
     submitted: 0,
     under_review: 0,
+    action_required: 0,
     processing: 0,
     approved: 0,
     completed: 0,
@@ -337,6 +342,7 @@ export function buildPipelineStages(items: BackendApplicationListItem[]): Pipeli
   return [
     { key: 'submitted', label: 'Submitted', count: counts.submitted },
     { key: 'under_review', label: 'Under Review', count: counts.under_review },
+    { key: 'action_required', label: 'Action Required', count: counts.action_required },
     { key: 'processing', label: 'Processing', count: counts.processing },
     { key: 'approved', label: 'Approved', count: counts.approved },
     { key: 'completed', label: 'Completed', count: counts.completed },

@@ -63,6 +63,7 @@ export interface ApplicationDetail extends ApplicationListItem {
     requiredFieldKeys: string[];
     requiredDocumentIds: string[];
     status: string;
+    deadline?: string | null;
   }>;
   payment: {
     amount: string | number;

@@ -36,6 +36,7 @@ export interface GetApplicationsResult {
 const STATUS_TO_BACKEND: Partial<Record<ApplicationStatus, string>> = {
   submitted: 'SUBMITTED',
   under_review: 'UNDER_REVIEW',
+  action_required: 'ACTION_REQUIRED',
   processing: 'PROCESSING',
   approved: 'APPROVED',
   completed: 'COMPLETED',
@@ -51,7 +52,9 @@ export async function getApplicationsStats(): Promise<ApplicationsStats> {
   return {
     total: getTotalFromMeta(meta),
     todayReceived: items.filter((a) => new Date(a.submittedAt).toDateString() === today).length,
-    pendingReview: items.filter((a) => a.status === 'under_review' || a.status === 'submitted').length,
+    pendingReview: items.filter(
+      (a) => a.status === 'under_review' || a.status === 'submitted' || a.status === 'action_required',
+    ).length,
     inProcessing: items.filter((a) => a.status === 'processing').length,
     completedToday: items.filter(
       (a) => a.status === 'completed' && new Date(a.submittedAt).toDateString() === today,
@@ -122,6 +125,7 @@ export async function executeApplicationTransition(
     instructions?: string;
     requiredFieldKeys?: string[];
     requiredDocumentIds?: string[];
+    deadline?: string;
   },
 ) {
   const response = await apiClient.post(`/admin/applications/${applicationId}/transitions`, {
@@ -130,6 +134,7 @@ export async function executeApplicationTransition(
     instructions: options?.instructions,
     requiredFieldKeys: options?.requiredFieldKeys,
     requiredDocumentIds: options?.requiredDocumentIds,
+    deadline: options?.deadline,
   });
   return unwrapApiResponse(response);
 }

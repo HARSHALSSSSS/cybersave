@@ -261,6 +261,11 @@ export const SubmitCorrectionsScreen: React.FC<Props> = ({
       {openActionRequest?.reason ? (
         <Text style={styles.reason}>{openActionRequest.reason}</Text>
       ) : null}
+      {openActionRequest?.deadline ? (
+        <Text style={[styles.reason, { color: '#B45309' }]}>
+          Update by {new Date(openActionRequest.deadline).toLocaleDateString()}
+        </Text>
+      ) : null}
       <Text style={styles.intro}>{instructions}</Text>
 
       {requiredKeys.length === 0 && requiredDocumentIds.length === 0 ? (

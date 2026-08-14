@@ -16,7 +16,8 @@ export type LucideIconName =
   | 'ScrollText'
   | 'Settings'
   | 'Receipt'
-  | 'Image';
+  | 'Image'
+  | 'Globe';
 
 export interface NavItem {
   path: string;
@@ -32,6 +33,7 @@ export const navItems: NavItem[] = [
   { path: '/dashboard', label: 'Dashboard', icon: 'LayoutDashboard', end: true },
   { path: '/users', label: 'User Management', icon: 'Users' },
   { path: '/applications', label: 'Applications', icon: 'FileText' },
+  { path: '/manual-apply', label: 'Manual Apply', icon: 'Globe' },
   { path: '/services', label: 'Services', icon: 'Layers' },
   { path: '/home-banners', label: 'Home Banners', icon: 'Image' },
   { path: '/operators', label: 'Operators', icon: 'UserCog' },

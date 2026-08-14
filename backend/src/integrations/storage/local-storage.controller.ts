@@ -49,7 +49,9 @@ export class LocalStorageController {
       chunks.push(Buffer.from(chunk));
     }
     const buffer = Buffer.concat(chunks);
-    const maxSize = parseInt(maxSizeHeader ?? String(buffer.length), 10);
+    const parsed = parseInt(maxSizeHeader ?? '', 10);
+    const maxSize =
+      Number.isFinite(parsed) && parsed > 0 ? parsed : 10 * 1024 * 1024;
 
     await this.localStorage.saveUploadedFile(decodedKey, buffer, maxSize);
     res.status(200).json({ success: true, storageKey: decodedKey });

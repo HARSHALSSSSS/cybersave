@@ -4,6 +4,7 @@ import { PaymentStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '@/database/database.module';
 import { AuditLogService } from '@/modules/audit-logs/audit-log.service';
 import { ServiceVersionsBundleService } from '@/modules/service-versions/services/service-versions-bundle.service';
+import { calculateAssistedTotalAmount } from '@/modules/service-versions/utils/assisted-pricing.util';
 import {
   PAYMENT_PROVIDER,
   type PaymentProvider,
@@ -35,14 +36,18 @@ export class PaymentsService {
     });
 
     const bundle = await this.bundleService.getFullBundle(application.serviceVersionId);
-    const pricing = bundle.pricingConfig;
-    const baseFee = pricing ? Number(pricing.baseFee) : 0;
-    const taxRate = pricing ? Number(pricing.taxRate) : 0;
-    const taxAmount = pricing?.taxEnabled ? (baseFee * taxRate) / 100 : 0;
-    const additional =
-      pricing?.additionalCharges.reduce((s, c) => s + Number(c.amount), 0) ?? 0;
-    const amount = baseFee + taxAmount + additional;
-    const currency = pricing?.currency ?? 'INR';
+    const variant = application.applicantStateCode
+      ? bundle.fulfillmentConfig?.stateVariants.find(
+          (v) => v.stateCode === application.applicantStateCode,
+        )
+      : undefined;
+    const amount = calculateAssistedTotalAmount(
+      bundle.pricingConfig,
+      bundle.fulfillmentConfig,
+      application.applicantStateCode,
+      variant?.baseFeeOverride ? Number(variant.baseFeeOverride) : null,
+    );
+    const currency = bundle.pricingConfig?.currency ?? 'INR';
 
     const order = await this.provider.createOrder({
       applicationId,
@@ -137,6 +142,41 @@ export class PaymentsService {
     );
 
     return { success: true, paymentId: payment.id };
+  }
+
+  async listForCitizen(citizenId: string) {
+    const payments = await this.prisma.payment.findMany({
+      where: { citizenId, status: PaymentStatus.CAPTURED },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+      include: {
+        application: {
+          select: {
+            id: true,
+            publicRef: true,
+            serviceVersion: {
+              include: {
+                overview: { select: { displayName: true } },
+                subService: { select: { name: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return payments.map((payment) => ({
+      id: payment.id,
+      amount: Number(payment.amount),
+      currency: payment.currency,
+      status: payment.status,
+      createdAt: payment.createdAt,
+      applicationId: payment.applicationId,
+      publicRef: payment.application.publicRef,
+      serviceName:
+        payment.application.serviceVersion.overview?.displayName ??
+        payment.application.serviceVersion.subService.name,
+    }));
   }
 
   async listAdmin(page = 1, limit = 20) {

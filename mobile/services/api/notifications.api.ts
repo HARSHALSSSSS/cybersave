@@ -10,8 +10,10 @@ export interface CitizenNotification {
   createdAt: string;
   metadata?: {
     applicationId?: string;
+    ticketId?: string;
     status?: string;
     publicRef?: string | null;
+    type?: string;
   };
 }
 

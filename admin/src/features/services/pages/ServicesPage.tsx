@@ -7,6 +7,7 @@ import {
   ChevronRight,
   Eye,
   FileStack,
+  HandHelping,
   Pencil,
   Plus,
   Search,
@@ -40,11 +41,37 @@ import { StatCard } from '@/components/data-display/stat-card';
 import { formatCurrency } from '@/utils/format';
 import { getServiceCategories, getServicesStats } from '../services/services.service';
 import { ServiceStatusBadge } from '../components/ServiceStatusBadge';
+import { ServicePreviewDialog } from '../components/ServicePreviewDialog';
+import type { SubService } from '../types';
+
+function ApplyModeBadges({ service }: { service: SubService }) {
+  return (
+    <div className="flex flex-wrap gap-1">
+      {service.assistedEnabled ? (
+        <Badge variant="secondary" className="gap-1 bg-blue-50 text-blue-700">
+          <HandHelping className="h-3 w-3" />
+          Assisted
+        </Badge>
+      ) : null}
+      {service.manualEnabled ? (
+        <Badge variant="outline" className="text-gray-700">
+          Manual portal
+        </Badge>
+      ) : null}
+      {!service.assistedEnabled && !service.manualEnabled ? (
+        <Badge variant="outline" className="text-amber-700">
+          Not configured
+        </Badge>
+      ) : null}
+    </div>
+  );
+}
 
 export function ServicesPage() {
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState<'all' | 'active' | 'maintenance'>('all');
   const [page, setPage] = useState(1);
+  const [preview, setPreview] = useState<{ name: string; versionId?: string } | null>(null);
 
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ['services', 'stats'],
@@ -64,24 +91,32 @@ export function ServicesPage() {
       .map((category) => ({
         ...category,
         subServices: query
-          ? category.subServices.filter((s) => s.name.toLowerCase().includes(query))
+          ? category.subServices.filter(
+              (s) =>
+                s.name.toLowerCase().includes(query) ||
+                s.slug.toLowerCase().includes(query),
+            )
           : category.subServices,
       }))
-      .filter((category) => (query ? category.subServices.length > 0 || category.name.toLowerCase().includes(query) : true));
+      .filter((category) =>
+        query
+          ? category.subServices.length > 0 || category.name.toLowerCase().includes(query)
+          : true,
+      );
   }, [categories, search, viewMode]);
 
   const kpis = [
     { title: 'Total Services', value: stats?.total, icon: FileStack, iconColor: '#2563EB', iconBg: '#EFF4FF' },
-    { title: 'Active', value: stats?.active, icon: Activity, iconColor: '#16A34A', iconBg: '#EAF9EF' },
-    { title: 'Under Maintenance', value: stats?.underMaintenance, icon: Wrench, iconColor: '#D97706', iconBg: '#FEF6E7' },
-    { title: 'Total Requests YTD', value: stats?.totalRequestsYtd, icon: FileStack, iconColor: '#7C3AED', iconBg: '#F3EEFF' },
+    { title: 'Published', value: stats?.active, icon: Activity, iconColor: '#16A34A', iconBg: '#EAF9EF' },
+    { title: 'Draft / Unpublished', value: stats?.underMaintenance, icon: Wrench, iconColor: '#D97706', iconBg: '#FEF6E7' },
+    { title: 'Categories', value: categories?.length, icon: FileStack, iconColor: '#7C3AED', iconBg: '#F3EEFF' },
   ];
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Government Services Directory"
-        description="Configure and manage all citizen-facing services offered across centres."
+        description="All citizen-facing services on web and mobile. Configure forms, states, assisted apply, and manual portal redirects."
         actions={
           <Button asChild size="sm" className="gap-1.5 bg-[#2563EB] hover:bg-blue-700">
             <Link to="/services/new">
@@ -124,9 +159,9 @@ export function ServicesPage() {
                 <SelectValue placeholder="All Services Mode" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Services Mode</SelectItem>
-                <SelectItem value="active">Active Only</SelectItem>
-                <SelectItem value="maintenance">Maintenance Only</SelectItem>
+                <SelectItem value="all">All Services</SelectItem>
+                <SelectItem value="active">Published Only</SelectItem>
+                <SelectItem value="maintenance">Draft / Unpublished</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -140,7 +175,7 @@ export function ServicesPage() {
           ) : filteredCategories.length === 0 ? (
             <p className="py-10 text-center text-sm text-gray-500">No services match your search.</p>
           ) : (
-            <Accordion type="multiple" defaultValue={[filteredCategories[0]?.id ?? '']} className="space-y-3">
+            <Accordion type="multiple" defaultValue={filteredCategories.map((c) => c.id)} className="space-y-3">
               {filteredCategories.map((category) => (
                 <AccordionItem
                   key={category.id}
@@ -164,10 +199,11 @@ export function ServicesPage() {
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead>Service Name</TableHead>
-                            <TableHead>Category</TableHead>
-                            <TableHead>SLA</TableHead>
-                            <TableHead>Govt. Fee</TableHead>
+                            <TableHead>Service</TableHead>
+                            <TableHead>Apply modes</TableHead>
+                            <TableHead>States</TableHead>
+                            <TableHead>Form / Docs</TableHead>
+                            <TableHead>Base fee</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead className="text-right">Actions</TableHead>
                           </TableRow>
@@ -175,13 +211,23 @@ export function ServicesPage() {
                         <TableBody>
                           {category.subServices.map((service) => (
                             <TableRow key={service.id}>
-                              <TableCell className="font-medium text-gray-900">{service.name}</TableCell>
                               <TableCell>
-                                <Badge variant="outline" className="border-gray-200 bg-gray-50 text-gray-600">
-                                  {service.categoryName}
-                                </Badge>
+                                <div>
+                                  <p className="font-medium text-gray-900">{service.name}</p>
+                                  <p className="text-xs text-muted-foreground">{service.slug}</p>
+                                </div>
                               </TableCell>
-                              <TableCell className="text-sm text-gray-600">{service.slaHours}h</TableCell>
+                              <TableCell>
+                                <ApplyModeBadges service={service} />
+                              </TableCell>
+                              <TableCell className="text-sm text-gray-600">
+                                {service.requiresStateSelection
+                                  ? `${service.stateCount} states`
+                                  : 'National'}
+                              </TableCell>
+                              <TableCell className="text-sm text-gray-600">
+                                {service.formFieldCount} fields · {service.documentCount} docs
+                              </TableCell>
                               <TableCell className="text-sm text-gray-600">
                                 {service.govtFee > 0 ? formatCurrency(service.govtFee) : 'Free'}
                               </TableCell>
@@ -190,7 +236,18 @@ export function ServicesPage() {
                               </TableCell>
                               <TableCell className="text-right">
                                 <div className="flex items-center justify-end gap-1">
-                                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    disabled={!service.publishedVersionId}
+                                    onClick={() =>
+                                      setPreview({
+                                        name: service.name,
+                                        versionId: service.publishedVersionId,
+                                      })
+                                    }
+                                  >
                                     <Eye className="h-4 w-4" />
                                   </Button>
                                   <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
@@ -227,6 +284,13 @@ export function ServicesPage() {
           </div>
         </CardContent>
       </Card>
+
+      <ServicePreviewDialog
+        open={Boolean(preview)}
+        onOpenChange={(open) => !open && setPreview(null)}
+        serviceName={preview?.name ?? ''}
+        versionId={preview?.versionId}
+      />
     </div>
   );
 }

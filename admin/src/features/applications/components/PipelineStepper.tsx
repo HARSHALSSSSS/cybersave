@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { CheckCircle2, Clock3, FileClock, FileSearch, Loader2 } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Clock3, FileClock, FileSearch, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, Skeleton } from '@/components/ui';
 import { getPipelineStages } from '../services/applications.service';
 import type { ApplicationStatus } from '../types';
@@ -7,6 +7,7 @@ import type { ApplicationStatus } from '../types';
 const STAGE_ICONS: Record<ApplicationStatus, typeof Clock3> = {
   submitted: FileClock,
   under_review: FileSearch,
+  action_required: AlertTriangle,
   processing: Loader2,
   approved: CheckCircle2,
   completed: CheckCircle2,
@@ -16,6 +17,7 @@ const STAGE_ICONS: Record<ApplicationStatus, typeof Clock3> = {
 const STAGE_COLORS: Record<ApplicationStatus, { bg: string; color: string }> = {
   submitted: { bg: '#F3F4F6', color: '#6B7280' },
   under_review: { bg: '#EFF4FF', color: '#2563EB' },
+  action_required: { bg: '#FFFBEB', color: '#D97706' },
   processing: { bg: '#F3EEFF', color: '#7C3AED' },
   approved: { bg: '#E7F8FB', color: '#0891B2' },
   completed: { bg: '#EAF9EF', color: '#16A34A' },

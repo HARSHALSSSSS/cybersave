@@ -97,12 +97,13 @@ export class ApplicationsCitizenController {
   }
 
   @Post(':id/validate')
-  @ApiOperation({ summary: 'Validate form and documents' })
+  @ApiOperation({ summary: 'Validate form and/or documents' })
   validateApplication(
     @CurrentUser() user: AuthenticatedCitizen,
     @Param('id') id: string,
+    @Query('scope') scope?: 'form' | 'documents' | 'all',
   ) {
-    return this.applicationsService.validateApplication(id, user.id);
+    return this.applicationsService.validateApplication(id, user.id, scope);
   }
 
   @Post(':id/uploads/request')
@@ -119,7 +120,7 @@ export class ApplicationsCitizenController {
   @ApiOperation({ summary: 'Upload file bytes for a pending application upload session' })
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(
-    FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }),
+    FileInterceptor('file', { limits: { fileSize: 15 * 1024 * 1024 } }),
   )
   uploadSessionFile(
     @CurrentUser() user: AuthenticatedCitizen,

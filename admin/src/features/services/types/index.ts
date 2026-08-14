@@ -3,10 +3,20 @@ export type ServiceStatus = 'active' | 'maintenance' | 'inactive';
 export interface SubService {
   id: string;
   name: string;
+  slug: string;
   categoryName: string;
   slaHours: number;
   govtFee: number;
   status: ServiceStatus;
+  versionStatus: string;
+  publishedVersionId?: string;
+  processingTime?: string;
+  assistedEnabled: boolean;
+  manualEnabled: boolean;
+  requiresStateSelection: boolean;
+  stateCount: number;
+  formFieldCount: number;
+  documentCount: number;
 }
 
 export interface ServiceCategory {

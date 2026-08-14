@@ -83,6 +83,13 @@ export async function getTicketByParam(ticketParam: string): Promise<TicketDetai
   return mapTicketDetail(data);
 }
 
+export async function replyToTicket(ticketParam: string, content: string) {
+  const response = await apiClient.post(`/admin/support/tickets/${ticketParam}/messages`, {
+    content,
+  });
+  return unwrapApiResponse(response);
+}
+
 export async function resolveTicket(ticketParam: string, payload: ResolveTicketPayload): Promise<TicketDetail> {
   void payload;
   await apiClient.post(`/admin/support/tickets/${ticketParam}/resolve`);
@@ -93,5 +100,6 @@ export const ticketsService = {
   getTicketsStats,
   getTickets,
   getTicketByParam,
+  replyToTicket,
   resolveTicket,
 };

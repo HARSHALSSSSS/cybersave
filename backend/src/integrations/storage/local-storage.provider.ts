@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHash, randomUUID } from 'crypto';
 import { mkdir, stat, unlink, writeFile } from 'fs/promises';
@@ -136,8 +136,14 @@ export class LocalStorageProvider implements StorageProvider {
     buffer: Buffer,
     maxSizeBytes: number,
   ): Promise<ObjectMetadata> {
-    if (buffer.length > maxSizeBytes) {
-      throw new Error('File exceeds maximum allowed size');
+    const limit =
+      !Number.isFinite(maxSizeBytes) || maxSizeBytes <= 0
+        ? 10 * 1024 * 1024
+        : maxSizeBytes;
+    if (buffer.length > limit) {
+      throw new BadRequestException(
+        `File exceeds maximum allowed size (${Math.round(limit / (1024 * 1024))}MB)`,
+      );
     }
 
     const filePath = this.resolvePath(storageKey);

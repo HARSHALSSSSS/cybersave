@@ -45,8 +45,6 @@ interface OperatorLogRow {
   operatorName: string;
 }
 
-let cachedSummary: DashboardSummaryResponse | null = null;
-
 function mapOperatorLogType(action: string, resourceType: string): OperatorLogType {
   if (action.includes('PAYMENT')) return 'payment';
   if (resourceType.toLowerCase().includes('application')) return 'application';
@@ -58,11 +56,8 @@ function mapOperatorLogType(action: string, resourceType: string): OperatorLogTy
 }
 
 async function getSummary(): Promise<DashboardSummaryResponse> {
-  if (!cachedSummary) {
-    const response = await apiClient.get('/admin/dashboard/summary');
-    cachedSummary = unwrapApiResponse<DashboardSummaryResponse>(response);
-  }
-  return cachedSummary;
+  const response = await apiClient.get('/admin/dashboard/summary');
+  return unwrapApiResponse<DashboardSummaryResponse>(response);
 }
 
 export async function getDashboardKpis(): Promise<DashboardKpi[]> {

@@ -57,6 +57,7 @@ export type ApplicationStatus = 'completed' | 'pending' | 'processing' | 'reject
 
 export interface RecentApplication {
   id: string;
+  publicRef?: string | null;
   applicantName: string;
   applicantInitials: string;
   service: string;

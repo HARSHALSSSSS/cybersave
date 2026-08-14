@@ -4,7 +4,7 @@ export const appConfig = registerAs('app', () => ({
   nodeEnv: process.env.NODE_ENV ?? 'development',
   port: parseInt(process.env.PORT ?? '8000', 10),
   apiPrefix: process.env.API_PREFIX ?? 'api/v1',
-  corsOrigins: (process.env.CORS_ORIGINS ?? 'http://localhost:5173').split(','),
+  corsOrigins: (process.env.CORS_ORIGINS ?? 'http://localhost:5173,http://localhost:5174,http://localhost:8081').split(','),
   swaggerEnabled: process.env.SWAGGER_ENABLED !== 'false',
   skipPaymentVerification: process.env.SKIP_PAYMENT_VERIFICATION === 'true',
 }));
