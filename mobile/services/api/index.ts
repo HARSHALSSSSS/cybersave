@@ -24,9 +24,12 @@ export {
 } from './applications.api';
 export {
   notificationsApi,
+  notificationsQueryKeys,
   resolveNotificationType,
 } from './notifications.api';
 export type { CitizenNotification } from './notifications.api';
+export { paymentsApi, paymentsQueryKeys } from './payments.api';
+export type { CitizenPayment } from './payments.api';
 export { supportApi, supportQueryKeys } from './support.api';
 export type { SupportTicket, TicketMessage } from './support.api';
 export { profileApi, profileQueryKeys } from './profile.api';

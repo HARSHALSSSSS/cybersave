@@ -11,17 +11,23 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { useQuery } from '@tanstack/react-query';
 import { WalletStackParamList, MainTabParamList } from '@/types/navigation';
 import {
   formatCurrency,
   getWalletBalance,
-  getWalletTransactions,
   LINKED_PAYMENT_METHOD,
-  navigateWalletTransaction,
 } from '@constants/index';
+import { useUnreadNotificationCount } from '@/hooks/useUnreadNotificationCount';
 import { useTranslation } from '@/i18n';
 import { useTheme } from '@app/providers/ThemeProvider';
 import { getScrollBottomPadding } from '@utils/layout';
+import {
+  billPaymentsApi,
+  billPaymentsQueryKeys,
+  paymentsApi,
+  paymentsQueryKeys,
+} from '@services/api';
 import {
   BellIcon,
   BillIcon,
@@ -33,13 +39,48 @@ import {
 
 type Props = NativeStackScreenProps<WalletStackParamList, 'WalletMain'>;
 
-const RECENT_TRANSACTIONS = () => getWalletTransactions().slice(0, 3);
-
 export const WalletScreen: React.FC<Props> = ({ navigation }) => {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
   const [balance, setBalance] = useState(getWalletBalance());
+  const unreadNotifications = useUnreadNotificationCount(true);
+
+  const { data: billHistory } = useQuery({
+    queryKey: billPaymentsQueryKeys.history('all', 1),
+    queryFn: () => billPaymentsApi.listHistory('all', 1, 10),
+    staleTime: 1000 * 60 * 5,
+    placeholderData: previous => previous,
+  });
+
+  const { data: servicePayments = [] } = useQuery({
+    queryKey: paymentsQueryKeys.list(),
+    queryFn: () => paymentsApi.listCitizenPayments(),
+    staleTime: 1000 * 60 * 5,
+    placeholderData: previous => previous ?? [],
+  });
+
+  const recentTransactions = useMemo(() => {
+    const billTx = billHistory?.data ?? [];
+    return [
+      ...billTx.map((tx: { id: string; biller: { name: string }; orderId?: string; totalAmount: number; paidAt: string | null; createdAt: string }) => ({
+        id: `bill-${tx.id}`,
+        title: `${tx.biller.name} Bill`,
+        subtitle: tx.orderId ?? tx.id,
+        amount: -Number(tx.totalAmount),
+        date: tx.paidAt ?? tx.createdAt,
+      })),
+      ...servicePayments.map(tx => ({
+        id: `svc-${tx.id}`,
+        title: tx.serviceName,
+        subtitle: tx.publicRef ?? tx.applicationId,
+        amount: -Number(tx.amount),
+        date: tx.createdAt,
+      })),
+    ]
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, 3);
+  }, [billHistory?.data, servicePayments]);
 
   useFocusEffect(
     useCallback(() => {
@@ -211,12 +252,9 @@ export const WalletScreen: React.FC<Props> = ({ navigation }) => {
     [theme, insets],
   );
 
-  const handleTransactionPress = useCallback(
-    (tx: ReturnType<typeof getWalletTransactions>[number]) => {
-      navigateWalletTransaction(navigation, tx);
-    },
-    [navigation],
-  );
+  const handleTransactionPress = useCallback(() => {
+    navigation.navigate('TransactionHistory');
+  }, [navigation]);
 
   const goToNotifications = useCallback(() => {
     navigation
@@ -236,6 +274,19 @@ export const WalletScreen: React.FC<Props> = ({ navigation }) => {
             accessibilityRole="button"
             onPress={goToNotifications}>
             <BellIcon color={theme.colors.textPrimary} />
+            {unreadNotifications > 0 ? (
+              <View
+                style={{
+                  position: 'absolute',
+                  top: 8,
+                  right: 8,
+                  width: 8,
+                  height: 8,
+                  borderRadius: 4,
+                  backgroundColor: theme.colors.error,
+                }}
+              />
+            ) : null}
           </Pressable>
         </View>
       </LinearGradient>
@@ -277,34 +328,42 @@ export const WalletScreen: React.FC<Props> = ({ navigation }) => {
           </Pressable>
         </View>
 
-        {RECENT_TRANSACTIONS().map(tx => {
-          const isCredit = tx.amount > 0;
-          const iconBg = isCredit ? '#D1FAE5' : '#FEE2E2';
-          const amountColor = isCredit ? '#059669' : theme.colors.textPrimary;
+        {recentTransactions.length === 0 ? (
+          <Text style={styles.paymentSub}>No transactions yet</Text>
+        ) : (
+          recentTransactions.map(tx => {
+            const isCredit = tx.amount > 0;
+            const iconBg = isCredit ? '#D1FAE5' : '#FEE2E2';
+            const amountColor = isCredit ? '#059669' : theme.colors.textPrimary;
+            const timeLabel = new Date(tx.date).toLocaleDateString('en-IN', {
+              day: 'numeric',
+              month: 'short',
+            });
 
-          return (
-            <Pressable
-              key={tx.id}
-              style={styles.txCard}
-              accessibilityRole="button"
-              onPress={() => handleTransactionPress(tx)}>
-              <View style={[styles.txIcon, { backgroundColor: iconBg }]}>
-                {isCredit ? (
-                  <PlusIcon color="#059669" size={20} />
-                ) : (
-                  <BillIcon color="#EF4444" size={20} />
-                )}
-              </View>
-              <View style={styles.txContent}>
-                <Text style={styles.txTitle}>{tx.title}</Text>
-                <Text style={styles.txTime}>{tx.time}</Text>
-              </View>
-              <Text style={[styles.txAmount, { color: amountColor }]}>
-                {formatCurrency(tx.amount)}
-              </Text>
-            </Pressable>
-          );
-        })}
+            return (
+              <Pressable
+                key={tx.id}
+                style={styles.txCard}
+                accessibilityRole="button"
+                onPress={handleTransactionPress}>
+                <View style={[styles.txIcon, { backgroundColor: iconBg }]}>
+                  {isCredit ? (
+                    <PlusIcon color="#059669" size={20} />
+                  ) : (
+                    <BillIcon color="#EF4444" size={20} />
+                  )}
+                </View>
+                <View style={styles.txContent}>
+                  <Text style={styles.txTitle}>{tx.title}</Text>
+                  <Text style={styles.txTime}>{timeLabel}</Text>
+                </View>
+                <Text style={[styles.txAmount, { color: amountColor }]}>
+                  {formatCurrency(tx.amount)}
+                </Text>
+              </Pressable>
+            );
+          })
+        )}
 
         <Text
           style={[

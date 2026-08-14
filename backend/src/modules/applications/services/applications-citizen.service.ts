@@ -1200,6 +1200,29 @@ export class ApplicationsCitizenService {
     }
   }
 
+  async getDocumentDownloadUrl(
+    applicationId: string,
+    documentId: string,
+    citizenId: string,
+  ) {
+    const application = await this.findOwnedApplication(applicationId, citizenId);
+    const document = application.documents.find((doc) => doc.id === documentId);
+
+    if (!document) {
+      throw new NotFoundException('Document not found');
+    }
+
+    if (!document.storedFile?.storageKey) {
+      throw new BadRequestException('No file attached to this document');
+    }
+
+    return this.storageService.requestDownloadUrl({
+      storageKey: document.storedFile.storageKey,
+      fileName: document.storedFile.originalFileName ?? undefined,
+      mimeType: document.storedFile.mimeType ?? undefined,
+    });
+  }
+
   private async findOwnedApplication(applicationId: string, citizenId: string) {
     const application = await this.prisma.application.findFirst({
       where: { id: applicationId, citizenId },

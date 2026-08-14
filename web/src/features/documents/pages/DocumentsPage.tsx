@@ -7,7 +7,7 @@ import { Button, Input, Label } from '@/components/ui/button';
 import { LoadingBlock, EmptyState } from '@/components/ui/primitives';
 import { SecurityNoticeFull } from '@/features/apply/components/SecurityNotice';
 import { profileApi, profileQueryKeys } from '@/services/api';
-import { uploadToPresignedUrl } from '@/lib/upload';
+import { uploadToPresignedUrl, openStorageDownloadUrl } from '@/lib/upload';
 import { formatDate } from '@/lib/utils';
 
 export function DocumentsPage() {
@@ -58,7 +58,7 @@ export function DocumentsPage() {
   async function handleDownload(id: string) {
     try {
       const { downloadUrl } = await profileApi.getSavedDocumentDownload(id);
-      window.open(downloadUrl, '_blank');
+      openStorageDownloadUrl(downloadUrl);
     } catch {
       toast.error('Could not download');
     }

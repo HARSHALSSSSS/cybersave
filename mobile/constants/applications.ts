@@ -41,6 +41,8 @@ export type ApplicationRecord = {
   timeline?: TimelineStep[];
   categoryId?: string;
   optionId?: string;
+  stateCode?: string;
+  stateName?: string;
 };
 
 export const APPLICATIONS: ApplicationRecord[] = [

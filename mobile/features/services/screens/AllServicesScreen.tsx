@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -10,6 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useQuery } from '@tanstack/react-query';
 import { ServicesStackParamList } from '@/types/navigation';
+import { FEATURED_STATES } from '@constants/featuredStates';
 import { SERVICE_FILTERS, ServiceFilter } from '@constants/index';
 import { useTheme } from '@app/providers/ThemeProvider';
 import { SearchBar } from '@components/SearchBar';
@@ -82,6 +84,27 @@ export const AllServicesScreen: React.FC<Props> = ({ navigation }) => {
           color: theme.colors.textSecondary,
           textAlign: 'center',
         },
+        statesTitle: {
+          ...theme.typography.labelMedium,
+          color: theme.colors.textSecondary,
+          paddingHorizontal: theme.spacing['2xl'],
+          marginBottom: theme.spacing.sm,
+          textTransform: 'uppercase',
+        },
+        statesRow: {
+          paddingHorizontal: theme.spacing['2xl'],
+          marginBottom: theme.spacing.lg,
+          gap: theme.spacing.sm,
+        },
+        stateChip: {
+          paddingHorizontal: theme.spacing.md,
+          paddingVertical: theme.spacing.sm,
+          borderRadius: theme.radius.full,
+          borderWidth: 1,
+          borderColor: theme.colors.border,
+          marginRight: theme.spacing.sm,
+          backgroundColor: theme.colors.surface,
+        },
       }),
     [theme, insets],
   );
@@ -112,6 +135,23 @@ export const AllServicesScreen: React.FC<Props> = ({ navigation }) => {
           active={activeFilter}
           onChange={setActiveFilter}
         />
+
+        <Text style={styles.statesTitle}>Browse by state</Text>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.statesRow}>
+          {FEATURED_STATES.map(state => (
+            <Pressable
+              key={state.code}
+              style={styles.stateChip}
+              onPress={() =>
+                navigation.navigate('StateServices', { stateCode: state.code })
+              }>
+              <Text style={theme.typography.labelSmall}>{state.name}</Text>
+            </Pressable>
+          ))}
+        </ScrollView>
 
         {isLoading ? (
           <View style={styles.center}>

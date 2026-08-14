@@ -23,6 +23,7 @@ import { BackIcon, BillIcon, GearIcon, ShieldIcon } from '@components/icons';
 import {
   CitizenNotification,
   notificationsApi,
+  notificationsQueryKeys,
   resolveNotificationType,
 } from '@services/api';
 import { formatAppDate, useTranslation } from '@/i18n';
@@ -45,15 +46,26 @@ export const NotificationsScreen: React.FC<Props> = ({ navigation }) => {
   const { t, locale } = useTranslation();
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['notifications'],
-    queryFn: () => notificationsApi.listNotifications(),
+    queryKey: notificationsQueryKeys.list(1),
+    queryFn: () => notificationsApi.listNotifications(1, 30),
     refetchInterval: isFocused ? 15000 : false,
     refetchIntervalInBackground: false,
+    staleTime: 1000 * 60 * 2,
+    placeholderData: previous => previous,
   });
 
   const markReadMutation = useMutation({
     mutationFn: (id: string) => notificationsApi.markNotificationRead(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notifications'] }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: notificationsQueryKeys.all });
+    },
+  });
+
+  const markAllMutation = useMutation({
+    mutationFn: () => notificationsApi.markAllNotificationsRead(),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: notificationsQueryKeys.all });
+    },
   });
 
   const notifications = data?.data ?? [];
@@ -187,7 +199,17 @@ export const NotificationsScreen: React.FC<Props> = ({ navigation }) => {
         <Pressable accessibilityRole="button" onPress={() => navigation.goBack()}>
           <BackIcon color={theme.colors.textInverse} />
         </Pressable>
-        <Text style={styles.headerTitle}>{t.notifications.title}</Text>
+        <Text style={[styles.headerTitle, { flex: 1 }]}>{t.notifications.title}</Text>
+        {notifications.some(n => !n.readAt) ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => markAllMutation.mutate()}
+            disabled={markAllMutation.isPending}>
+            <Text style={{ ...theme.typography.labelSmall, color: theme.colors.textInverse }}>
+              Mark all read
+            </Text>
+          </Pressable>
+        ) : null}
       </View>
 
       {isLoading ? (

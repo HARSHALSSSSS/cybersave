@@ -2,7 +2,7 @@ import { env } from '@/app/config/env';
 
 const UPLOAD_TIMEOUT_MS = 120_000;
 
-/** Align presigned storage URLs with the API base URL (fixes localhost in dev). */
+/** Align presigned storage URLs with the API base URL (fixes localhost in dev/production). */
 export function rewriteStorageUrl(url: string): string {
   try {
     const api = new URL(env.apiBaseUrl);
@@ -13,6 +13,15 @@ export function rewriteStorageUrl(url: string): string {
     return target.toString();
   } catch {
     return url;
+  }
+}
+
+/** Open a presigned storage download URL in a new tab. */
+export function openStorageDownloadUrl(downloadUrl: string): void {
+  const resolved = rewriteStorageUrl(downloadUrl);
+  const opened = window.open(resolved, '_blank', 'noopener,noreferrer');
+  if (!opened) {
+    window.location.assign(resolved);
   }
 }
 

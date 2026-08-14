@@ -63,6 +63,8 @@ export class LocalStorageController {
     @Param('storageKey') storageKey: string,
     @Query('token') token: string,
     @Query('expiresAt') expiresAtRaw: string,
+    @Query('fileName') fileName: string | undefined,
+    @Query('mimeType') mimeType: string | undefined,
     @Res() res: Response,
   ): Promise<void> {
     const decodedKey = decodeURIComponent(storageKey);
@@ -83,7 +85,10 @@ export class LocalStorageController {
       throw new NotFoundException('File not found');
     }
 
-    res.setHeader('Content-Type', 'application/octet-stream');
+    const safeName = fileName?.replace(/[^\w.\-() ]+/g, '_') ?? 'document';
+    const contentType = mimeType?.split(';')[0]?.trim() || 'application/octet-stream';
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Disposition', `inline; filename="${safeName}"`);
     createReadStream(filePath).pipe(res);
   }
 }

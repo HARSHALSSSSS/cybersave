@@ -90,6 +90,14 @@ export class NotificationsService {
     };
   }
 
+  async markAllReadForCitizen(citizenId: string) {
+    await this.prisma.notification.updateMany({
+      where: { citizenId, readAt: null },
+      data: { readAt: new Date() },
+    });
+    return { updated: true };
+  }
+
   async markReadForCitizen(citizenId: string, notificationId: string) {
     const notification = await this.prisma.notification.findFirst({
       where: { id: notificationId, citizenId },

@@ -18,6 +18,7 @@ export interface PresignedDownloadRequest {
   storageKey: string;
   ttlSeconds: number;
   fileName?: string;
+  mimeType?: string;
 }
 
 export interface PresignedDownload {

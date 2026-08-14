@@ -84,6 +84,9 @@ export interface ApplicationDetail extends ApplicationListItem {
     createdAt: string;
     comment?: string | null;
   }>;
+  configSnapshot?: { payload?: unknown } | null;
+  stateName?: string | null;
+  stateCode?: string | null;
 }
 
 export interface DocumentUploadSession {
@@ -261,6 +264,16 @@ export async function getApplicationCertificate(applicationId: string) {
   return unwrapApiResponse<ApplicationCertificate>(response);
 }
 
+export async function getApplicationDocumentDownload(
+  applicationId: string,
+  documentId: string,
+) {
+  const response = await apiClient.get(
+    `/applications/${applicationId}/documents/${documentId}/download`,
+  );
+  return unwrapApiResponse<{ downloadUrl: string }>(response);
+}
+
 export const applicationsApi = {
   listApplications,
   listDrafts,
@@ -277,6 +290,7 @@ export const applicationsApi = {
   deleteApplicationDocument,
   submitCorrection,
   getApplicationCertificate,
+  getApplicationDocumentDownload,
 };
 
 export const applicationsQueryKeys = {

@@ -50,6 +50,8 @@ import {
   getProfileInitials,
   isProfileComplete,
 } from '@utils/profile';
+import { FEATURED_STATES } from '@constants/featuredStates';
+import { useUnreadNotificationCount } from '@/hooks/useUnreadNotificationCount';
 import { getScrollBottomPadding } from '@utils/layout';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'HomeMain'>;
@@ -144,6 +146,19 @@ export const HomeScreen: React.FC<Props> = ({ navigation }) => {
     placeholderData: previous => previous ?? [],
   });
 
+  const unreadNotifications = useUnreadNotificationCount(Boolean(citizen));
+
+  const goToStateServices = useCallback(
+    (stateCode: string) => {
+      navigation
+        .getParent<BottomTabNavigationProp<MainTabParamList>>()
+        ?.navigate('ServicesTab', {
+          screen: 'StateServices',
+          params: { stateCode },
+        });
+    },
+    [navigation],
+  );
   const profileComplete = isProfileComplete(citizen);
   const greetingName = getProfileGreetingName(citizen);
   const avatarInitials = getProfileInitials(citizen);
@@ -312,6 +327,17 @@ export const HomeScreen: React.FC<Props> = ({ navigation }) => {
           justifyContent: 'center',
           flexShrink: 0,
           ...theme.shadows.sm,
+        },
+        bellDot: {
+          position: 'absolute',
+          top: 8,
+          right: 8,
+          width: 8,
+          height: 8,
+          borderRadius: 4,
+          backgroundColor: theme.colors.error,
+          borderWidth: 2,
+          borderColor: theme.colors.surface,
         },
         searchWrapper: {
           marginTop: -theme.spacing['3xl'],
@@ -522,6 +548,7 @@ export const HomeScreen: React.FC<Props> = ({ navigation }) => {
             onPress={handleBellPress}
             style={styles.bellButton}>
             <BellIcon color={theme.colors.textPrimary} />
+            {unreadNotifications > 0 ? <View style={styles.bellDot} /> : null}
           </Pressable>
         </View>
       </LinearGradient>
@@ -562,6 +589,44 @@ export const HomeScreen: React.FC<Props> = ({ navigation }) => {
               ))}
             </View>
           </View>
+        </View>
+
+        {/* State services */}
+        <View>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>State Services</Text>
+            <Pressable accessibilityRole="button" onPress={goToServices}>
+              <Text style={styles.viewAll}>{t.home.viewAll}</Text>
+            </Pressable>
+          </View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.categoriesScroll}>
+            {FEATURED_STATES.map(state => (
+              <Pressable
+                key={state.code}
+                style={styles.categoryCard}
+                accessibilityRole="button"
+                onPress={() => goToStateServices(state.code)}>
+                <View
+                  style={[styles.categoryAccent, { backgroundColor: state.color }]}
+                />
+                <View
+                  style={[
+                    styles.categoryIcon,
+                    { backgroundColor: state.bg },
+                  ]}>
+                  <Text style={{ ...theme.typography.labelMedium, color: state.color }}>
+                    {state.code}
+                  </Text>
+                </View>
+                <Text style={styles.categoryLabel} numberOfLines={2}>
+                  {state.name}
+                </Text>
+              </Pressable>
+            ))}
+          </ScrollView>
         </View>
 
         {/* Service Categories */}

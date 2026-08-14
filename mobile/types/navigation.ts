@@ -72,6 +72,7 @@ export type ProfileStackParamList = {
 export type ServicesStackParamList = {
   ServicesMain: undefined;
   ServiceSearch: { initialQuery?: string } | undefined;
+  StateServices: { stateCode: string };
   ServiceHub: { categoryId: string };
   StateSelect: { categoryId: string; optionId: string; optionName: string };
   ServiceDetail: {

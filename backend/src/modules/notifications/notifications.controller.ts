@@ -43,6 +43,12 @@ export class CitizenNotificationsController {
     return this.notificationsService.listForCitizen(user.id, query);
   }
 
+  @Patch('read-all')
+  @ApiOperation({ summary: 'Mark all notifications as read' })
+  markAllRead(@CurrentUser() user: AuthenticatedCitizen) {
+    return this.notificationsService.markAllReadForCitizen(user.id);
+  }
+
   @Patch(':id/read')
   @ApiOperation({ summary: 'Mark notification as read' })
   markRead(

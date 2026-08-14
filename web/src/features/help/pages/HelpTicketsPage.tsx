@@ -1,14 +1,16 @@
+import { useState } from 'react';
 import { Link } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import { MessageSquarePlus } from 'lucide-react';
 import { Breadcrumbs } from '@/components/layout/Breadcrumbs';
 import { Button } from '@/components/ui/button';
 import { LoadingBlock, EmptyState } from '@/components/ui/primitives';
+import { RaiseTicketModal } from '@/features/help/components/RaiseTicketModal';
 import { supportApi, supportQueryKeys } from '@/services/api';
 import { formatDate } from '@/lib/utils';
 
 function statusLabel(status: string) {
-  return status.replace(/_/g, ' ').toLowerCase().replace(/^\w/, (c) => c.toUpperCase());
+  return status.replace(/_/g, ' ').toLowerCase().replace(/^\w/, c => c.toUpperCase());
 }
 
 function statusTone(status: string) {
@@ -18,6 +20,8 @@ function statusTone(status: string) {
 }
 
 export function HelpTicketsPage() {
+  const [showTicket, setShowTicket] = useState(false);
+
   const { data, isLoading, isError } = useQuery({
     queryKey: supportQueryKeys.tickets(1),
     queryFn: () => supportApi.listTickets(1, 50),
@@ -27,7 +31,7 @@ export function HelpTicketsPage() {
   const tickets = data?.data ?? [];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-8">
       <Breadcrumbs
         items={[
           { label: 'Portal Home', to: '/' },
@@ -38,17 +42,17 @@ export function HelpTicketsPage() {
 
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-display text-3xl font-bold tracking-tight text-[#0A1629]">My Support Tickets</h1>
+          <h1 className="font-display text-3xl font-bold tracking-tight text-[#0A1629]">
+            My Support Tickets
+          </h1>
           <p className="mt-2 text-sm text-[#64748B]">
             Track replies from Cybersave support and continue the conversation.
           </p>
         </div>
-        <Link to="/help">
-          <Button>
-            <MessageSquarePlus className="mr-2 h-4 w-4" />
-            Raise a Ticket
-          </Button>
-        </Link>
+        <Button type="button" onClick={() => setShowTicket(true)}>
+          <MessageSquarePlus className="mr-2 h-4 w-4" />
+          Raise a Ticket
+        </Button>
       </div>
 
       {isLoading ? (
@@ -58,15 +62,20 @@ export function HelpTicketsPage() {
       ) : tickets.length === 0 ? (
         <EmptyState
           title="No tickets yet"
-          description="Raise a ticket from Help & Support if you need assistance."
+          description="Raise a ticket if you need assistance with an application, payment, or document."
+          action={
+            <Button type="button" onClick={() => setShowTicket(true)}>
+              Raise a Ticket
+            </Button>
+          }
         />
       ) : (
         <ul className="space-y-3">
-          {tickets.map((ticket) => (
+          {tickets.map(ticket => (
             <li key={ticket.id}>
               <Link
                 to={`/help/tickets/${ticket.id}`}
-                className="flex items-center justify-between gap-4 rounded-2xl border border-[#E5E7EB] bg-white px-5 py-4 shadow-sm transition hover:border-[#2563EB]/30"
+                className="flex items-center justify-between gap-4 rounded-2xl border border-[#E8EDF5] bg-white px-5 py-4 shadow-sm transition hover:border-[#2563EB]/30"
               >
                 <div className="min-w-0">
                   <p className="truncate font-semibold text-[#0A1629]">{ticket.subject}</p>
@@ -84,6 +93,8 @@ export function HelpTicketsPage() {
           ))}
         </ul>
       )}
+
+      <RaiseTicketModal open={showTicket} onOpenChange={setShowTicket} />
     </div>
   );
 }

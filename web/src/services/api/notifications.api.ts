@@ -1,5 +1,5 @@
 import { apiClient } from './client';
-import { unwrapPaginated } from './types';
+import { unwrapApiResponse, unwrapPaginated } from './types';
 
 export interface CitizenNotification {
   id: string;
@@ -20,9 +20,15 @@ export async function markNotificationRead(id: string) {
   return response.data;
 }
 
+export async function markAllNotificationsRead() {
+  const response = await apiClient.patch('/notifications/read-all');
+  return unwrapApiResponse<{ updated: boolean }>(response);
+}
+
 export const notificationsApi = {
   listNotifications,
   markNotificationRead,
+  markAllNotificationsRead,
 };
 
 export const notificationsQueryKeys = {

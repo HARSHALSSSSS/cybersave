@@ -39,12 +39,10 @@ type ApplicationListRecord = ApplicationRecord & {
 
 const FILTER_KEYS: ApplicationFilter[] = ['All', 'Pending', 'Approved', 'Rejected'];
 
-const RESUME_DRAFT_STATUSES = new Set([
-  'DRAFT',
-  'FORM_IN_PROGRESS',
-  'DOCUMENTS_PENDING',
-  'PAYMENT_PENDING',
-]);
+import {
+  getApplyResumeScreen,
+  RESUME_DRAFT_STATUSES,
+} from '@features/services/utils/applyResume';
 
 export const MyApplicationsScreen: React.FC<Props> = ({ navigation }) => {
   const { theme } = useTheme();
@@ -132,12 +130,15 @@ export const MyApplicationsScreen: React.FC<Props> = ({ navigation }) => {
               BottomTabNavigationProp<MainTabParamList>
             >();
             if (tabNav) {
+              const resumeScreen = getApplyResumeScreen(String(app.backendStatus));
               tabNav.navigate('ServicesTab', {
-                screen: 'ApplyService',
+                screen: resumeScreen,
                 params: {
                   categoryId: app.categoryId,
                   optionId: app.optionId,
                   applicationId: app.id,
+                  stateCode: app.stateCode,
+                  stateName: app.stateName,
                 },
               });
             } else {

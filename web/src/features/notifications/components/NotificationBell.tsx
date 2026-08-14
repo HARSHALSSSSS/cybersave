@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Bell } from 'lucide-react';
 import {
@@ -54,7 +54,7 @@ export function NotificationBell() {
       </button>
 
       {open ? (
-        <div className="absolute right-0 z-50 mt-2 w-80 overflow-hidden rounded-2xl border border-[#E8EDF5] bg-white shadow-xl">
+        <div className="absolute right-0 z-50 mt-2 w-80 overflow-hidden rounded-2xl border border-[#E8EDF5] bg-white shadow-xl sm:w-96">
           <div className="flex items-center justify-between border-b border-[#E8EDF5] px-4 py-3">
             <p className="text-sm font-semibold text-[#0A1629]">Notifications</p>
             {unread > 0 ? (
@@ -99,6 +99,15 @@ export function NotificationBell() {
               ))}
             </ul>
           )}
+          <div className="border-t border-[#E8EDF5] px-4 py-2.5">
+            <Link
+              to="/notifications"
+              className="block text-center text-sm font-semibold text-[#2563EB] hover:underline"
+              onClick={() => setOpen(false)}
+            >
+              View all notifications
+            </Link>
+          </div>
         </div>
       ) : null}
     </div>

@@ -47,7 +47,7 @@ export function PortalFooter() {
       <div className="mx-auto max-w-[1320px] px-4 py-14 sm:px-6 lg:px-8">
         <div className="grid gap-12 lg:grid-cols-[1.15fr_2fr]">
           <div>
-            <BrandMark light size="lg" />
+            <BrandMark size="lg" />
             <p className="mt-5 max-w-sm text-sm leading-7 text-[#94A3B8]">
               Simplifying citizen access to government services through a secure, unified digital
               platform built for India.

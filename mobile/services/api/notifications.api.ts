@@ -32,8 +32,20 @@ export async function markNotificationRead(id: string) {
   return unwrapApiResponse(response);
 }
 
+export async function markAllNotificationsRead() {
+  const response = await apiClient.patch('/notifications/read-all');
+  return unwrapApiResponse<{ updated: boolean }>(response);
+}
+
+export const notificationsQueryKeys = {
+  all: ['notifications'] as const,
+  list: (page = 1) => [...notificationsQueryKeys.all, 'list', page] as const,
+  unread: () => [...notificationsQueryKeys.all, 'unread-count'] as const,
+};
+
 export const notificationsApi = {
   listNotifications,
   markNotificationRead,
+  markAllNotificationsRead,
   resolveNotificationType,
 };

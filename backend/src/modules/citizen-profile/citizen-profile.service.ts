@@ -331,6 +331,8 @@ export class CitizenProfileService {
 
     return this.storageService.requestDownloadUrl({
       storageKey: document.storedFile.storageKey,
+      fileName: document.storedFile.originalFileName ?? undefined,
+      mimeType: document.storedFile.mimeType ?? undefined,
     });
   }
 

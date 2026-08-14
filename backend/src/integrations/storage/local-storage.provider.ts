@@ -29,9 +29,14 @@ export class LocalStorageProvider implements StorageProvider {
     if (configured) {
       this.publicBaseUrl = configured.replace(/\/+$/, '');
     } else {
-      const port = this.configService.get<number>('app.port', 8000);
+      const renderUrl = process.env.RENDER_EXTERNAL_URL?.replace(/\/+$/, '');
       const prefix = this.configService.get<string>('app.apiPrefix', 'api/v1');
-      this.publicBaseUrl = `http://localhost:${port}/${prefix}/storage/local`;
+      if (renderUrl) {
+        this.publicBaseUrl = `${renderUrl}/${prefix}/storage/local`;
+      } else {
+        const port = this.configService.get<number>('app.port', 8000);
+        this.publicBaseUrl = `http://localhost:${port}/${prefix}/storage/local`;
+      }
     }
   }
 
@@ -69,8 +74,19 @@ export class LocalStorageProvider implements StorageProvider {
     const expiresAt = new Date(Date.now() + params.ttlSeconds * 1000);
     const token = this.createUploadToken(params.storageKey, expiresAt);
 
+    const query = new URLSearchParams({
+      token,
+      expiresAt: expiresAt.toISOString(),
+    });
+    if (params.fileName) {
+      query.set('fileName', params.fileName);
+    }
+    if (params.mimeType) {
+      query.set('mimeType', params.mimeType);
+    }
+
     return {
-      downloadUrl: `${this.publicBaseUrl}/download/${encodeURIComponent(params.storageKey)}?token=${token}&expiresAt=${encodeURIComponent(expiresAt.toISOString())}`,
+      downloadUrl: `${this.publicBaseUrl}/download/${encodeURIComponent(params.storageKey)}?${query.toString()}`,
       expiresAt,
     };
   }

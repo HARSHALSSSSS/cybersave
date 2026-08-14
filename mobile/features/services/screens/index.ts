@@ -2,6 +2,7 @@ export { AllServicesScreen } from './AllServicesScreen';
 export { ServiceSearchScreen } from './ServiceSearchScreen';
 export { ServiceHubScreen } from './ServiceHubScreen';
 export { StateSelectScreen } from './StateSelectScreen';
+export { StateServicesScreen } from './StateServicesScreen';
 export { ServiceDetailScreen } from './ServiceDetailScreen';
 export { ApplyServiceScreen } from './ApplyServiceScreen';
 export { UploadProofsScreen } from './UploadProofsScreen';

@@ -41,6 +41,7 @@ import {
   type BackendApplicationStatus,
 } from '@/services/api';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { openStorageDownloadUrl } from '@/lib/upload';
 import { cn } from '@/lib/utils';
 
 export function ServiceApplyPage() {
@@ -398,7 +399,7 @@ export function ServiceApplyPage() {
     if (!applicationId) return;
     try {
       const cert = await applicationsApi.getApplicationCertificate(applicationId);
-      if (cert.downloadUrl) window.open(cert.downloadUrl, '_blank');
+      if (cert.downloadUrl) openStorageDownloadUrl(cert.downloadUrl);
       else toast.message('Receipt will be available once processing completes.');
     } catch {
       toast.message('Receipt not available yet for this application.');

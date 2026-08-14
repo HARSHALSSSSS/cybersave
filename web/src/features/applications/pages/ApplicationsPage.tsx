@@ -38,6 +38,7 @@ import {
   type BackendApplicationStatus,
 } from '@/services/api';
 import { formatDate } from '@/lib/utils';
+import { openStorageDownloadUrl } from '@/lib/upload';
 import { cn } from '@/lib/utils';
 
 type FilterTab = 'all' | 'in_progress' | 'action_required' | 'completed' | 'drafts';
@@ -347,7 +348,7 @@ export function ApplicationsPage() {
                           onClick={async () => {
                             try {
                               const cert = await applicationsApi.getApplicationCertificate(app.id);
-                              if (cert.downloadUrl) window.open(cert.downloadUrl, '_blank');
+                              if (cert.downloadUrl) openStorageDownloadUrl(cert.downloadUrl);
                               else toast.message('Certificate not ready yet.');
                             } catch {
                               toast.message('Certificate not available yet.');

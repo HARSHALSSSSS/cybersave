@@ -28,6 +28,8 @@ export interface ApplicationListItem {
   submittedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  applicantStateCode?: string | null;
+  applicantStateName?: string | null;
   serviceVersion: {
     overview: {
       displayName: string;
@@ -167,6 +169,8 @@ export function mapApplicationListItem(
     phone: '—',
     categoryId: item.serviceVersion.subService.mainService.id,
     optionId: item.serviceVersion.subService.id,
+    stateCode: item.applicantStateCode ?? undefined,
+    stateName: item.applicantStateName ?? undefined,
   };
 }
 

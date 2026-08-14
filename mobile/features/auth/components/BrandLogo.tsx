@@ -5,12 +5,14 @@ import { useTranslation } from '@/i18n';
 import { useTheme } from '@app/providers/ThemeProvider';
 import { palette } from '@theme/colors';
 
-/** Full brand lockup is square (icon + Cybersave + tagline). */
-const LOGO_WIDTH = {
-  sm: 200,
-  md: 260,
-  lg: 300,
+const LOGO_HEIGHT = {
+  sm: 44,
+  md: 52,
+  lg: 64,
 } as const;
+
+/** Navbar lockup aspect (782×252). */
+const LOCKUP_ASPECT = 782 / 252;
 
 type BrandLogoProps = {
   size?: keyof typeof LOGO_WIDTH;
@@ -22,13 +24,14 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
   size = 'md',
   centered = false,
 }) => {
-  const width = LOGO_WIDTH[size];
+  const height = LOGO_HEIGHT[size];
+  const width = Math.round(height * LOCKUP_ASPECT);
 
   return (
     <View style={centered ? styles.centered : undefined}>
       <Image
-        source={Images.brandLogo}
-        style={[styles.logo, { width, height: width }]}
+        source={Images.brandLockupNav}
+        style={[styles.logo, { width, height }]}
         resizeMode="contain"
         accessibilityLabel="Cybersave — Digital Services, Trusted Always"
       />

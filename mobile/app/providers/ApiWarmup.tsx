@@ -1,10 +1,15 @@
 import { useEffect } from 'react';
 import { USE_HOSTED_API, shouldUseDevDiscovery } from '@app/config/env';
-import { servicesApi, servicesQueryKeys } from '@services/api';
+import {
+  homeBannersQueryKeys,
+  notificationsQueryKeys,
+  servicesApi,
+  servicesQueryKeys,
+} from '@services/api';
 import { ensureApiReachable } from '@services/api/bootstrapApi';
 import { queryClient } from './QueryProvider';
 
-/** Re-validates dev API host when the app mounts (e.g. after device/network change). */
+/** Prefetch catalog and common lists so tabs feel instant on slow APIs. */
 export function ApiWarmup() {
   useEffect(() => {
     async function warmup() {
@@ -16,11 +21,33 @@ export function ApiWarmup() {
         return;
       }
       await ensureApiReachable(45000);
-      void queryClient.prefetchQuery({
-        queryKey: servicesQueryKeys.catalog(),
-        queryFn: () => servicesApi.getServicesCatalog(),
-        staleTime: 1000 * 60 * 10,
-      });
+
+      const prefetch = [
+        queryClient.prefetchQuery({
+          queryKey: servicesQueryKeys.catalog(),
+          queryFn: () => servicesApi.getServicesCatalog(),
+          staleTime: 1000 * 60 * 15,
+        }),
+        queryClient.prefetchQuery({
+          queryKey: homeBannersQueryKeys.list('home'),
+          queryFn: async () => {
+            const { homeBannersApi } = await import('@services/api');
+            return homeBannersApi.getHomeBanners('home');
+          },
+          staleTime: 1000 * 60 * 15,
+        }),
+        queryClient.prefetchQuery({
+          queryKey: notificationsQueryKeys.unread(),
+          queryFn: async () => {
+            const { notificationsApi } = await import('@services/api');
+            const result = await notificationsApi.listNotifications(1, 10);
+            return result.data.filter(n => !n.readAt).length;
+          },
+          staleTime: 1000 * 60 * 2,
+        }),
+      ];
+
+      void Promise.allSettled(prefetch);
     }
 
     void warmup();

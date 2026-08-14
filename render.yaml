@@ -50,6 +50,8 @@ services:
         value: local
       - key: STORAGE_LOCAL_PATH
         value: ./storage
+      - key: STORAGE_PUBLIC_BASE_URL
+        value: https://cybersave-l972.onrender.com/api/v1/storage/local
       - key: CORS_ORIGINS
         value: "*"
       - key: SWAGGER_ENABLED

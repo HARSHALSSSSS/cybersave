@@ -151,6 +151,16 @@ export function PortalNavbar() {
                     className="flex w-full px-4 py-2.5 text-left text-sm text-[#0A1629] hover:bg-[#F8FAFC]"
                     onClick={() => {
                       setProfileOpen(false);
+                      navigate('/notifications');
+                    }}
+                  >
+                    Notifications
+                  </button>
+                  <button
+                    type="button"
+                    className="flex w-full px-4 py-2.5 text-left text-sm text-[#0A1629] hover:bg-[#F8FAFC]"
+                    onClick={() => {
+                      setProfileOpen(false);
                       navigate('/profile');
                     }}
                   >

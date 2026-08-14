@@ -20,49 +20,29 @@ import {
 import { Button, Input, Label } from '@/components/ui/button';
 import { LoadingBlock, EmptyState } from '@/components/ui/primitives';
 import { buildApplyUrl } from '@/features/apply/utils/apply-flow';
+import { RaiseTicketModal } from '@/features/help/components/RaiseTicketModal';
 import { getApplicationProgress } from '@/features/home/utils/home-utils';
+import {
+  TRACKER_STEPS,
+  extractApplicantFields,
+  extractDocumentRequirements,
+  getExpectedCompletionDate,
+  getStepDate,
+  getStepState,
+  statusHistoryLabel,
+} from '@/features/applications/utils/application-detail.utils';
 import {
   applicationsApi,
   applicationsQueryKeys,
   type ApplicationDetail,
   type BackendApplicationStatus,
 } from '@/services/api';
+import { downloadPaymentReceipt } from '@/lib/receipt';
+import { openStorageDownloadUrl } from '@/lib/upload';
+import { useAuthStore } from '@/features/auth/store/auth.store';
+import { getProfileDisplayName } from '@/lib/profile';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { cn } from '@/lib/utils';
-
-const TRACKER_STEPS = [
-  { key: 'submitted', label: 'Submitted', sub: 'Application received' },
-  { key: 'verified', label: 'Documents Verified', sub: 'All docs checked' },
-  { key: 'review', label: 'Under Review', sub: 'At Revenue Dept' },
-  { key: 'approval', label: 'Approval', sub: 'Pending Signature' },
-  { key: 'issued', label: 'Cert Generated', sub: 'Final Issuance' },
-] as const;
-
-function getStepState(
-  stepKey: string,
-  status: BackendApplicationStatus,
-): 'done' | 'active' | 'pending' {
-  const order = ['submitted', 'verified', 'review', 'approval', 'issued'];
-  const idx = order.indexOf(stepKey);
-
-  if (['APPROVED', 'COMPLETED'].includes(status)) return 'done';
-  if (status === 'PAYMENT_PENDING') {
-    if (stepKey === 'submitted') return 'done';
-    return 'pending';
-  }
-  if (['SUBMITTED'].includes(status)) {
-    if (idx === 0) return 'done';
-    if (idx === 1) return 'active';
-    return 'pending';
-  }
-  if (['UNDER_REVIEW', 'PROCESSING', 'ACTION_REQUIRED'].includes(status)) {
-    if (idx <= 1) return 'done';
-    if (idx === 2) return 'active';
-    return 'pending';
-  }
-  if (idx === 0) return 'active';
-  return 'pending';
-}
 
 function statusPillTone(status: BackendApplicationStatus) {
   if (['APPROVED', 'COMPLETED'].includes(status)) return 'green' as const;
@@ -73,7 +53,6 @@ function statusPillTone(status: BackendApplicationStatus) {
 
 export function ApplicationDetailPage() {
   const { id = '' } = useParams();
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [correctionValues, setCorrectionValues] = useState<Record<string, string>>({});
 
@@ -102,7 +81,6 @@ export function ApplicationDetailPage() {
   return (
     <ApplicationDetailContent
       app={app}
-      navigate={navigate}
       correctionValues={correctionValues}
       setCorrectionValues={setCorrectionValues}
       onSubmitCorrection={() => submitCorrection.mutate()}
@@ -113,19 +91,21 @@ export function ApplicationDetailPage() {
 
 function ApplicationDetailContent({
   app,
-  navigate,
   correctionValues,
   setCorrectionValues,
   onSubmitCorrection,
   correctionLoading,
 }: {
   app: ApplicationDetail;
-  navigate: ReturnType<typeof useNavigate>;
   correctionValues: Record<string, string>;
   setCorrectionValues: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   onSubmitCorrection: () => void;
   correctionLoading: boolean;
 }) {
+  const navigate = useNavigate();
+  const citizen = useAuthStore(s => s.citizen);
+  const [supportOpen, setSupportOpen] = useState(false);
+
   const title = app.serviceVersion.overview?.displayName ?? app.serviceVersion.subService.name;
   const ref = app.publicRef ?? `CS-${app.id.slice(0, 8).toUpperCase()}`;
   const needsPayment = app.status === 'PAYMENT_PENDING';
@@ -134,21 +114,60 @@ function ApplicationDetailContent({
   const openAction = app.actionRequests?.find(r => r.status === 'OPEN');
   const sub = app.serviceVersion.subService;
   const progress = getApplicationProgress(app.status);
-  const missingDocs = openAction?.requiredDocumentIds ?? [];
+  const applicantFields = extractApplicantFields(app);
+  const allRequirements = extractDocumentRequirements(app);
+  const uploadedIds = new Set(app.documents.map(d => d.documentRequirementId));
+  const missingRequirementIds =
+    openAction?.requiredDocumentIds?.filter(id => !uploadedIds.has(id)) ??
+    allRequirements.filter(r => !uploadedIds.has(r.id)).map(r => r.id);
+  const missingDocNames = missingRequirementIds
+    .map(id => allRequirements.find(r => r.id === id)?.name ?? 'Document')
+    .filter(Boolean);
+  const expectedCompletion = getExpectedCompletionDate(app);
+  const paymentCaptured = app.payment?.status === 'CAPTURED';
+
+  async function handleViewDocument(documentId: string) {
+    try {
+      const { downloadUrl } = await applicationsApi.getApplicationDocumentDownload(
+        app.id,
+        documentId,
+      );
+      openStorageDownloadUrl(downloadUrl);
+    } catch {
+      toast.error('Could not open document');
+    }
+  }
+
+  function handleDownloadReceipt() {
+    if (!app.payment || !paymentCaptured) {
+      toast.error('Receipt available after payment is captured');
+      return;
+    }
+    downloadPaymentReceipt({
+      publicRef: ref,
+      serviceName: title,
+      transactionId: app.payment.providerRef ?? app.payment.id ?? ref,
+      amount: app.payment.amount,
+      paymentMethod: 'UPI',
+      status: app.payment.status,
+      paidAt: app.submittedAt ?? app.updatedAt,
+      citizenName: getProfileDisplayName(citizen),
+    });
+  }
 
   return (
-    <div className="space-y-8 pb-4">
+    <div className="space-y-6 pb-8 sm:space-y-8">
       <Link
         to="/applications"
-        className="inline-flex items-center gap-2 text-sm font-semibold text-[#2563EB]"
+        className="inline-flex items-center gap-2 text-sm font-semibold text-[#2563EB] hover:underline"
       >
         <ArrowLeft className="h-4 w-4" /> Back to Applications
       </Link>
 
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="font-display text-3xl font-bold text-[#0A1629]">{title}</h1>
+            <h1 className="font-display text-2xl font-bold text-[#0A1629] sm:text-3xl">{title}</h1>
             <StatusPill tone={statusPillTone(app.status)}>
               {app.status.replace(/_/g, ' ')}
             </StatusPill>
@@ -156,28 +175,30 @@ function ApplicationDetailContent({
           <p className="mt-2 text-sm text-[#64748B]">Application ID: {ref}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={!paymentCaptured}
+            onClick={handleDownloadReceipt}
+          >
             <Download className="mr-2 h-4 w-4" />
             Download Receipt
           </Button>
-          <Link to="/help">
-            <Button size="sm">
-              <HelpCircle className="mr-2 h-4 w-4" />
-              Contact Support
-            </Button>
-          </Link>
+          <Button size="sm" onClick={() => setSupportOpen(true)}>
+            <HelpCircle className="mr-2 h-4 w-4" />
+            Contact Support
+          </Button>
         </div>
       </div>
 
-      {/* Action required banner */}
-      {openAction || app.status === 'ACTION_REQUIRED' ? (
-        <PortalCard className="border-amber-200 bg-amber-50/60">
-          <div className="flex flex-wrap items-start justify-between gap-4">
+      {(openAction || app.status === 'ACTION_REQUIRED') && (
+        <PortalCard className="border-amber-200 bg-amber-50/70">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex items-start gap-3">
               <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
               <div>
                 <p className="font-semibold text-[#0A1629]">Action needed on your application</p>
-                <p className="mt-1 text-sm text-[#64748B]">
+                <p className="mt-1 text-sm leading-6 text-[#64748B]">
                   {openAction?.instructions ??
                     openAction?.reason ??
                     'Please update the requested details so processing can continue.'}
@@ -190,7 +211,7 @@ function ApplicationDetailContent({
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
-              {(openAction?.requiredDocumentIds.length ?? 0) > 0 || missingDocs.length > 0 ? (
+              {missingRequirementIds.length > 0 ? (
                 <Button
                   size="sm"
                   className="bg-amber-600 hover:bg-amber-700"
@@ -199,14 +220,14 @@ function ApplicationDetailContent({
                   }
                 >
                   <Upload className="mr-2 h-4 w-4" />
-                  Update Documents
+                  Upload Document
                 </Button>
               ) : null}
               {(openAction?.requiredFieldKeys.length ?? 0) > 0 ? (
                 <Button
                   size="sm"
                   variant="outline"
-                  className="border-amber-300"
+                  className="border-amber-300 bg-white"
                   onClick={() =>
                     navigate(buildApplyUrl(sub.mainService.slug, sub.slug, app.id, 'form'))
                   }
@@ -217,26 +238,31 @@ function ApplicationDetailContent({
             </div>
           </div>
         </PortalCard>
-      ) : null}
+      )}
 
-      {/* Summary banner */}
       <PortalCard className="bg-[#F8FAFC]">
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           <div>
-            <p className="text-xs font-semibold text-[#64748B] uppercase">Submission Date</p>
+            <p className="text-xs font-semibold tracking-wide text-[#64748B] uppercase">
+              Submission Date
+            </p>
             <p className="mt-1 font-semibold text-[#0A1629]">
               {formatDate(app.submittedAt ?? app.createdAt, 'long')}
             </p>
           </div>
           <div>
-            <p className="text-xs font-semibold text-[#64748B] uppercase">Expected Completion</p>
+            <p className="text-xs font-semibold tracking-wide text-[#64748B] uppercase">
+              Expected Completion
+            </p>
             <p className="mt-1 font-semibold text-[#0A1629]">
-              {formatDate(app.updatedAt, 'long')}
+              {expectedCompletion ? formatDate(expectedCompletion.toISOString(), 'long') : '—'}
             </p>
           </div>
           <div className="sm:col-span-2">
             <div className="flex items-center justify-between">
-              <p className="text-xs font-semibold text-[#64748B] uppercase">Verification Progress</p>
+              <p className="text-xs font-semibold tracking-wide text-[#64748B] uppercase">
+                Verification Progress
+              </p>
               <span className="text-sm font-bold text-[#2563EB]">{progress}%</span>
             </div>
             <ProgressBar value={progress} className="mt-2" />
@@ -248,23 +274,31 @@ function ApplicationDetailContent({
         </p>
       </PortalCard>
 
-      {/* Status stepper */}
       <PortalCard>
         <h2 className="font-display text-lg font-bold text-[#0A1629]">Application Status History</h2>
-        <ol className="mt-6 flex flex-wrap justify-between gap-4">
+        <ol className="mt-6 flex flex-col gap-6 lg:flex-row lg:justify-between lg:gap-2">
           {TRACKER_STEPS.map((step, index) => {
             const state = getStepState(step.key, app.status);
+            const stepDate = getStepDate(app, step.key);
             return (
-              <li key={step.key} className="flex min-w-[100px] flex-1 flex-col items-center text-center">
+              <li
+                key={step.key}
+                className="flex min-w-0 flex-1 flex-col items-center text-center lg:max-w-[140px]"
+              >
                 <div className="flex w-full items-center">
                   {index > 0 ? (
-                    <div className={cn('h-0.5 flex-1', state !== 'pending' ? 'bg-[#2563EB]' : 'bg-[#E8EDF5]')} />
+                    <div
+                      className={cn(
+                        'hidden h-0.5 flex-1 lg:block',
+                        state !== 'pending' ? 'bg-[#2563EB]' : 'bg-[#E8EDF5]',
+                      )}
+                    />
                   ) : (
-                    <div className="flex-1" />
+                    <div className="hidden flex-1 lg:block" />
                   )}
                   <span
                     className={cn(
-                      'flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold',
+                      'mx-auto flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold',
                       state === 'done' && 'bg-[#2563EB] text-white',
                       state === 'active' && 'bg-[#0A1629] text-white ring-4 ring-[#2563EB]/20',
                       state === 'pending' && 'border-2 border-[#E2E8F0] bg-white text-[#94A3B8]',
@@ -273,57 +307,77 @@ function ApplicationDetailContent({
                     {state === 'done' ? <Check className="h-4 w-4" strokeWidth={3} /> : index + 1}
                   </span>
                   {index < TRACKER_STEPS.length - 1 ? (
-                    <div className={cn('h-0.5 flex-1', state === 'done' ? 'bg-[#2563EB]' : 'bg-[#E8EDF5]')} />
+                    <div
+                      className={cn(
+                        'hidden h-0.5 flex-1 lg:block',
+                        state === 'done' ? 'bg-[#2563EB]' : 'bg-[#E8EDF5]',
+                      )}
+                    />
                   ) : (
-                    <div className="flex-1" />
+                    <div className="hidden flex-1 lg:block" />
                   )}
                 </div>
                 <p className="mt-2 text-xs font-semibold text-[#0A1629]">{step.label}</p>
-                <p className="text-[10px] text-[#94A3B8]">{step.sub}</p>
+                <p className={cn('text-[10px]', state === 'active' ? 'text-[#2563EB]' : 'text-[#94A3B8]')}>
+                  {stepDate ? formatDate(stepDate, 'long') : step.sub}
+                </p>
               </li>
             );
           })}
         </ol>
       </PortalCard>
 
-      {/* Details grid */}
       <div className="grid gap-6 lg:grid-cols-2">
-        {app.fieldValues.length > 0 ? (
-          <PortalCard>
-            <h2 className="font-display text-lg font-bold text-[#0A1629]">Applicant Details</h2>
+        <PortalCard>
+          <h2 className="font-display text-lg font-bold text-[#0A1629]">Applicant Details</h2>
+          {applicantFields.length === 0 ? (
+            <p className="mt-4 text-sm text-[#94A3B8]">No applicant details on file yet.</p>
+          ) : (
             <dl className="mt-4 space-y-4">
-              {app.fieldValues.slice(0, 8).map(fv => (
-                <div key={fv.id} className="border-b border-[#F1F5F9] pb-3 last:border-0">
-                  <dt className="text-xs font-semibold text-[#94A3B8] uppercase">
-                    {fv.fieldKey.replace(/_/g, ' ')}
+              {applicantFields.map(fv => (
+                <div key={fv.key} className="border-b border-[#F1F5F9] pb-3 last:border-0">
+                  <dt className="text-xs font-semibold tracking-wide text-[#94A3B8] uppercase">
+                    {fv.label}
                   </dt>
-                  <dd className="mt-1 text-sm font-semibold text-[#0A1629]">
-                    {String(fv.value ?? '—')}
-                  </dd>
+                  <dd className="mt-1 text-sm font-semibold text-[#0A1629]">{fv.value}</dd>
                 </div>
               ))}
             </dl>
-          </PortalCard>
-        ) : null}
+          )}
+        </PortalCard>
 
         <PortalCard>
           <h2 className="font-display text-lg font-bold text-[#0A1629]">Service & Fee Details</h2>
           <dl className="mt-4 space-y-4">
             <div className="border-b border-[#F1F5F9] pb-3">
-              <dt className="text-xs font-semibold text-[#94A3B8] uppercase">Service Requested</dt>
+              <dt className="text-xs font-semibold tracking-wide text-[#94A3B8] uppercase">
+                Service Requested
+              </dt>
               <dd className="mt-1 text-sm font-semibold text-[#0A1629]">{title}</dd>
             </div>
             <div className="border-b border-[#F1F5F9] pb-3">
-              <dt className="text-xs font-semibold text-[#94A3B8] uppercase">Department</dt>
+              <dt className="text-xs font-semibold tracking-wide text-[#94A3B8] uppercase">
+                Department
+              </dt>
               <dd className="mt-1 text-sm font-semibold text-[#0A1629]">
                 {app.serviceVersion.overview?.department ?? sub.mainService.name}
               </dd>
             </div>
-            <div className="border-b border-[#F1F5F9] pb-3">
-              <dt className="text-xs font-semibold text-[#94A3B8] uppercase">Administrative Fee</dt>
-              <dd className="mt-1 flex items-center gap-2">
+            {app.stateName ? (
+              <div className="border-b border-[#F1F5F9] pb-3">
+                <dt className="text-xs font-semibold tracking-wide text-[#94A3B8] uppercase">
+                  Jurisdiction District
+                </dt>
+                <dd className="mt-1 text-sm font-semibold text-[#0A1629]">{app.stateName}</dd>
+              </div>
+            ) : null}
+            <div className="border-b border-[#F1F5F9] pb-3 last:border-0">
+              <dt className="text-xs font-semibold tracking-wide text-[#94A3B8] uppercase">
+                Administrative Fee
+              </dt>
+              <dd className="mt-1 flex flex-wrap items-center gap-2">
                 <span className="text-sm font-semibold text-[#0A1629]">{formatCurrency(total)}</span>
-                {app.payment?.status === 'CAPTURED' || isCompleted ? (
+                {paymentCaptured || isCompleted ? (
                   <StatusPill tone="green">PAID</StatusPill>
                 ) : needsPayment ? (
                   <StatusPill tone="amber">PENDING</StatusPill>
@@ -334,7 +388,6 @@ function ApplicationDetailContent({
         </PortalCard>
       </div>
 
-      {/* Documents */}
       <PortalCard>
         <h2 className="font-display text-lg font-bold text-[#0A1629]">Submitted Documents</h2>
         <ul className="mt-4 space-y-3">
@@ -344,10 +397,10 @@ function ApplicationDetailContent({
             app.documents.map(doc => (
               <li
                 key={doc.id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#F1F5F9] bg-[#F8FAFC] px-4 py-3"
+                className="flex flex-col gap-3 rounded-xl border border-[#F1F5F9] bg-[#F8FAFC] px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
               >
-                <div className="flex items-center gap-3">
-                  <Check className="h-5 w-5 text-emerald-500" />
+                <div className="flex items-start gap-3">
+                  <Check className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500" />
                   <div>
                     <p className="text-sm font-semibold text-[#0A1629]">
                       {doc.documentRequirement?.name ?? 'Document'}
@@ -357,7 +410,11 @@ function ApplicationDetailContent({
                     </p>
                   </div>
                 </div>
-                <button type="button" className="text-sm font-semibold text-[#2563EB]">
+                <button
+                  type="button"
+                  className="text-left text-sm font-semibold text-[#2563EB] hover:underline sm:text-right"
+                  onClick={() => void handleViewDocument(doc.id)}
+                >
                   View Document
                 </button>
               </li>
@@ -365,20 +422,23 @@ function ApplicationDetailContent({
           )}
         </ul>
 
-        {(openAction || missingDocs.length > 0) && app.status !== 'ACTION_REQUIRED' ? (
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
+        {missingDocNames.length > 0 && (
+          <div className="mt-4 flex flex-col gap-4 rounded-xl border border-amber-200 bg-amber-50 p-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-start gap-3">
-              <AlertTriangle className="mt-0.5 h-5 w-5 text-amber-600" />
+              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
               <div>
-                <p className="font-semibold text-[#0A1629]">Additional document needed</p>
-                <p className="mt-1 text-sm text-[#64748B]">
-                  {openAction?.reason ?? 'Please upload the missing document to proceed.'}
+                <p className="font-semibold text-[#0A1629]">
+                  {missingDocNames[0]} Required
+                </p>
+                <p className="mt-1 text-sm leading-6 text-[#64748B]">
+                  {missingDocNames.join(', ')} — missing. Please upload a valid document to
+                  continue processing.
                 </p>
               </div>
             </div>
             <Button
               size="sm"
-              className="bg-amber-600 hover:bg-amber-700"
+              className="shrink-0 bg-amber-600 hover:bg-amber-700"
               onClick={() =>
                 navigate(buildApplyUrl(sub.mainService.slug, sub.slug, app.id, 'documents'))
               }
@@ -387,14 +447,15 @@ function ApplicationDetailContent({
               Upload Document
             </Button>
           </div>
-        ) : null}
+        )}
       </PortalCard>
 
-      {/* Corrections form fields */}
       {openAction && openAction.requiredFieldKeys.length > 0 ? (
         <PortalCard className="border-amber-200 bg-amber-50/30">
           <h2 className="font-semibold text-[#0A1629]">Corrections Required</h2>
-          <p className="mt-2 text-sm text-[#64748B]">{openAction.instructions ?? openAction.reason}</p>
+          <p className="mt-2 text-sm text-[#64748B]">
+            {openAction.instructions ?? openAction.reason}
+          </p>
           <div className="mt-4 space-y-3">
             {openAction.requiredFieldKeys.map(key => (
               <div key={key}>
@@ -416,19 +477,25 @@ function ApplicationDetailContent({
         </PortalCard>
       ) : null}
 
-      {/* Payment */}
       {app.payment ? (
         <PortalCard>
-          <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <h2 className="font-display text-lg font-bold text-[#0A1629]">Payment Information</h2>
-            <button type="button" className="text-sm font-semibold text-[#2563EB]">
+            <button
+              type="button"
+              className="text-sm font-semibold text-[#2563EB] hover:underline disabled:opacity-50"
+              disabled={!paymentCaptured}
+              onClick={handleDownloadReceipt}
+            >
               Download Official Receipt
             </button>
           </div>
           <dl className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div>
               <dt className="text-xs text-[#94A3B8]">Transaction ID</dt>
-              <dd className="mt-1 text-sm font-semibold">{app.payment.providerRef ?? app.payment.id ?? '—'}</dd>
+              <dd className="mt-1 break-all text-sm font-semibold">
+                {app.payment.providerRef ?? app.payment.id ?? '—'}
+              </dd>
             </div>
             <div>
               <dt className="text-xs text-[#94A3B8]">Amount</dt>
@@ -441,8 +508,8 @@ function ApplicationDetailContent({
             <div>
               <dt className="text-xs text-[#94A3B8]">Status</dt>
               <dd className="mt-1">
-                <StatusPill tone={app.payment.status === 'CAPTURED' ? 'green' : 'amber'}>
-                  {app.payment.status}
+                <StatusPill tone={paymentCaptured ? 'green' : 'amber'}>
+                  {paymentCaptured ? 'SUCCESS' : app.payment.status}
                 </StatusPill>
               </dd>
             </div>
@@ -452,7 +519,7 @@ function ApplicationDetailContent({
 
       {needsPayment ? (
         <PortalCard className="border-amber-200 bg-amber-50/50">
-          <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="font-semibold text-[#0A1629]">Payment Required</p>
               <p className="mt-1 text-sm text-[#64748B]">
@@ -471,21 +538,15 @@ function ApplicationDetailContent({
         </PortalCard>
       ) : null}
 
-      {/* Activity timeline */}
       {app.statusHistory.length > 0 ? (
         <PortalCard>
           <h2 className="font-display text-lg font-bold text-[#0A1629]">Activity History</h2>
           <ol className="relative mt-6 space-y-6 border-l-2 border-[#E8EDF5] pl-6">
-            {app.statusHistory.map(entry => (
+            {[...app.statusHistory].reverse().map(entry => (
               <li key={entry.id} className="relative">
                 <span className="absolute -left-[31px] top-1 h-3 w-3 rounded-full bg-[#2563EB] ring-4 ring-white" />
-                <p className="font-semibold text-[#0A1629]">
-                  {entry.toStatus.replace(/_/g, ' ')}
-                </p>
+                <p className="font-semibold text-[#0A1629]">{statusHistoryLabel(entry)}</p>
                 <p className="mt-1 text-xs text-[#94A3B8]">{formatDate(entry.createdAt, 'long')}</p>
-                {entry.comment ? (
-                  <p className="mt-1 text-sm text-[#64748B]">{entry.comment}</p>
-                ) : null}
               </li>
             ))}
           </ol>
@@ -498,7 +559,7 @@ function ApplicationDetailContent({
             onClick={async () => {
               try {
                 const cert = await applicationsApi.getApplicationCertificate(app.id);
-                if (cert.downloadUrl) window.open(cert.downloadUrl, '_blank');
+                if (cert.downloadUrl) openStorageDownloadUrl(cert.downloadUrl);
                 else toast.message('Certificate not ready yet.');
               } catch {
                 toast.message('Certificate not available yet.');
@@ -510,6 +571,13 @@ function ApplicationDetailContent({
           </Button>
         </div>
       ) : null}
+
+      <RaiseTicketModal
+        open={supportOpen}
+        onOpenChange={setSupportOpen}
+        defaultSubject={`Help with application ${ref}`}
+        defaultContent={`Service: ${title}\nApplication ID: ${ref}\n\nI need assistance with:\n`}
+      />
     </div>
   );
 }

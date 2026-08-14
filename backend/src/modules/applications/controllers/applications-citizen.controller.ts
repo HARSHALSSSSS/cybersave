@@ -86,6 +86,16 @@ export class ApplicationsCitizenController {
     return this.applicationsService.getOrCreateCertificate(id, user.id);
   }
 
+  @Get(':id/documents/:documentId/download')
+  @ApiOperation({ summary: 'Get download URL for an application document' })
+  getDocumentDownload(
+    @CurrentUser() user: AuthenticatedCitizen,
+    @Param('id') id: string,
+    @Param('documentId') documentId: string,
+  ) {
+    return this.applicationsService.getDocumentDownloadUrl(id, documentId, user.id);
+  }
+
   @Patch(':id/form')
   @ApiOperation({ summary: 'Save form field values' })
   saveFormValues(
