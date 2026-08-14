@@ -275,10 +275,6 @@ export function ServiceApplyPage() {
 
   const uploadedDocs = application?.documents ?? [];
 
-  const allRequiredUploaded = requiredDocs.every(req =>
-    uploadedDocs.some(d => d.documentRequirementId === req.id),
-  );
-
   const formFields = config?.form?.fields ?? [];
 
   async function handleSaveDraft() {
