@@ -16,14 +16,14 @@ export function PortalLayout() {
   }, [hydrate]);
 
   return (
-    <div className="flex min-h-dvh flex-col bg-[#F8FAFC]">
+    <div className="flex min-h-dvh flex-col bg-[#F4F7FB]">
       <SessionGuard />
       <PortalNavbar />
       <main className="flex-1">
         {isHome ? (
           <Outlet />
         ) : (
-          <div className="mx-auto max-w-[1280px] px-4 py-8 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-[1320px] px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
             <Outlet />
           </div>
         )}

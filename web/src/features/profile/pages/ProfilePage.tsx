@@ -48,7 +48,7 @@ export function ProfilePage() {
       <Breadcrumbs items={[{ label: 'Portal', to: '/' }, { label: 'Profile Settings' }]} />
 
       <div>
-        <h1 className="font-display text-3xl font-bold text-[#0A1629]">Profile Settings</h1>
+        <h1 className="font-display text-3xl font-bold tracking-tight text-[#0A1629]">Profile Settings</h1>
         <p className="mt-2 text-sm text-[#6B7280]">
           Manage your official personal registry and digital identity linkages.
         </p>

@@ -49,7 +49,7 @@ export function PayBillsHomePage() {
             <Zap className="h-7 w-7" />
           </span>
           <div>
-            <h1 className="font-display text-3xl font-bold text-[#0A1629]">Pay Bills</h1>
+            <h1 className="font-display text-3xl font-bold tracking-tight text-[#0A1629]">Pay Bills</h1>
             <p className="mt-2 max-w-xl text-sm leading-7 text-[#64748B]">
               Pay electricity, mobile, DTH, gas and utility bills securely via BBPS · Razorpay.
             </p>

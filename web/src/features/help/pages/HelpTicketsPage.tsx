@@ -38,7 +38,7 @@ export function HelpTicketsPage() {
 
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-display text-3xl font-bold text-[#0A1629]">My Support Tickets</h1>
+          <h1 className="font-display text-3xl font-bold tracking-tight text-[#0A1629]">My Support Tickets</h1>
           <p className="mt-2 text-sm text-[#64748B]">
             Track replies from Cybersave support and continue the conversation.
           </p>

@@ -310,40 +310,39 @@ export function HomePage() {
   return (
     <div className="overflow-x-hidden pb-12">
       {/* Hero */}
-      <section className="border-b border-[#E8EDF5] bg-gradient-to-b from-[#F8FAFC] to-white">
-        <SectionShell className="grid items-center gap-10 py-10 lg:grid-cols-[1fr_480px] lg:gap-12 lg:py-14">
+      <section className="relative overflow-hidden border-b border-[#E8EDF5] bg-[radial-gradient(1200px_480px_at_80%_-10%,rgba(37,99,235,0.10),transparent_60%),linear-gradient(180deg,#F8FBFF_0%,#FFFFFF_70%)]">
+        <SectionShell className="grid items-center gap-10 py-12 lg:grid-cols-[1fr_480px] lg:gap-12 lg:py-16">
           <div className="min-w-0">
             {isAuthenticated && greetingName ? (
-              <div className="flex flex-wrap items-center gap-2 text-xs font-semibold tracking-wide text-[#2563EB] uppercase">
+              <div className="flex flex-wrap items-center gap-2 text-xs font-semibold tracking-[0.14em] text-[#2563EB] uppercase">
                 <span>Welcome back, {greetingName}</span>
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700 normal-case">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold tracking-normal text-emerald-700 normal-case ring-1 ring-emerald-100">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                   Aadhaar Verified
                 </span>
               </div>
             ) : (
-              <p className="text-xs font-semibold tracking-wide text-[#2563EB] uppercase">
+              <p className="text-xs font-semibold tracking-[0.14em] text-[#2563EB] uppercase">
                 Government & Personal Services
               </p>
             )}
 
-            <h1 className="font-display mt-4 text-[2rem] leading-[1.15] font-bold text-[#0A1629] sm:text-[2.75rem] lg:text-[3rem]">
+            <h1 className="font-display mt-4 text-[2.1rem] leading-[1.12] font-bold tracking-tight text-[#0A1629] sm:text-[2.85rem] lg:text-[3.15rem]">
               Everything Government.
               <br />
-              <span className="text-[#2563EB]">One Secure Place.</span>
+              <span className="bg-gradient-to-r from-[#2563EB] to-[#1A3B8B] bg-clip-text text-transparent">
+                One Secure Place.
+              </span>
             </h1>
 
-            <p className="mt-5 max-w-xl text-base leading-7 text-[#64748B]">
+            <p className="mt-5 max-w-xl text-base leading-7 text-[#64748B] sm:text-[17px]">
               Access all your digital Indian services, certificates, and government locker documents
               in one secure portal. Apply, track, and pay — all from one dashboard.
             </p>
 
             <div className="mt-8 flex flex-wrap gap-3">
               <Link to="/services">
-                <Button
-                  size="lg"
-                  className="h-12 rounded-xl px-6 shadow-[0_4px_14px_rgba(37,99,235,0.28)]"
-                >
+                <Button size="lg" className="h-12 rounded-xl px-6">
                   Explore Services
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
@@ -351,7 +350,7 @@ export function HomePage() {
               <Button
                 size="lg"
                 variant="outline"
-                className="h-12 rounded-xl border-[#E2E8F0] bg-white px-6"
+                className="h-12 rounded-xl px-6"
                 onClick={() =>
                   isAuthenticated
                     ? requireAuthNavigate('/applications', { requireProfile: true })
@@ -364,13 +363,14 @@ export function HomePage() {
           </div>
 
           <div className="relative flex justify-center lg:justify-end">
+            <div className="absolute inset-8 rounded-full bg-[#2563EB]/10 blur-3xl" aria-hidden />
             <img
               src={HERO_SHIELD_SRC}
               alt=""
               width={480}
               height={380}
               draggable={false}
-              className="h-auto w-full max-w-[480px] object-contain object-center drop-shadow-[0_20px_50px_rgba(37,99,235,0.15)]"
+              className="relative h-auto w-full max-w-[480px] object-contain object-center drop-shadow-[0_24px_60px_rgba(37,99,235,0.18)]"
             />
           </div>
         </SectionShell>
@@ -426,7 +426,7 @@ export function HomePage() {
               <Link
                 key={stat.label}
                 to={stat.to}
-                className="flex min-h-[96px] items-center gap-4 rounded-2xl border border-[#E8EDF5] bg-white p-5 shadow-sm transition hover:shadow-md"
+                className="flex min-h-[96px] items-center gap-4 rounded-2xl border border-[#E8EDF5] bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] transition hover:-translate-y-0.5 hover:shadow-[0_8px_28px_rgba(15,23,42,0.08)]"
               >
                 {inner}
               </Link>
@@ -435,7 +435,7 @@ export function HomePage() {
                 key={stat.label}
                 type="button"
                 onClick={() => requireAuthNavigate(stat.to, { requireProfile: true })}
-                className="flex min-h-[96px] w-full items-center gap-4 rounded-2xl border border-[#E8EDF5] bg-white p-5 text-left shadow-sm transition hover:shadow-md"
+                className="flex min-h-[96px] w-full items-center gap-4 rounded-2xl border border-[#E8EDF5] bg-white p-5 text-left shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] transition hover:-translate-y-0.5 hover:shadow-[0_8px_28px_rgba(15,23,42,0.08)]"
               >
                 {inner}
               </button>
@@ -447,7 +447,7 @@ export function HomePage() {
       {/* Quick services — horizontal scroll, full cards */}
       <SectionShell className="mt-14">
         <div className="mb-5 flex items-end justify-between gap-4">
-          <h2 className="font-display text-2xl font-bold text-[#0A1629]">
+          <h2 className="font-display text-2xl font-bold tracking-tight text-[#0A1629]">
             How can we help you today?
           </h2>
           <Link

@@ -76,9 +76,14 @@ export function EmptyState({
   action?: ReactNode;
 }) {
   return (
-    <div className={cn('rounded-2xl border border-dashed border-[#E5E7EB] bg-white px-6 py-12 text-center', className)}>
-      <p className="text-base font-semibold text-[#0A1629]">{title}</p>
-      {description ? <p className="mt-2 text-sm text-[#6B7280]">{description}</p> : null}
+    <div
+      className={cn(
+        'rounded-2xl border border-dashed border-[#E2E8F0] bg-gradient-to-b from-white to-[#F8FAFC] px-6 py-14 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]',
+        className,
+      )}
+    >
+      <p className="font-display text-base font-semibold text-[#0A1629]">{title}</p>
+      {description ? <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#64748B]">{description}</p> : null}
       {action ? <div className="mt-6 flex justify-center">{action}</div> : null}
     </div>
   );

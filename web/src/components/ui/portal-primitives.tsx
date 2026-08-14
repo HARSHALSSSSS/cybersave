@@ -21,7 +21,7 @@ export function PortalCard({
   return (
     <div
       className={cn(
-        'rounded-2xl border border-[#E8EDF5] bg-white shadow-[0_1px_3px_rgba(15,23,42,0.06)]',
+        'rounded-2xl border border-[#E8EDF5] bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] transition hover:shadow-[0_4px_20px_rgba(15,23,42,0.07)]',
         pad,
         className,
       )}
@@ -43,8 +43,8 @@ export function SectionHeading({
   return (
     <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
       <div>
-        <h2 className="font-display text-xl font-bold text-[#0A1629] sm:text-2xl">{title}</h2>
-        {subtitle ? <p className="mt-1 text-sm text-[#64748B]">{subtitle}</p> : null}
+        <h2 className="font-display text-xl font-bold tracking-tight text-[#0A1629] sm:text-2xl">{title}</h2>
+        {subtitle ? <p className="mt-1.5 max-w-2xl text-sm leading-6 text-[#64748B]">{subtitle}</p> : null}
       </div>
       {action}
     </div>

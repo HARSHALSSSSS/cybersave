@@ -1,5 +1,6 @@
 import { Link } from 'react-router';
 import { BrandMark } from '@/components/brand/BrandMark';
+import { BRAND_TAGLINE } from '@/components/brand/brand-assets';
 
 const FOOTER_COLUMNS = [
   {
@@ -43,23 +44,27 @@ const FOOTER_COLUMNS = [
 export function PortalFooter() {
   return (
     <footer className="mt-auto bg-[#0A1629] text-white">
-      <div className="mx-auto max-w-[1280px] px-4 py-14 sm:px-6 lg:px-8">
-        <div className="grid gap-10 lg:grid-cols-[1.2fr_2fr]">
+      <div className="mx-auto max-w-[1320px] px-4 py-14 sm:px-6 lg:px-8">
+        <div className="grid gap-12 lg:grid-cols-[1.15fr_2fr]">
           <div>
-            <BrandMark light />
-            <p className="mt-4 max-w-sm text-sm leading-7 text-[#94A3B8]">
+            <BrandMark light size="lg" />
+            <p className="mt-5 max-w-sm text-sm leading-7 text-[#94A3B8]">
               Simplifying citizen access to government services through a secure, unified digital
               platform built for India.
             </p>
-            <p className="mt-3 text-xs font-medium text-[#64748B]">
-              Everything Government. One Secure App.
+            <p className="mt-3 text-xs font-semibold tracking-[0.12em] text-[#64748B] uppercase">
+              {BRAND_TAGLINE}
             </p>
+            <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] font-semibold tracking-wide text-[#BFDBFE]">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+              Digital India Ready
+            </div>
           </div>
 
           <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
             {FOOTER_COLUMNS.map(col => (
               <div key={col.title}>
-                <h3 className="text-xs font-bold tracking-wider text-[#60A5FA] uppercase">
+                <h3 className="text-xs font-bold tracking-[0.16em] text-[#60A5FA] uppercase">
                   {col.title}
                 </h3>
                 <ul className="mt-4 space-y-2.5">
@@ -83,14 +88,14 @@ export function PortalFooter() {
           <p className="text-xs text-[#64748B]">
             © {new Date().getFullYear()} Cybersave Digital India Platform. All rights reserved.
           </p>
-          <div className="flex flex-wrap gap-6 text-xs text-[#64748B]">
-            <Link to="/help" className="hover:text-white">
+          <div className="flex flex-wrap justify-center gap-6 text-xs text-[#64748B]">
+            <Link to="/help" className="transition hover:text-white">
               Privacy Policy
             </Link>
-            <Link to="/help" className="hover:text-white">
+            <Link to="/help" className="transition hover:text-white">
               Terms of Service
             </Link>
-            <Link to="/help" className="hover:text-white">
+            <Link to="/help" className="transition hover:text-white">
               Information Security Directive
             </Link>
           </div>

@@ -62,11 +62,11 @@ export function PortalNavbar() {
   }
 
   return (
-    <header className="sticky top-0 z-40 border-b border-[#E8EDF5] bg-white/98 backdrop-blur-md">
-      <div className="mx-auto flex h-[76px] max-w-[1320px] items-center gap-6 px-4 sm:px-6 lg:px-8">
-        <BrandMark className="mr-2 shrink-0" />
+    <header className="sticky top-0 z-40 border-b border-[#E8EDF5]/90 bg-white/95 shadow-[0_1px_0_rgba(15,23,42,0.03)] backdrop-blur-xl">
+      <div className="mx-auto flex h-[76px] max-w-[1320px] items-center gap-5 px-4 sm:px-6 lg:gap-6 lg:px-8">
+        <BrandMark className="shrink-0" size="md" />
 
-        <nav className="hidden min-w-0 flex-1 items-center justify-center gap-1 lg:flex">
+        <nav className="hidden min-w-0 flex-1 items-center justify-center gap-0.5 lg:flex">
           {NAV_LINKS.map(link =>
             'public' in link && link.public ? (
               <NavLink
@@ -75,30 +75,21 @@ export function PortalNavbar() {
                 end={'end' in link ? link.end : false}
                 className={({ isActive }) =>
                   cn(
-                    'whitespace-nowrap px-3 py-2 text-[15px] font-medium transition-colors',
+                    'whitespace-nowrap rounded-lg px-3 py-2 text-[14px] font-medium transition-colors',
                     isActive
-                      ? 'text-[#2563EB]'
-                      : 'text-[#64748B] hover:text-[#0A1629]',
+                      ? 'bg-[#EFF6FF] text-[#2563EB]'
+                      : 'text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0A1629]',
                   )
                 }
               >
-                {({ isActive }) => (
-                  <span
-                    className={cn(
-                      'inline-block border-b-2 pb-0.5',
-                      isActive ? 'border-[#2563EB]' : 'border-transparent',
-                    )}
-                  >
-                    {link.label}
-                  </span>
-                )}
+                {link.label}
               </NavLink>
             ) : (
               <button
                 key={link.to}
                 type="button"
                 onClick={() => handleProtectedNav(link.to)}
-                className="whitespace-nowrap border-b-2 border-transparent px-3 py-2 text-[15px] font-medium text-[#64748B] transition-colors hover:text-[#0A1629]"
+                className="whitespace-nowrap rounded-lg px-3 py-2 text-[14px] font-medium text-[#64748B] transition-colors hover:bg-[#F8FAFC] hover:text-[#0A1629]"
               >
                 {link.label}
               </button>

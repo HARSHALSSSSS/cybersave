@@ -9,18 +9,26 @@ export type BreadcrumbItem = {
 
 export function Breadcrumbs({ items }: { items: BreadcrumbItem[] }) {
   return (
-    <nav aria-label="Breadcrumb" className="mb-4 flex flex-wrap items-center gap-1 text-sm">
+    <nav aria-label="Breadcrumb" className="mb-5 flex flex-wrap items-center gap-1 text-sm">
       {items.map((item, index) => {
         const isLast = index === items.length - 1;
         return (
           <span key={`${item.label}-${index}`} className="flex items-center gap-1">
-            {index > 0 ? <ChevronRight className="h-3.5 w-3.5 text-[#9CA3AF]" /> : null}
+            {index > 0 ? <ChevronRight className="h-3.5 w-3.5 text-[#CBD5E1]" /> : null}
             {item.to && !isLast ? (
-              <Link to={item.to} className="text-[#2563EB] hover:underline">
+              <Link
+                to={item.to}
+                className="rounded-md px-1 py-0.5 text-[#64748B] transition hover:bg-[#EFF6FF] hover:text-[#2563EB]"
+              >
                 {item.label}
               </Link>
             ) : (
-              <span className={cn(isLast ? 'font-medium text-[#2563EB]' : 'text-[#6B7280]')}>
+              <span
+                className={cn(
+                  'rounded-md px-1 py-0.5',
+                  isLast ? 'font-semibold text-[#0A1629]' : 'text-[#64748B]',
+                )}
+              >
                 {item.label}
               </span>
             )}

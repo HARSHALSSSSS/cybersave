@@ -11,7 +11,10 @@ export function BrandWatermark({ className, size = 160 }: { className?: string; 
       draggable={false}
       width={size}
       height={size}
-      className={cn('pointer-events-none select-none object-contain opacity-[0.12]', className)}
+      className={cn(
+        'pointer-events-none select-none rounded-3xl object-contain opacity-[0.1] mix-blend-luminosity',
+        className,
+      )}
     />
   );
 }

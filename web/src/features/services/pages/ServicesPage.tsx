@@ -91,8 +91,8 @@ export function ServicesPage() {
   return (
     <div className="space-y-10 pb-4">
       {/* Hero search */}
-      <section className="rounded-2xl border border-[#E8EDF5] bg-gradient-to-br from-[#F8FAFC] to-white p-6 sm:p-8">
-        <h1 className="font-display text-3xl font-bold text-[#0A1629] sm:text-4xl">
+      <section className="relative overflow-hidden rounded-3xl border border-[#E8EDF5] bg-[radial-gradient(900px_320px_at_100%_0%,rgba(37,99,235,0.08),transparent_55%),linear-gradient(135deg,#FFFFFF_0%,#F8FBFF_100%)] p-6 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] sm:p-8">
+        <h1 className="font-display text-3xl font-bold tracking-tight text-[#0A1629] sm:text-4xl">
           All Government Services
         </h1>
         <p className="mt-3 max-w-2xl text-sm leading-7 text-[#64748B] sm:text-base">

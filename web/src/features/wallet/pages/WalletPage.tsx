@@ -76,7 +76,7 @@ export function WalletPage() {
       <Breadcrumbs items={[{ label: 'Portal', to: '/' }, { label: 'Cybersave Digital Wallet' }]} />
 
       <div>
-        <h1 className="font-display text-3xl font-bold text-[#0A1629]">Cybersave Digital Wallet</h1>
+        <h1 className="font-display text-3xl font-bold tracking-tight text-[#0A1629]">Cybersave Digital Wallet</h1>
         <p className="mt-2 text-sm text-[#6B7280]">
           Securely fund, manage, and trace all government service fees and transaction clearances.
         </p>

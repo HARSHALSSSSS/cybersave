@@ -79,7 +79,7 @@ export function DocumentsPage() {
       <Breadcrumbs items={[{ label: 'Portal', to: '/' }, { label: 'Documents Locker' }]} />
 
       <div>
-        <h1 className="font-display text-3xl font-bold text-[#0A1629]">Documents Locker</h1>
+        <h1 className="font-display text-3xl font-bold tracking-tight text-[#0A1629]">Documents Locker</h1>
         <p className="mt-2 text-sm text-[#6B7280]">
           Securely store verified certificates and identity proofs for reuse across applications.
         </p>

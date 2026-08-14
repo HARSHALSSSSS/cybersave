@@ -22,7 +22,7 @@ export function SchemesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-display text-3xl font-bold text-[#0A1629]">Government Schemes</h1>
+        <h1 className="font-display text-3xl font-bold tracking-tight text-[#0A1629]">Government Schemes</h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-[#6B7280]">
           Central and state welfare schemes — housing, agriculture, health, education, pensions and
           more. Apply through Cybersave where available, or visit the official government portal.

@@ -76,7 +76,7 @@ export function HelpPage() {
         style={{ background: 'linear-gradient(135deg, #1A3B8B 0%, #2563EB 100%)' }}
       >
         <div className="relative z-10 max-w-xl">
-          <h1 className="font-display text-3xl font-bold">Help & Support Centre</h1>
+          <h1 className="font-display text-3xl font-bold tracking-tight">Help & Support Centre</h1>
           <p className="mt-3 text-sm leading-6 text-blue-100">
             Get step-by-step assistance, search common user questions, or coordinate direct support
             with our dedicated helpdesk teams.
