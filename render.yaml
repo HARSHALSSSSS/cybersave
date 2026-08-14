@@ -1,9 +1,11 @@
-# Cybersave API on Render (Blueprint)
-# Native Node runtime (more reliable on free tier than Docker).
+# Cybersave on Render (Blueprint)
 #
-# IMPORTANT: Create a free Postgres on https://neon.tech first,
-# then set DATABASE_URL in the Render dashboard after Blueprint creates the service
-# (or paste it during Blueprint review if prompted).
+# Services:
+# - cybersave-api  → NestJS API (already deployed as cybersave-l972)
+# - cybersave-web  → Citizen portal (Vite static site)
+#
+# IMPORTANT: Create a free Postgres on https://neon.tech first for the API,
+# then set DATABASE_URL in the Render dashboard.
 
 services:
   - type: web
@@ -24,8 +26,6 @@ services:
         value: api/v1
       - key: AUTO_SEED
         value: "true"
-      # Paste your Neon connection string in Render dashboard after create:
-      # DATABASE_URL=postgresql://...
       - key: CITIZEN_JWT_SECRET
         generateValue: true
       - key: ADMIN_JWT_SECRET
@@ -64,3 +64,21 @@ services:
         value: mock
       - key: BBPS_CONVENIENCE_FEE_FLAT
         value: "5"
+
+  - type: web
+    name: cybersave-web
+    runtime: static
+    plan: free
+    rootDir: web
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_BASE_URL
+        # Your live API — change only if the API URL changes
+        value: https://cybersave-l972.onrender.com/api/v1
+      - key: VITE_APP_NAME
+        value: Cybersave
