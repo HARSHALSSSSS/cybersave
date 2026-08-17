@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -15,7 +15,6 @@ import { useQuery } from '@tanstack/react-query';
 import { WalletStackParamList, MainTabParamList } from '@/types/navigation';
 import {
   formatCurrency,
-  getWalletBalance,
   LINKED_PAYMENT_METHOD,
 } from '@constants/index';
 import { useUnreadNotificationCount } from '@/hooks/useUnreadNotificationCount';
@@ -27,6 +26,8 @@ import {
   billPaymentsQueryKeys,
   paymentsApi,
   paymentsQueryKeys,
+  walletApi,
+  walletQueryKeys,
 } from '@services/api';
 import {
   BellIcon,
@@ -43,8 +44,14 @@ export const WalletScreen: React.FC<Props> = ({ navigation }) => {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
-  const [balance, setBalance] = useState(getWalletBalance());
   const unreadNotifications = useUnreadNotificationCount(true);
+
+  const { data: wallet, refetch: refetchWallet } = useQuery({
+    queryKey: walletQueryKeys.summary(),
+    queryFn: () => walletApi.getWalletSummary(),
+  });
+
+  const balance = wallet?.balance ?? 0;
 
   const { data: billHistory } = useQuery({
     queryKey: billPaymentsQueryKeys.history('all', 1),
@@ -62,7 +69,15 @@ export const WalletScreen: React.FC<Props> = ({ navigation }) => {
 
   const recentTransactions = useMemo(() => {
     const billTx = billHistory?.data ?? [];
+    const walletTx = (wallet?.transactions ?? []).map(tx => ({
+      id: `wallet-${tx.id}`,
+      title: tx.type === 'TOPUP' ? 'Wallet Recharge' : tx.description ?? 'Wallet',
+      subtitle: tx.referenceId ?? tx.id,
+      amount: tx.type === 'TOPUP' ? Number(tx.amount) : -Number(tx.amount),
+      date: tx.createdAt,
+    }));
     return [
+      ...walletTx,
       ...billTx.map((tx: { id: string; biller: { name: string }; orderId?: string; totalAmount: number; paidAt: string | null; createdAt: string }) => ({
         id: `bill-${tx.id}`,
         title: `${tx.biller.name} Bill`,
@@ -80,12 +95,12 @@ export const WalletScreen: React.FC<Props> = ({ navigation }) => {
     ]
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
       .slice(0, 3);
-  }, [billHistory?.data, servicePayments]);
+  }, [billHistory?.data, servicePayments, wallet?.transactions]);
 
   useFocusEffect(
     useCallback(() => {
-      setBalance(getWalletBalance());
-    }, []),
+      void refetchWallet();
+    }, [refetchWallet]),
   );
 
   const styles = useMemo(

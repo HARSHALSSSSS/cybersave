@@ -38,8 +38,16 @@ import {
   paymentsQueryKeys,
   servicesApi,
   servicesQueryKeys,
+  walletApi,
+  walletQueryKeys,
   type BackendApplicationStatus,
 } from '@/services/api';
+import { useAuthStore } from '@/features/auth/store/auth.store';
+import {
+  isRazorpayUserCancelled,
+  processApplicationPayment,
+  type PaymentMethod,
+} from '@/features/payments/utils/applicationPayment';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { openStorageDownloadUrl } from '@/lib/upload';
 import { cn } from '@/lib/utils';
@@ -56,14 +64,19 @@ export function ServiceApplyPage() {
   const [applicationId, setApplicationId] = useState<string | undefined>(routeAppId);
   const [formValues, setFormValues] = useState<Record<string, unknown>>({});
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [upiId, setUpiId] = useState('');
-  const [upiVerified, setUpiVerified] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState('upi');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('razorpay');
   const [busy, setBusy] = useState(false);
   const [draftFailed, setDraftFailed] = useState(false);
   const [draftErrorMessage, setDraftErrorMessage] = useState<string | null>(null);
   const draftRequestedRef = useRef(false);
   const paymentKeyRef = useRef<string | null>(null);
+
+  const citizen = useAuthStore(s => s.citizen);
+
+  const { data: wallet } = useQuery({
+    queryKey: walletQueryKeys.summary(),
+    queryFn: () => walletApi.getWalletSummary(),
+  });
 
   const { data: catalog = [], isLoading: catalogLoading } = useQuery({
     queryKey: servicesQueryKeys.catalog(),
@@ -239,7 +252,8 @@ export function ServiceApplyPage() {
     config?.pricing?.totalAmount ?? application?.pricingSnapshot?.totalAmount ?? 0,
   );
   const requiresPayment = totalAmount > 0;
-  const isDev = import.meta.env.DEV;
+  const walletBalance = wallet?.balance ?? 0;
+  const walletCovers = walletBalance >= totalAmount && totalAmount > 0;
 
   const allowedStep = useMemo((): ApplyStep => {
     if (!application) return 'payment';
@@ -352,8 +366,8 @@ export function ServiceApplyPage() {
 
   async function handleSubmitApplication() {
     if (!applicationId) return;
-    if (requiresPayment && paymentMethod === 'upi' && !upiVerified && !isDev) {
-      toast.error('Verify your UPI ID before paying');
+    if (requiresPayment && paymentMethod === 'wallet' && !walletCovers) {
+      toast.error('Insufficient wallet balance. Recharge your wallet to continue.');
       return;
     }
     setBusy(true);
@@ -368,27 +382,29 @@ export function ServiceApplyPage() {
         if (!paymentKeyRef.current) {
           paymentKeyRef.current = randomIdempotencyKey(`pay-${applicationId}`);
         }
-        const intent = await applicationsApi.createPaymentIntent(
+        await processApplicationPayment({
           applicationId,
-          paymentKeyRef.current,
-        );
-        if (intent.status !== 'CAPTURED') {
-          if (isDev || intent.provider === 'mock') {
-            await applicationsApi.captureMockPayment(intent.paymentId);
-          } else {
-            toast.error('Online payment gateway integration required for production.');
-            return;
-          }
-        }
+          method: paymentMethod,
+          idempotencyKey: paymentKeyRef.current,
+          amount: totalAmount,
+          serviceName: displayName,
+          prefill: {
+            contact: citizen?.phone,
+            email: citizen?.email ?? undefined,
+            name: [citizen?.firstName, citizen?.lastName].filter(Boolean).join(' ') || undefined,
+          },
+        });
       }
       await applicationsApi.submitApplication(applicationId);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: applicationsQueryKeys.all }),
         queryClient.invalidateQueries({ queryKey: paymentsQueryKeys.all }),
+        queryClient.invalidateQueries({ queryKey: walletQueryKeys.summary() }),
       ]);
       goToStep('confirmation');
       toast.success('Application submitted successfully');
-    } catch {
+    } catch (error) {
+      if (isRazorpayUserCancelled(error)) return;
       toast.error('Could not submit application');
     } finally {
       setBusy(false);
@@ -636,66 +652,70 @@ export function ServiceApplyPage() {
               <div>
                 <h2 className="mb-4 text-base font-semibold text-[#0A1629]">Select Payment Method</h2>
                 <div className="space-y-3">
-                  {[
-                    { id: 'upi', title: 'UPI (Instant Bank Transfer)', desc: 'Pay via Google Pay, PhonePe, Paytm, or BHIM app.' },
-                    { id: 'card', title: 'Debit / Credit Card', desc: 'Visa, Mastercard, RuPay accepted.' },
-                    { id: 'netbanking', title: 'Net Banking', desc: 'All major Indian banks supported.' },
-                  ].map(method => (
-                    <label
-                      key={method.id}
-                      className={cn(
-                        'block cursor-pointer rounded-2xl border p-4 transition',
-                        paymentMethod === method.id
-                          ? 'border-[#2563EB] bg-[#EFF6FF]/50 ring-1 ring-[#2563EB]/30'
-                          : 'border-[#E5E7EB] bg-white',
-                      )}
-                    >
-                      <div className="flex items-start gap-3">
-                        <input
-                          type="radio"
-                          name="payment"
-                          checked={paymentMethod === method.id}
-                          onChange={() => setPaymentMethod(method.id)}
-                          className="mt-1"
-                        />
-                        <div>
-                          <p className="font-semibold text-[#0A1629]">{method.title}</p>
-                          <p className="mt-1 text-xs text-[#6B7280]">{method.desc}</p>
-                        </div>
+                  <label
+                    className={cn(
+                      'block cursor-pointer rounded-2xl border p-4 transition',
+                      paymentMethod === 'razorpay'
+                        ? 'border-[#2563EB] bg-[#EFF6FF]/50 ring-1 ring-[#2563EB]/30'
+                        : 'border-[#E5E7EB] bg-white',
+                    )}
+                  >
+                    <div className="flex items-start gap-3">
+                      <input
+                        type="radio"
+                        name="payment"
+                        checked={paymentMethod === 'razorpay'}
+                        onChange={() => setPaymentMethod('razorpay')}
+                        className="mt-1"
+                      />
+                      <div className="flex-1">
+                        <p className="font-semibold text-[#0A1629]">Pay via Razorpay</p>
+                        <p className="mt-1 text-xs text-[#6B7280]">
+                          UPI, debit/credit cards, net banking &amp; wallets — secure checkout opens on pay.
+                        </p>
+                        <span className="mt-2 inline-flex rounded-full bg-[#EFF6FF] px-2.5 py-0.5 text-[10px] font-semibold text-[#2563EB]">
+                          Secured by Razorpay
+                        </span>
                       </div>
-                      {method.id === 'upi' && paymentMethod === 'upi' ? (
-                        <div className="mt-4 rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] p-4">
-                          <p className="text-[10px] font-semibold uppercase tracking-wide text-[#9CA3AF]">
-                            Enter your UPI ID / Virtual Payment Address
-                          </p>
-                          <div className="mt-2 flex gap-2">
-                            <input
-                              value={upiId}
-                              onChange={e => {
-                                setUpiId(e.target.value);
-                                setUpiVerified(false);
-                              }}
-                              placeholder="name@bank"
-                              className="h-10 flex-1 rounded-lg border border-[#E5E7EB] px-3 text-sm"
-                            />
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setUpiVerified(upiId.includes('@'))}
-                            >
-                              Verify ID
-                            </Button>
-                          </div>
-                          {upiVerified ? (
-                            <p className="mt-2 text-xs font-medium text-emerald-600">
-                              ● Verified Holder: {upiId.split('@')[0].toUpperCase()}
-                            </p>
-                          ) : null}
-                        </div>
-                      ) : null}
-                    </label>
-                  ))}
+                    </div>
+                  </label>
+
+                  <label
+                    className={cn(
+                      'block rounded-2xl border p-4 transition',
+                      walletCovers ? 'cursor-pointer' : 'cursor-not-allowed opacity-55 blur-[0.3px]',
+                      paymentMethod === 'wallet' && walletCovers
+                        ? 'border-[#2563EB] bg-[#EFF6FF]/50 ring-1 ring-[#2563EB]/30'
+                        : 'border-[#E5E7EB] bg-white',
+                    )}
+                  >
+                    <div className="flex items-start gap-3">
+                      <input
+                        type="radio"
+                        name="payment"
+                        checked={paymentMethod === 'wallet'}
+                        disabled={!walletCovers}
+                        onChange={() => walletCovers && setPaymentMethod('wallet')}
+                        className="mt-1"
+                      />
+                      <div className="flex-1">
+                        <p className="font-semibold text-[#0A1629]">Cybersave Wallet</p>
+                        <p className="mt-1 text-xs text-[#6B7280]">
+                          {walletCovers
+                            ? 'Instant payment from your wallet balance.'
+                            : 'Insufficient balance — recharge wallet to enable this option.'}
+                        </p>
+                        <p
+                          className={cn(
+                            'mt-2 text-xs font-semibold',
+                            walletCovers ? 'text-[#2563EB]' : 'text-amber-700',
+                          )}
+                        >
+                          Available: {formatCurrency(walletBalance)}
+                        </p>
+                      </div>
+                    </div>
+                  </label>
                 </div>
               </div>
 

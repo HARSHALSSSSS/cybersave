@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -11,13 +10,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useQuery } from '@tanstack/react-query';
 import { ServicesStackParamList } from '@/types/navigation';
-import {
-  FEATURED_STATES,
-  getFeaturedState,
-  getStateTheme,
-} from '@constants/featuredStates';
+import { FEATURED_STATES } from '@constants/featuredStates';
 import { useTheme } from '@app/providers/ThemeProvider';
+import { useTwoColumnCardWidth } from '@/hooks/useTwoColumnCardWidth';
 import { SearchBar } from '@components/SearchBar';
+import { ChevronRightIcon } from '@components/icons';
 import { ServiceHubHeader } from '@features/services/components';
 import { countServicesForState } from '@features/services/utils/stateServices';
 import { servicesApi, servicesQueryKeys } from '@services/api';
@@ -31,6 +28,7 @@ export const AllStatesScreen: React.FC<Props> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const { t, format } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
+  const cardWidth = useTwoColumnCardWidth();
 
   const { data: catalog = [] } = useQuery({
     queryKey: servicesQueryKeys.catalog(),
@@ -39,36 +37,16 @@ export const AllStatesScreen: React.FC<Props> = ({ navigation }) => {
     placeholderData: previous => previous ?? [],
   });
 
-  const { data: apiStates = [], isLoading, isError, refetch } = useQuery({
-    queryKey: servicesQueryKeys.states(),
-    queryFn: servicesApi.getIndianStates,
-    staleTime: 1000 * 60 * 60,
-  });
-
   const states = useMemo(() => {
-    const featuredCodes = new Set<string>(FEATURED_STATES.map(item => item.code));
-    const fromApi = (apiStates.length > 0 ? apiStates : FEATURED_STATES).map(item => ({
-      code: item.code,
-      name: item.name,
-    }));
-    const extraFeatured = FEATURED_STATES.filter(
-      item => !fromApi.some(state => state.code === item.code),
-    ).map(item => ({ code: item.code, name: item.name }));
-    const merged = [...fromApi, ...extraFeatured];
-    merged.sort((a, b) => {
-      const aFeatured = featuredCodes.has(a.code);
-      const bFeatured = featuredCodes.has(b.code);
-      if (aFeatured && !bFeatured) return -1;
-      if (!aFeatured && bFeatured) return 1;
-      return a.name.localeCompare(b.name);
-    });
     const query = searchQuery.trim().toLowerCase();
-    if (!query) return merged;
-    return merged.filter(
+    if (!query) return FEATURED_STATES;
+    return FEATURED_STATES.filter(
       item =>
-        item.name.toLowerCase().includes(query) || item.code.toLowerCase().includes(query),
+        item.name.toLowerCase().includes(query) ||
+        item.code.toLowerCase().includes(query) ||
+        item.portal.toLowerCase().includes(query),
     );
-  }, [apiStates, searchQuery]);
+  }, [searchQuery]);
 
   const styles = useMemo(
     () =>
@@ -84,13 +62,14 @@ export const AllStatesScreen: React.FC<Props> = ({ navigation }) => {
         },
         searchWrap: {
           paddingHorizontal: theme.spacing['2xl'],
-          marginBottom: theme.spacing.lg,
+          marginBottom: theme.spacing.md,
         },
         hint: {
           ...theme.typography.bodySmall,
           color: theme.colors.textSecondary,
           paddingHorizontal: theme.spacing['2xl'],
-          marginBottom: theme.spacing.md,
+          marginBottom: theme.spacing.lg,
+          lineHeight: 20,
         },
         grid: {
           flexDirection: 'row',
@@ -100,25 +79,40 @@ export const AllStatesScreen: React.FC<Props> = ({ navigation }) => {
           paddingBottom: getScrollBottomPadding(insets),
         },
         tile: {
-          width: '47.2%',
           borderRadius: theme.radius.xl,
           padding: theme.spacing.lg,
           borderWidth: 1,
           borderColor: theme.colors.border,
+          backgroundColor: theme.colors.surface,
+          ...theme.shadows.sm,
+        },
+        accent: {
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 4,
+          borderTopLeftRadius: theme.radius.xl,
+          borderTopRightRadius: theme.radius.xl,
+        },
+        row: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: theme.spacing.sm,
         },
         badge: {
-          width: 40,
-          height: 40,
+          width: 44,
+          height: 44,
           borderRadius: theme.radius.lg,
           alignItems: 'center',
           justifyContent: 'center',
-          marginBottom: theme.spacing.sm,
         },
         badgeText: {
           ...theme.typography.labelSmall,
           color: theme.colors.textInverse,
           fontWeight: '800',
         },
+        body: { flex: 1, minWidth: 0 },
         name: {
           ...theme.typography.bodyLarge,
           color: theme.colors.textPrimary,
@@ -129,11 +123,23 @@ export const AllStatesScreen: React.FC<Props> = ({ navigation }) => {
           color: theme.colors.textSecondary,
           marginTop: 2,
         },
+        tagline: {
+          ...theme.typography.caption,
+          color: theme.colors.textSecondary,
+          marginTop: theme.spacing.sm,
+          lineHeight: 16,
+        },
         count: {
           ...theme.typography.caption,
           color: theme.colors.primary,
           fontWeight: '700',
           marginTop: theme.spacing.sm,
+        },
+        viewLink: {
+          ...theme.typography.caption,
+          color: theme.colors.primary,
+          fontWeight: '700',
+          marginTop: theme.spacing.xs,
         },
         center: { padding: theme.spacing['3xl'], alignItems: 'center' },
         message: {
@@ -148,13 +154,16 @@ export const AllStatesScreen: React.FC<Props> = ({ navigation }) => {
   return (
     <View style={styles.container}>
       <ServiceHubHeader
-        title={t.services.allStates}
-        subtitle={t.services.allStatesHint}
+        title={t.services.browseByState}
+        subtitle={t.services.browseByStateHint}
         showBack
         onBack={() => navigation.goBack()}
       />
 
-      <ScrollView style={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.content}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}>
         <View style={styles.searchWrap}>
           <SearchBar
             placeholder={t.services.searchStates}
@@ -165,48 +174,41 @@ export const AllStatesScreen: React.FC<Props> = ({ navigation }) => {
         </View>
         <Text style={styles.hint}>{t.services.browseByStateHint}</Text>
 
-        {isLoading && apiStates.length === 0 ? (
-          <View style={styles.center}>
-            <ActivityIndicator color={theme.colors.primary} />
-          </View>
-        ) : isError && apiStates.length === 0 && states.length === 0 ? (
-          <View style={styles.center}>
-            <Text style={styles.message}>
-              {t.services.loadError}{' '}
-              <Text style={{ color: theme.colors.primary }} onPress={() => void refetch()}>
-                {t.common.retry}
-              </Text>
-            </Text>
-          </View>
-        ) : states.length === 0 ? (
+        {states.length === 0 ? (
           <View style={styles.center}>
             <Text style={styles.message}>{t.services.noSearchResults}</Text>
           </View>
         ) : (
           <View style={styles.grid}>
             {states.map(state => {
-              const themeColors = getStateTheme(state.code);
-              const featured = getFeaturedState(state.code);
               const count = countServicesForState(catalog, state.code);
               return (
                 <Pressable
                   key={state.code}
-                  style={[styles.tile, { backgroundColor: themeColors.bg }]}
+                  style={[styles.tile, { width: cardWidth, backgroundColor: state.bg }]}
                   onPress={() => navigation.navigate('StateServices', { stateCode: state.code })}>
-                  <View style={[styles.badge, { backgroundColor: themeColors.color }]}>
-                    <Text style={styles.badgeText}>{state.code}</Text>
+                  <View style={[styles.accent, { backgroundColor: state.color }]} />
+                  <View style={styles.row}>
+                    <View style={[styles.badge, { backgroundColor: state.color }]}>
+                      <Text style={styles.badgeText}>{state.code}</Text>
+                    </View>
+                    <View style={styles.body}>
+                      <Text style={styles.name} numberOfLines={2}>
+                        {state.name}
+                      </Text>
+                      <Text style={styles.portal} numberOfLines={1}>
+                        {state.portal}
+                      </Text>
+                    </View>
+                    <ChevronRightIcon color={theme.colors.textSecondary} />
                   </View>
-                  <Text style={styles.name} numberOfLines={2}>
-                    {state.name}
+                  <Text style={styles.tagline} numberOfLines={2}>
+                    {state.tagline}
                   </Text>
-                  {featured?.portal ? (
-                    <Text style={styles.portal} numberOfLines={1}>
-                      {featured.portal}
-                    </Text>
-                  ) : null}
                   <Text style={styles.count}>
                     {format(t.services.serviceCount, { count })}
                   </Text>
+                  <Text style={styles.viewLink}>{t.services.viewStateServices}</Text>
                 </Pressable>
               );
             })}

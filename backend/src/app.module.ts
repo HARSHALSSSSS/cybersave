@@ -24,6 +24,7 @@ import { BillPaymentsModule } from './modules/bill-payments/bill-payments.module
 import { HomeBannersModule } from './modules/home-banners/home-banners.module';
 import { GovernmentSchemesModule } from './modules/government-schemes/government-schemes.module';
 import { ManualApplyModule } from './modules/manual-apply/manual-apply.module';
+import { WalletModule } from './modules/wallet/wallet.module';
 import { CitizensModule } from './modules/citizens/citizens.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { HealthModule } from './modules/health/health.module';
@@ -70,6 +71,7 @@ import { SupportTicketsModule } from './modules/support-tickets/support-tickets.
     HomeBannersModule,
     GovernmentSchemesModule,
     ManualApplyModule,
+    WalletModule,
   ],
   providers: [
     {

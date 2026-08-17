@@ -1,4 +1,4 @@
-import { IsObject, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsObject, IsOptional, IsString } from 'class-validator';
 
 export class CreateApplicationDto {
   @IsString()
@@ -40,6 +40,32 @@ export class CompleteUploadDto {
 export class CreatePaymentIntentDto {
   @IsString()
   idempotencyKey!: string;
+}
+
+export class PayWithWalletDto {
+  @IsString()
+  idempotencyKey!: string;
+}
+
+export class ConfirmApplicationPaymentDto {
+  @IsString()
+  paymentId!: string;
+
+  @IsOptional()
+  @IsBoolean()
+  mockCapture?: boolean;
+
+  @IsOptional()
+  @IsString()
+  razorpayPaymentId?: string;
+
+  @IsOptional()
+  @IsString()
+  razorpayOrderId?: string;
+
+  @IsOptional()
+  @IsString()
+  razorpaySignature?: string;
 }
 
 export class SubmitCorrectionDto {

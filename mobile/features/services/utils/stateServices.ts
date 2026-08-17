@@ -3,10 +3,9 @@ import type { MainServiceCatalogItem } from '@services/api';
 export type StateCatalogHit = {
   main: MainServiceCatalogItem;
   sub: MainServiceCatalogItem['subServices'][number];
-  scope: 'state' | 'national';
 };
 
-/** State-configured services plus All-India (no state picker) services. */
+/** Mirrors web `StateServicesPage` — state-gated services only. */
 export function servicesForState(
   catalog: MainServiceCatalogItem[],
   stateCode: string,
@@ -14,15 +13,12 @@ export function servicesForState(
   const code = stateCode.toUpperCase();
   return catalog.flatMap(main =>
     main.subServices
-      .filter(sub => {
-        if (!sub.requiresStateSelection) return true;
-        return Boolean(sub.availableStates?.some(s => s.code.toUpperCase() === code));
-      })
-      .map(sub => ({
-        main,
-        sub,
-        scope: sub.requiresStateSelection ? ('state' as const) : ('national' as const),
-      })),
+      .filter(
+        sub =>
+          sub.requiresStateSelection &&
+          sub.availableStates?.some(s => s.code.toUpperCase() === code),
+      )
+      .map(sub => ({ main, sub })),
   );
 }
 
@@ -40,4 +36,14 @@ export function filterStateServices(items: StateCatalogHit[], query: string) {
     const hay = `${main.name} ${sub.name} ${sub.displayName} ${sub.description ?? ''}`.toLowerCase();
     return hay.includes(q);
   });
+}
+
+export function groupStateServicesByCategory(items: StateCatalogHit[]) {
+  const map = new Map<string, StateCatalogHit[]>();
+  for (const item of items) {
+    const list = map.get(item.main.slug) ?? [];
+    list.push(item);
+    map.set(item.main.slug, list);
+  }
+  return map;
 }

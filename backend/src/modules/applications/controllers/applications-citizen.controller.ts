@@ -22,8 +22,10 @@ import type { AuthenticatedCitizen } from '@/common/decorators/auth.decorators';
 import { PaginationQueryDto } from '@/common/dto/pagination.dto';
 import {
   CompleteUploadDto,
+  ConfirmApplicationPaymentDto,
   CreateApplicationDto,
   CreatePaymentIntentDto,
+  PayWithWalletDto,
   RequestUploadDto,
   SaveFormValuesDto,
   SubmitCorrectionDto,
@@ -178,6 +180,26 @@ export class ApplicationsCitizenController {
       user.id,
       dto.idempotencyKey,
     );
+  }
+
+  @Post(':id/payments/confirm')
+  @ApiOperation({ summary: 'Confirm Razorpay checkout for application payment' })
+  confirmApplicationPayment(
+    @CurrentUser() user: AuthenticatedCitizen,
+    @Param('id') id: string,
+    @Body() dto: ConfirmApplicationPaymentDto,
+  ) {
+    return this.applicationsService.confirmApplicationPayment(id, user.id, dto);
+  }
+
+  @Post(':id/pay-with-wallet')
+  @ApiOperation({ summary: 'Pay application fee from Cybersave wallet' })
+  payWithWallet(
+    @CurrentUser() user: AuthenticatedCitizen,
+    @Param('id') id: string,
+    @Body() dto: PayWithWalletDto,
+  ) {
+    return this.applicationsService.payWithWallet(id, user.id, dto.idempotencyKey);
   }
 
   @Post(':id/submit')

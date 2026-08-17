@@ -110,7 +110,13 @@ if (autoSeed) {
       run('npx', ['ts-node', '--transpile-only', 'prisma/seed.ts']);
       console.log('[cybersave] Seed complete.');
     } else {
-      console.log(`[cybersave] Database already has data (${count} categories) — skip full seed.`);
+      console.log(`[cybersave] Database already has data (${count} categories) — syncing services catalog...`);
+      try {
+        run('npx', ['ts-node', '--transpile-only', 'prisma/sync-services-catalog.ts']);
+        console.log('[cybersave] Services catalog sync complete.');
+      } catch (syncError) {
+        console.error('[cybersave] Catalog sync skipped:', syncError.message || syncError);
+      }
       try {
         const schemeCount = countGovernmentSchemes();
         if (schemeCount === 0) {

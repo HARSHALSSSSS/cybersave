@@ -5,10 +5,10 @@ export const HOSTED_API_BASE_URL =
   'https://cybersave-l972.onrender.com/api/v1';
 
 /**
- * true  → mobile talks to Render (Metro dev + release builds)
- * false → mobile talks to local backend (localhost / LAN / emulator)
+ * Dev (Metro): local backend — same catalog as web (`localhost:8000`).
+ * Release APK: hosted Render API.
  */
-export const USE_HOSTED_API = true;
+export const USE_HOSTED_API = !__DEV__;
 
 /**
  * If auto-detect fails on your phone, set your PC's Wi‑Fi IP here (e.g. '192.168.1.42').

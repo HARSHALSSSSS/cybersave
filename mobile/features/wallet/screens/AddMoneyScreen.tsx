@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   Modal,
   Pressable,
@@ -13,26 +12,21 @@ import {
 import LinearGradient from 'react-native-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useSelector } from 'react-redux';
 import { WalletStackParamList } from '@/types/navigation';
-import {
-  addToWalletBalance,
-  formatAmountInput,
-  getPaymentSourceTitle,
-  getWalletBalance,
-  PAYMENT_SOURCES,
-  QUICK_AMOUNTS,
-} from '@constants/index';
+import { formatAmountInput, QUICK_AMOUNTS } from '@constants/index';
 import { useTranslation } from '@/i18n';
 import { useTheme } from '@app/providers/ThemeProvider';
 import { Button } from '@components/Button';
 import { ScrollScreenAction } from '@components/layout';
+import { BackIcon } from '@components/icons';
 import {
-  BackIcon,
-  CardIcon,
-  RadioSelectedIcon,
-  RadioUnselectedIcon,
-  UpiIcon,
-} from '@components/icons';
+  isRazorpayUserCancelled,
+  processWalletTopUp,
+} from '@features/wallet/utils/walletTopUp';
+import { walletApi, walletQueryKeys } from '@services/api';
+import type { RootState } from '@app/store';
 import { getScrollBottomPadding } from '@utils/layout';
 
 type Props = NativeStackScreenProps<WalletStackParamList, 'AddMoney'>;
@@ -41,13 +35,18 @@ export const AddMoneyScreen: React.FC<Props> = ({ navigation }) => {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const { t, format } = useTranslation();
+  const queryClient = useQueryClient();
+  const citizen = useSelector((state: RootState) => state.auth.citizen);
   const [amount, setAmount] = useState(2000);
-  const [selectedSource, setSelectedSource] = useState('sbi');
-  const [balance, setBalance] = useState(getWalletBalance());
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [processing, setProcessing] = useState(false);
 
-  const selectedSourceMeta = PAYMENT_SOURCES.find(s => s.id === selectedSource);
+  const { data: wallet } = useQuery({
+    queryKey: walletQueryKeys.summary(),
+    queryFn: () => walletApi.getWalletSummary(),
+  });
+
+  const balance = wallet?.balance ?? 0;
 
   const openConfirm = () => {
     if (amount < 1) {
@@ -57,19 +56,32 @@ export const AddMoneyScreen: React.FC<Props> = ({ navigation }) => {
     setConfirmVisible(true);
   };
 
-  const runDemoPayment = async () => {
+  const runPayment = async () => {
     setProcessing(true);
-    await new Promise<void>(resolve => setTimeout(resolve, 1600));
-    const sourceTitle = getPaymentSourceTitle(selectedSource);
-    addToWalletBalance(amount, sourceTitle);
-    setBalance(getWalletBalance());
-    setProcessing(false);
-    setConfirmVisible(false);
-    Alert.alert(
-      t.wallet.paymentSuccessful,
-      format(t.wallet.moneyAddedSuccess, { amount: formatAmountInput(amount) }),
-      [{ text: t.common.ok, onPress: () => navigation.goBack() }],
-    );
+    try {
+      const idempotencyKey = `topup_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      await processWalletTopUp({
+        amount,
+        idempotencyKey,
+        prefill: {
+          contact: citizen?.phone,
+          email: citizen?.email ?? undefined,
+          name: [citizen?.firstName, citizen?.lastName].filter(Boolean).join(' ') || undefined,
+        },
+      });
+      await queryClient.invalidateQueries({ queryKey: walletQueryKeys.summary() });
+      setConfirmVisible(false);
+      Alert.alert(
+        t.wallet.paymentSuccessful,
+        format(t.wallet.moneyAddedSuccess, { amount: formatAmountInput(amount) }),
+        [{ text: t.common.ok, onPress: () => navigation.goBack() }],
+      );
+    } catch (error) {
+      if (isRazorpayUserCancelled(error)) return;
+      Alert.alert(t.common.error, t.wallet.topUpFailed ?? t.common.pleaseTryAgain);
+    } finally {
+      setProcessing(false);
+    }
   };
 
   const styles = useMemo(
@@ -268,12 +280,6 @@ export const AddMoneyScreen: React.FC<Props> = ({ navigation }) => {
     [theme, insets],
   );
 
-  const SourceIcon = ({ type }: { type: string }) => {
-    if (type === 'bank') return <CardIcon color={theme.colors.primary} size={20} />;
-    if (type === 'upi') return <UpiIcon color={theme.colors.textSecondary} size={20} />;
-    return <CardIcon color={theme.colors.textSecondary} size={20} />;
-  };
-
   return (
     <View style={styles.container}>
       <LinearGradient
@@ -332,29 +338,15 @@ export const AddMoneyScreen: React.FC<Props> = ({ navigation }) => {
           })}
         </View>
 
-        <Text style={styles.sectionLabel}>{t.wallet.selectPaymentSource}</Text>
-        {PAYMENT_SOURCES.map(source => {
-          const isActive = selectedSource === source.id;
-          return (
-            <Pressable
-              key={source.id}
-              style={[styles.sourceCard, isActive && styles.sourceCardActive]}
-              onPress={() => setSelectedSource(source.id)}>
-              <View style={styles.sourceIcon}>
-                <SourceIcon type={source.type} />
-              </View>
-              <View style={styles.sourceContent}>
-                <Text style={styles.sourceTitle}>{source.title}</Text>
-                <Text style={styles.sourceSub}>{source.subtitle}</Text>
-              </View>
-              {isActive ? (
-                <RadioSelectedIcon color={theme.colors.primary} />
-              ) : (
-                <RadioUnselectedIcon />
-              )}
-            </Pressable>
-          );
-        })}
+        <View style={[styles.sourceCard, styles.sourceCardActive]}>
+          <View style={styles.sourceContent}>
+            <Text style={styles.sourceTitle}>{t.services.payViaRazorpay}</Text>
+            <Text style={styles.sourceSub}>{t.services.razorpayMethodsHint}</Text>
+            <Text style={[styles.sourceSub, { marginTop: 6, color: theme.colors.primary }]}>
+              {t.services.securedRazorpay}
+            </Text>
+          </View>
+        </View>
 
         <ScrollScreenAction>
           <Button
@@ -374,20 +366,15 @@ export const AddMoneyScreen: React.FC<Props> = ({ navigation }) => {
             <Text style={styles.modalTitle}>{t.wallet.confirmPayment}</Text>
             <Text style={styles.modalBody}>{t.wallet.demoPaymentHint}</Text>
             <Text style={styles.modalAmount}>₹{formatAmountInput(amount)}.00</Text>
-            <View style={styles.modalSource}>
-              <Text style={styles.sourceTitle}>{selectedSourceMeta?.title}</Text>
-              <Text style={styles.sourceSub}>{selectedSourceMeta?.subtitle}</Text>
-            </View>
             {processing ? (
               <View style={styles.processingRow}>
-                <ActivityIndicator color={theme.colors.primary} />
                 <Text style={styles.modalBody}>{t.wallet.processingPayment}</Text>
               </View>
             ) : (
               <>
                 <Button
                   title={format(t.wallet.payNow, { amount: formatAmountInput(amount) })}
-                  onPress={() => void runDemoPayment()}
+                  onPress={() => void runPayment()}
                 />
                 <Button
                   title={t.common.cancel}

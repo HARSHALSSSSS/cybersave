@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ChevronDown,
   Headphones,
@@ -14,13 +14,19 @@ import { Breadcrumbs } from '@/components/layout/Breadcrumbs';
 import { Button } from '@/components/ui/button';
 import { StatusPill } from '@/components/ui/portal-primitives';
 import { LoadingBlock, EmptyState } from '@/components/ui/primitives';
+import { useAuthStore } from '@/features/auth/store/auth.store';
+import {
+  isRazorpayUserCancelled,
+  processWalletTopUp,
+} from '@/features/wallet/utils/walletTopUp';
 import {
   billPaymentsApi,
   billPaymentsQueryKeys,
   paymentsApi,
   paymentsQueryKeys,
+  walletApi,
+  walletQueryKeys,
 } from '@/services/api';
-import { addWalletTopUp, getLastTopUpDate, getWalletBalance } from '@/lib/wallet';
 import { formatCurrency, formatDate } from '@/lib/utils';
 
 type TxFilter = 'all' | 'success' | 'pending' | 'failed';
@@ -34,10 +40,19 @@ function paymentStatusTone(status: string): 'green' | 'amber' | 'red' | 'slate' 
 }
 
 export function WalletPage() {
-  const [balance, setBalance] = useState(getWalletBalance());
+  const queryClient = useQueryClient();
+  const citizen = useAuthStore(s => s.citizen);
   const [showAdd, setShowAdd] = useState(false);
   const [addAmount, setAddAmount] = useState('5000');
+  const [adding, setAdding] = useState(false);
   const [filter, setFilter] = useState<TxFilter>('all');
+
+  const { data: wallet, isLoading: walletLoading } = useQuery({
+    queryKey: walletQueryKeys.summary(),
+    queryFn: () => walletApi.getWalletSummary(),
+  });
+
+  const balance = wallet?.balance ?? 0;
 
   const { data: billHistory, isLoading: billsLoading } = useQuery({
     queryKey: billPaymentsQueryKeys.history('all', 1),
@@ -94,18 +109,36 @@ export function WalletPage() {
     .reduce((sum, tx) => sum + Number(tx.amount), 0);
   const lastTxDate = walletTransactions[0]?.date;
 
-  const isLoadingTx = billsLoading || paymentsLoading;
-  const lastTopUp = getLastTopUpDate();
+  const isLoadingTx = billsLoading || paymentsLoading || walletLoading;
+  const lastTopUp = wallet?.transactions.find(tx => tx.type === 'TOPUP')?.createdAt;
 
-  function handleAddMoney() {
+  async function handleAddMoney() {
     const amount = Number(addAmount);
     if (!Number.isFinite(amount) || amount <= 0) {
       toast.error('Enter a valid amount');
       return;
     }
-    setBalance(addWalletTopUp(amount));
-    setShowAdd(false);
-    toast.success(`${formatCurrency(amount)} added to wallet`);
+    setAdding(true);
+    try {
+      const idempotencyKey = `topup_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      await processWalletTopUp({
+        amount,
+        idempotencyKey,
+        prefill: {
+          contact: citizen?.phone,
+          email: citizen?.email ?? undefined,
+          name: [citizen?.firstName, citizen?.lastName].filter(Boolean).join(' ') || undefined,
+        },
+      });
+      await queryClient.invalidateQueries({ queryKey: walletQueryKeys.summary() });
+      setShowAdd(false);
+      toast.success(`${formatCurrency(amount)} added to wallet`);
+    } catch (error) {
+      if (isRazorpayUserCancelled(error)) return;
+      toast.error('Could not complete wallet recharge');
+    } finally {
+      setAdding(false);
+    }
   }
 
   return (
@@ -143,7 +176,7 @@ export function WalletPage() {
                   {lastTopUp ? (
                     <span>Last Recharge: {formatDate(lastTopUp, 'long')}</span>
                   ) : null}
-                  <span>Linked Account: Demo wallet (local)</span>
+                  <span>Linked Account: Cybersave Wallet · Razorpay</span>
                 </div>
               </div>
               <Button
@@ -169,7 +202,8 @@ export function WalletPage() {
                   onChange={e => setAddAmount(e.target.value)}
                   className="h-11 w-40 rounded-xl border border-[#E8EDF5] px-3 text-sm outline-none focus:border-[#2563EB]"
                 />
-                <Button type="button" onClick={handleAddMoney}>
+                <Button type="button" disabled={adding} onClick={() => void handleAddMoney()}>
+                  {adding ? 'Processing…' : 'Confirm & Pay via Razorpay'}
                   Confirm Recharge
                 </Button>
                 <Button type="button" variant="ghost" onClick={() => setShowAdd(false)}>

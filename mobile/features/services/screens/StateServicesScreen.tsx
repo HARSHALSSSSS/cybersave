@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -11,18 +12,22 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useQuery } from '@tanstack/react-query';
 import { ServicesStackParamList } from '@/types/navigation';
-import { FEATURED_STATES, STATE_PREVIEW_COUNT, getFeaturedState, getStateName } from '@constants/featuredStates';
+import { FEATURED_STATES, getFeaturedState, getStateName } from '@constants/featuredStates';
 import { useTheme } from '@app/providers/ThemeProvider';
+import { useTwoColumnCardWidth } from '@/hooks/useTwoColumnCardWidth';
 import { SearchBar } from '@components/SearchBar';
-import { ServiceHubHeader, ServiceOptionCard } from '@features/services/components';
+import { ChevronRightIcon } from '@components/icons';
+import {
+  CategoryBrowseCard,
+  ServiceHubHeader,
+  ServiceIcon,
+} from '@features/services/components';
 import {
   filterStateServices,
+  groupStateServicesByCategory,
   servicesForState,
 } from '@features/services/utils/stateServices';
-import {
-  formatServiceFee,
-  getCatalogIconStyle,
-} from '@features/services/utils/catalogHelpers';
+import { getCatalogIconStyle } from '@features/services/utils/catalogHelpers';
 import { navigateToSubServiceFromStack } from '@features/services/utils/navigateToService';
 import { servicesApi, servicesQueryKeys } from '@services/api';
 import { useTranslation } from '@/i18n';
@@ -37,6 +42,7 @@ export const StateServicesScreen: React.FC<Props> = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
   const { t, format } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
+  const stateCardWidth = useTwoColumnCardWidth();
 
   const { data: catalog = [], isLoading, isError, refetch } = useQuery({
     queryKey: servicesQueryKeys.catalog(),
@@ -50,15 +56,11 @@ export const StateServicesScreen: React.FC<Props> = ({ navigation, route }) => {
     () => filterStateServices(items, searchQuery),
     [items, searchQuery],
   );
-  const stateSpecific = useMemo(
-    () => filtered.filter(item => item.scope === 'state'),
+  const byCategory = useMemo(
+    () => groupStateServicesByCategory(filtered),
     [filtered],
   );
-  const national = useMemo(
-    () => filtered.filter(item => item.scope === 'national'),
-    [filtered],
-  );
-  const otherStates = FEATURED_STATES.filter(s => s.code !== code).slice(0, STATE_PREVIEW_COUNT);
+  const otherStates = FEATURED_STATES.filter(s => s.code !== code);
 
   const styles = useMemo(
     () =>
@@ -70,19 +72,46 @@ export const StateServicesScreen: React.FC<Props> = ({ navigation, route }) => {
           borderRadius: theme.radius.xl,
           padding: theme.spacing['2xl'],
           backgroundColor: state?.bg ?? theme.colors.primaryLight,
+          borderWidth: 1,
+          borderColor: theme.colors.border,
+        },
+        heroTop: {
+          flexDirection: 'row',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          gap: theme.spacing.md,
         },
         heroBadge: {
-          width: 48,
-          height: 48,
-          borderRadius: theme.radius.lg,
+          width: 56,
+          height: 56,
+          borderRadius: theme.radius.xl,
           alignItems: 'center',
           justifyContent: 'center',
           backgroundColor: state?.color ?? theme.colors.primary,
         },
         heroBadgeText: {
-          ...theme.typography.labelMedium,
+          ...theme.typography.labelLarge,
           color: theme.colors.textInverse,
-          fontWeight: '700',
+          fontWeight: '800',
+        },
+        countBox: {
+          minWidth: 88,
+          borderRadius: theme.radius.lg,
+          borderWidth: 1,
+          borderColor: theme.colors.border,
+          backgroundColor: theme.colors.surface,
+          paddingHorizontal: theme.spacing.lg,
+          paddingVertical: theme.spacing.md,
+          alignItems: 'center',
+        },
+        countValue: {
+          ...theme.typography.headingSmall,
+          color: theme.colors.textPrimary,
+        },
+        countLabel: {
+          ...theme.typography.caption,
+          color: theme.colors.textSecondary,
+          marginTop: 2,
         },
         heroTitle: {
           ...theme.typography.headingSmall,
@@ -95,13 +124,11 @@ export const StateServicesScreen: React.FC<Props> = ({ navigation, route }) => {
           marginTop: theme.spacing.xs,
           lineHeight: 20,
         },
-        countPill: {
-          marginTop: theme.spacing.md,
-          alignSelf: 'flex-start',
-          backgroundColor: theme.colors.surface,
-          borderRadius: theme.radius.lg,
-          paddingHorizontal: theme.spacing.lg,
-          paddingVertical: theme.spacing.sm,
+        portalLink: {
+          ...theme.typography.labelSmall,
+          color: theme.colors.primary,
+          fontWeight: '700',
+          marginTop: theme.spacing.sm,
         },
         content: {
           flex: 1,
@@ -115,35 +142,127 @@ export const StateServicesScreen: React.FC<Props> = ({ navigation, route }) => {
           paddingHorizontal: theme.spacing['2xl'],
           marginBottom: theme.spacing.lg,
         },
-        sectionTitle: {
-          ...theme.typography.labelMedium,
-          color: theme.colors.textSecondary,
+        section: {
           paddingHorizontal: theme.spacing['2xl'],
-          marginBottom: theme.spacing.sm,
-          textTransform: 'uppercase',
+          marginBottom: theme.spacing['2xl'],
         },
-        statesRow: {
-          paddingHorizontal: theme.spacing['2xl'],
-          paddingBottom: theme.spacing.lg,
+        sectionHeader: {
+          marginBottom: theme.spacing.md,
+        },
+        sectionTitle: {
+          ...theme.typography.headingSmall,
+          color: theme.colors.textPrimary,
+        },
+        sectionSubtitle: {
+          ...theme.typography.bodySmall,
+          color: theme.colors.textSecondary,
+          marginTop: 2,
+        },
+        statesGrid: {
           flexDirection: 'row',
           flexWrap: 'wrap',
-          gap: theme.spacing.sm,
+          gap: theme.spacing.md,
         },
-        stateChip: {
-          paddingHorizontal: theme.spacing.md,
-          paddingVertical: theme.spacing.sm,
-          borderRadius: theme.radius.full,
+        stateTile: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: theme.spacing.sm,
+          borderRadius: theme.radius.xl,
           borderWidth: 1,
           borderColor: theme.colors.border,
+          backgroundColor: theme.colors.surface,
+          padding: theme.spacing.md,
+          ...theme.shadows.sm,
         },
-        grid: {
+        stateBadge: {
+          width: 40,
+          height: 40,
+          borderRadius: theme.radius.lg,
+          alignItems: 'center',
+          justifyContent: 'center',
+        },
+        stateBadgeText: {
+          ...theme.typography.labelSmall,
+          color: theme.colors.textInverse,
+          fontWeight: '800',
+        },
+        stateName: {
+          ...theme.typography.labelMedium,
+          color: theme.colors.textPrimary,
+          fontWeight: '700',
+        },
+        statePortal: {
+          ...theme.typography.caption,
+          color: theme.colors.textSecondary,
+        },
+        categoryHeader: {
           flexDirection: 'row',
-          flexWrap: 'wrap',
-          paddingHorizontal: theme.spacing['2xl'],
-          gap: theme.spacing.md,
-          paddingBottom: getScrollBottomPadding(insets),
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: theme.spacing.md,
         },
+        categoryTitleRow: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: theme.spacing.sm,
+          flex: 1,
+        },
+        categoryCount: {
+          backgroundColor: theme.colors.backgroundSecondary,
+          borderRadius: theme.radius.full,
+          paddingHorizontal: theme.spacing.sm,
+          paddingVertical: 2,
+        },
+        categoryCountText: {
+          ...theme.typography.caption,
+          color: theme.colors.textSecondary,
+          fontWeight: '600',
+        },
+        viewCategory: {
+          ...theme.typography.labelSmall,
+          color: theme.colors.primary,
+          fontWeight: '700',
+        },
+        serviceList: { gap: theme.spacing.md },
         center: { padding: theme.spacing['3xl'], alignItems: 'center' },
+        emptyText: {
+          ...theme.typography.bodyMedium,
+          color: theme.colors.textSecondary,
+          textAlign: 'center',
+          lineHeight: 22,
+        },
+        footer: {
+          marginHorizontal: theme.spacing['2xl'],
+          marginBottom: getScrollBottomPadding(insets),
+          borderRadius: theme.radius.xl,
+          borderWidth: 1,
+          borderColor: theme.colors.border,
+          backgroundColor: theme.colors.backgroundSecondary,
+          padding: theme.spacing.lg,
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: theme.spacing.md,
+        },
+        footerText: {
+          ...theme.typography.bodySmall,
+          color: theme.colors.textSecondary,
+          flex: 1,
+          lineHeight: 20,
+        },
+        footerButton: {
+          borderRadius: theme.radius.lg,
+          borderWidth: 1,
+          borderColor: theme.colors.border,
+          backgroundColor: theme.colors.surface,
+          paddingHorizontal: theme.spacing.lg,
+          paddingVertical: theme.spacing.sm,
+        },
+        footerButtonText: {
+          ...theme.typography.labelSmall,
+          color: theme.colors.textPrimary,
+          fontWeight: '700',
+        },
       }),
     [theme, insets, state],
   );
@@ -158,6 +277,12 @@ export const StateServicesScreen: React.FC<Props> = ({ navigation, route }) => {
     [navigation, code, state?.name],
   );
 
+  const openPortal = useCallback(() => {
+    if (state && 'portalUrl' in state && state.portalUrl) {
+      void Linking.openURL(state.portalUrl);
+    }
+  }, [state]);
+
   return (
     <View style={styles.container}>
       <ServiceHubHeader
@@ -170,19 +295,26 @@ export const StateServicesScreen: React.FC<Props> = ({ navigation, route }) => {
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.hero}>
-          <View style={styles.heroBadge}>
-            <Text style={styles.heroBadgeText}>{code.slice(0, 2)}</Text>
+          <View style={styles.heroTop}>
+            <View style={styles.heroBadge}>
+              <Text style={styles.heroBadgeText}>{code.slice(0, 2)}</Text>
+            </View>
+            <View style={styles.countBox}>
+              <Text style={styles.countValue}>{items.length}</Text>
+              <Text style={styles.countLabel}>{t.services.servicesAvailable}</Text>
+            </View>
           </View>
           <Text style={styles.heroTitle}>{state?.name ?? getStateName(code)}</Text>
           <Text style={styles.heroSub}>
-            {state?.tagline ??
-              `Government services configured for ${code}. Select a service to apply.`}
+            {state
+              ? `${state.tagline} · ${format(t.services.stateHeroHint, { state: state.name })}`
+              : format(t.services.stateHeroFallback, { code })}
           </Text>
-          <View style={styles.countPill}>
-            <Text style={theme.typography.labelSmall}>
-              {format(t.services.stateServicesCount, { count: items.length })}
-            </Text>
-          </View>
+          {state?.portal && state.portalUrl ? (
+            <Pressable onPress={openPortal}>
+              <Text style={styles.portalLink}>{state.portal} ↗</Text>
+            </Pressable>
+          ) : null}
         </View>
 
         <View style={styles.searchWrap}>
@@ -195,33 +327,32 @@ export const StateServicesScreen: React.FC<Props> = ({ navigation, route }) => {
           />
         </View>
 
-        <View
-          style={{
-            paddingHorizontal: theme.spacing['2xl'],
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginBottom: theme.spacing.sm,
-          }}>
-          <Text style={[styles.sectionTitle, { paddingHorizontal: 0, marginBottom: 0 }]}>
-            {t.services.otherStates}
-          </Text>
-          <Pressable onPress={() => navigation.navigate('AllStates')}>
-            <Text style={{ ...theme.typography.labelMedium, color: theme.colors.primary, fontWeight: '700' }}>
-              {t.home.viewAll}
-            </Text>
-          </Pressable>
-        </View>
-        <View style={styles.statesRow}>
-          {otherStates.map(s => (
-            <Pressable
-              key={s.code}
-              style={styles.stateChip}
-              onPress={() => navigation.replace('StateServices', { stateCode: s.code })}
-            >
-              <Text style={theme.typography.labelSmall}>{s.name}</Text>
-            </Pressable>
-          ))}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>{t.services.browseOtherStates}</Text>
+            <Text style={styles.sectionSubtitle}>{t.services.browseOtherStatesHint}</Text>
+          </View>
+          <View style={styles.statesGrid}>
+            {otherStates.map(s => (
+              <Pressable
+                key={s.code}
+                style={[styles.stateTile, { width: stateCardWidth }]}
+                onPress={() => navigation.replace('StateServices', { stateCode: s.code })}>
+                <View style={[styles.stateBadge, { backgroundColor: s.color }]}>
+                  <Text style={styles.stateBadgeText}>{s.code}</Text>
+                </View>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={styles.stateName} numberOfLines={1}>
+                    {s.name}
+                  </Text>
+                  <Text style={styles.statePortal} numberOfLines={1}>
+                    {s.portal}
+                  </Text>
+                </View>
+                <ChevronRightIcon color={theme.colors.textSecondary} />
+              </Pressable>
+            ))}
+          </View>
         </View>
 
         {isLoading && !catalog.length ? (
@@ -235,61 +366,59 @@ export const StateServicesScreen: React.FC<Props> = ({ navigation, route }) => {
             </Pressable>
           </View>
         ) : filtered.length === 0 ? (
-          <View style={styles.center}>
-            <Text style={theme.typography.bodyMedium}>{t.services.noStateServices}</Text>
+          <View style={[styles.section, styles.center]}>
+            <Text style={styles.emptyText}>
+              {items.length === 0 ? t.services.noStateServicesConfigured : t.services.noSearchResults}
+            </Text>
           </View>
         ) : (
-          <>
-            {stateSpecific.length > 0 ? (
-              <>
-                <Text style={styles.sectionTitle}>{t.services.stateSpecificServices}</Text>
-                <View style={styles.grid}>
-                  {stateSpecific.map(({ main, sub }) => {
-                    const iconStyle = getCatalogIconStyle(main.slug, 0);
+          Array.from(byCategory.entries()).map(([mainSlug, categoryItems]) => {
+            const main = categoryItems[0].main;
+            const iconStyle = getCatalogIconStyle(main.slug, 0);
+            return (
+              <View key={mainSlug} style={styles.section}>
+                <View style={styles.categoryHeader}>
+                  <View style={styles.categoryTitleRow}>
+                    <ServiceIcon name={iconStyle.icon} color={iconStyle.iconColor} size={20} />
+                    <Text style={styles.sectionTitle} numberOfLines={1}>
+                      {main.name}
+                    </Text>
+                    <View style={styles.categoryCount}>
+                      <Text style={styles.categoryCountText}>{categoryItems.length}</Text>
+                    </View>
+                  </View>
+                  <Pressable onPress={() => navigation.navigate('ServiceHub', { categoryId: main.id })}>
+                    <Text style={styles.viewCategory}>{t.services.viewCategory}</Text>
+                  </Pressable>
+                </View>
+                <View style={styles.serviceList}>
+                  {categoryItems.map(({ main: m, sub }, index) => {
+                    const itemIcon = getCatalogIconStyle(m.slug, index);
                     return (
-                      <ServiceOptionCard
+                      <CategoryBrowseCard
                         key={sub.id}
                         title={sub.displayName || sub.name}
-                        description={sub.shortDescription || sub.description || main.name}
-                        fee={formatServiceFee(sub.baseFee, sub.currency)}
-                        processingDays={sub.processingTime ?? undefined}
-                        icon={iconStyle.icon}
-                        iconColor={iconStyle.iconColor}
-                        iconBg={iconStyle.iconBg}
-                        variant="certificate"
-                        onPress={() => handleServicePress(main.id, sub)}
+                        description={sub.shortDescription ?? sub.description ?? m.name}
+                        meta={sub.processingTime ?? t.services.asPerPortal}
+                        icon={itemIcon.icon}
+                        iconColor={itemIcon.iconColor}
+                        iconBg={itemIcon.iconBg}
+                        onPress={() => handleServicePress(m.id, sub)}
                       />
                     );
                   })}
                 </View>
-              </>
-            ) : null}
-            {national.length > 0 ? (
-              <>
-                <Text style={styles.sectionTitle}>{t.services.allIndiaServices}</Text>
-                <View style={styles.grid}>
-                  {national.map(({ main, sub }) => {
-                    const iconStyle = getCatalogIconStyle(main.slug, 0);
-                    return (
-                      <ServiceOptionCard
-                        key={sub.id}
-                        title={sub.displayName || sub.name}
-                        description={sub.shortDescription || sub.description || main.name}
-                        fee={formatServiceFee(sub.baseFee, sub.currency)}
-                        processingDays={sub.processingTime ?? undefined}
-                        icon={iconStyle.icon}
-                        iconColor={iconStyle.iconColor}
-                        iconBg={iconStyle.iconBg}
-                        variant="certificate"
-                        onPress={() => handleServicePress(main.id, sub)}
-                      />
-                    );
-                  })}
-                </View>
-              </>
-            ) : null}
-          </>
+              </View>
+            );
+          })
         )}
+
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>{t.services.stateFooterHint}</Text>
+          <Pressable style={styles.footerButton} onPress={() => navigation.navigate('ServicesMain')}>
+            <Text style={styles.footerButtonText}>{t.services.allServices}</Text>
+          </Pressable>
+        </View>
       </ScrollView>
     </View>
   );

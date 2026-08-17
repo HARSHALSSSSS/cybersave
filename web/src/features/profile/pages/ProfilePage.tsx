@@ -5,18 +5,26 @@ import {
   Bell,
   CheckCircle2,
   ChevronRight,
+  Circle,
   Download,
   FileText,
   FolderOpen,
   HelpCircle,
   Link2,
+  MapPin,
   Search,
-  Settings,
+  Shield,
+  User,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Breadcrumbs } from '@/components/layout/Breadcrumbs';
 import { Button, Input, Label } from '@/components/ui/button';
-import { StatusPill } from '@/components/ui/portal-primitives';
+import {
+  PortalCard,
+  ProgressBar,
+  SectionHeading,
+  StatusPill,
+} from '@/components/ui/portal-primitives';
 import { LoadingBlock } from '@/components/ui/primitives';
 import { useAuthStore } from '@/features/auth/store/auth.store';
 import {
@@ -25,9 +33,13 @@ import {
   profileApi,
   profileQueryKeys,
 } from '@/services/api';
-import { getProfileDisplayName } from '@/lib/profile';
+import {
+  getProfileCompletion,
+  getProfileDisplayName,
+  getProfileInitials,
+} from '@/lib/profile';
 import { openStorageDownloadUrl } from '@/lib/upload';
-import { formatDate } from '@/lib/utils';
+import { cn, formatDate } from '@/lib/utils';
 
 function appStatusTone(status: string): 'green' | 'amber' | 'blue' | 'slate' {
   if (['APPROVED', 'COMPLETED'].includes(status)) return 'green';
@@ -35,6 +47,19 @@ function appStatusTone(status: string): 'green' | 'amber' | 'blue' | 'slate' {
   if (['DRAFT', 'FORM_IN_PROGRESS', 'DOCUMENTS_PENDING'].includes(status)) return 'blue';
   return 'slate';
 }
+
+const QUICK_ACTIONS = [
+  { label: 'Applications', subtitle: 'Track status', icon: Search, to: '/applications' },
+  { label: 'Documents', subtitle: 'Secure vault', icon: FolderOpen, to: '/documents' },
+  { label: 'Support', subtitle: 'Get help', icon: HelpCircle, to: '/help/tickets' },
+  { label: 'Alerts', subtitle: 'Preferences', icon: Bell, to: '/notifications' },
+] as const;
+
+const IDENTITY_ITEMS = [
+  { name: 'Aadhaar Card', hint: 'UIDAI verified identity', linked: false },
+  { name: 'PAN Card', hint: 'Income Tax Department', linked: false },
+  { name: 'Voter ID', hint: 'Election Commission of India', linked: false },
+] as const;
 
 export function ProfilePage() {
   const citizen = useAuthStore(s => s.citizen);
@@ -94,144 +119,282 @@ export function ProfilePage() {
   }
 
   const fullName = getProfileDisplayName(citizen);
-  const initials = `${firstName.charAt(0) || 'C'}${lastName.charAt(0) || 'S'}`.toUpperCase();
+  const initials = getProfileInitials(citizen);
   const phone = citizen?.phone ?? '—';
   const defaultAddress = addresses.find(a => a.isDefault) ?? addresses[0];
   const recentApps = applicationsData?.data ?? [];
+  const completion = getProfileCompletion(citizen, {
+    addressCount: addresses.length,
+    documentCount: savedDocs.length,
+  });
 
   return (
-    <div className="space-y-6 pb-8">
+    <div className="space-y-6 pb-10">
       <Breadcrumbs items={[{ label: 'Home', to: '/' }, { label: 'My Account' }]} />
 
-      <PortalProfileHeader
-        fullName={fullName}
-        initials={initials}
-        memberSince={citizen?.createdAt}
-        onEdit={() => document.getElementById('profile-form')?.scrollIntoView({ behavior: 'smooth' })}
-      />
+      {/* Hero */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#1A3B8B] via-[#2563EB] to-[#3B82F6] shadow-[0_20px_50px_rgba(37,99,235,0.25)]">
+        <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-white/10 blur-2xl" />
+        <div className="pointer-events-none absolute -bottom-20 -left-10 h-48 w-48 rounded-full bg-[#60A5FA]/20 blur-2xl" />
+        <div className="relative px-6 py-8 sm:px-10 sm:py-10">
+          <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-5">
+              <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl border-2 border-white/30 bg-white/15 text-2xl font-bold text-white shadow-lg backdrop-blur-sm">
+                {initials}
+              </div>
+              <div className="min-w-0 text-white">
+                <p className="text-xs font-semibold uppercase tracking-widest text-blue-100/90">
+                  Citizen Account
+                </p>
+                <h1 className="font-display mt-1 truncate text-2xl font-bold sm:text-3xl">{fullName}</h1>
+                <p className="mt-1 text-sm text-blue-100">{phone}</p>
+                {citizen?.createdAt ? (
+                  <p className="mt-1 text-xs text-blue-100/80">
+                    Member since {formatDate(citizen.createdAt, 'long')}
+                  </p>
+                ) : null}
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2 sm:justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                className="border-white/30 bg-white/10 text-white hover:bg-white/20"
+                onClick={() =>
+                  document.getElementById('profile-form')?.scrollIntoView({ behavior: 'smooth' })
+                }
+              >
+                Edit Details
+              </Button>
+              <Link to="/notifications">
+                <Button type="button" className="bg-white text-[#1A3B8B] hover:bg-blue-50">
+                  Account Settings
+                </Button>
+              </Link>
+            </div>
+          </div>
+
+          <div className="mt-8 grid grid-cols-3 gap-3 sm:max-w-lg">
+            {[
+              { label: 'Applications', value: recentApps.length || '0' },
+              { label: 'Documents', value: savedDocs.length },
+              { label: 'Profile', value: `${completion.percent}%` },
+            ].map(stat => (
+              <div
+                key={stat.label}
+                className="rounded-2xl border border-white/20 bg-white/10 px-4 py-3 text-center backdrop-blur-sm"
+              >
+                <p className="text-xl font-bold text-white">{stat.value}</p>
+                <p className="text-[11px] font-medium uppercase tracking-wide text-blue-100">
+                  {stat.label}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Quick actions */}
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {QUICK_ACTIONS.map(item => {
+          const Icon = item.icon;
+          return (
+            <Link
+              key={item.label}
+              to={item.to}
+              className="group flex items-center gap-4 rounded-2xl border border-[#E8EDF5] bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-[#2563EB]/30 hover:shadow-md"
+            >
+              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-[#EFF6FF] to-[#DBEAFE] text-[#2563EB] transition group-hover:from-[#2563EB] group-hover:to-[#1A3B8B] group-hover:text-white">
+                <Icon className="h-5 w-5" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-[#0A1629]">{item.label}</p>
+                <p className="text-xs text-[#94A3B8]">{item.subtitle}</p>
+              </div>
+              <ChevronRight className="h-4 w-4 shrink-0 text-[#CBD5E1] transition group-hover:text-[#2563EB]" />
+            </Link>
+          );
+        })}
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
         <div className="space-y-6">
-          <form
-            id="profile-form"
-            onSubmit={handleSave}
-            className="rounded-2xl border border-[#E8EDF5] bg-white p-6 shadow-sm sm:p-8"
-          >
-            <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-              <h2 className="font-display text-lg font-bold text-[#0A1629]">Personal Details</h2>
-              <StatusPill tone="green">Govt Record Synced</StatusPill>
-            </div>
+          {/* Profile completion */}
+          {completion.percent < 100 ? (
+            <PortalCard padding="lg">
+              <SectionHeading
+                title="Complete your profile"
+                subtitle="A complete profile helps us pre-fill applications and deliver updates faster."
+              />
+              <div className="mb-4 flex items-end justify-between gap-4">
+                <div>
+                  <p className="text-3xl font-bold text-[#0A1629]">{completion.percent}%</p>
+                  <p className="text-sm text-[#64748B]">
+                    {completion.completedCount} of {completion.totalCount} steps done
+                  </p>
+                </div>
+                <StatusPill tone="amber">In progress</StatusPill>
+              </div>
+              <ProgressBar value={completion.percent} className="mb-5 h-2.5" />
+              <ul className="grid gap-2 sm:grid-cols-2">
+                {completion.steps.map(step => (
+                  <li
+                    key={step.id}
+                    className={cn(
+                      'flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm',
+                      step.done ? 'bg-emerald-50 text-emerald-800' : 'bg-[#F8FAFC] text-[#64748B]',
+                    )}
+                  >
+                    {step.done ? (
+                      <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+                    ) : (
+                      <Circle className="h-4 w-4 shrink-0 text-[#CBD5E1]" />
+                    )}
+                    {step.label}
+                  </li>
+                ))}
+              </ul>
+            </PortalCard>
+          ) : null}
 
-            <div className="grid gap-5 sm:grid-cols-2">
-              <div className="sm:col-span-2">
-                <Label>Full Legal Name</Label>
-                <div className="mt-1.5 grid gap-3 sm:grid-cols-2">
+          {/* Personal details form */}
+          <PortalCard padding="lg" className="scroll-mt-24">
+            <form id="profile-form" onSubmit={handleSave}>
+              <SectionHeading
+                title="Personal Details"
+                subtitle="Keep your legal name and contact information up to date for government records."
+                action={<StatusPill tone="green">Verified</StatusPill>}
+              />
+
+              <div className="grid gap-5 sm:grid-cols-2">
+                <div className="sm:col-span-2">
+                  <Label>Full Legal Name</Label>
+                  <div className="mt-1.5 grid gap-3 sm:grid-cols-2">
+                    <Input
+                      value={firstName}
+                      onChange={e => setFirstName(e.target.value)}
+                      placeholder="First name"
+                      required
+                    />
+                    <Input
+                      value={lastName}
+                      onChange={e => setLastName(e.target.value)}
+                      placeholder="Last name"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="phone">Phone Number</Label>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                      <CheckCircle2 className="h-3 w-3" /> Verified
+                    </span>
+                  </div>
                   <Input
-                    value={firstName}
-                    onChange={e => setFirstName(e.target.value)}
-                    placeholder="First name"
-                    required
-                  />
-                  <Input
-                    value={lastName}
-                    onChange={e => setLastName(e.target.value)}
-                    placeholder="Last name"
+                    id="phone"
+                    value={phone}
+                    readOnly
+                    className="mt-1.5 bg-[#F9FAFB] text-[#64748B]"
                   />
                 </div>
-              </div>
-              <div>
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="phone">Phone Number</Label>
-                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
-                    <CheckCircle2 className="h-3 w-3" /> Verified
-                  </span>
+                <div>
+                  <Label htmlFor="email">Email Address</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                    placeholder="name@example.com"
+                    className="mt-1.5"
+                  />
                 </div>
-                <Input id="phone" value={phone} readOnly className="mt-1.5 bg-[#F9FAFB] text-[#64748B]" />
+                <div className="sm:col-span-2">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="h-4 w-4 text-[#64748B]" />
+                    <Label>Permanent Address</Label>
+                  </div>
+                  {addressesLoading ? (
+                    <LoadingBlock className="mt-2 h-12" />
+                  ) : defaultAddress ? (
+                    <p className="mt-1.5 rounded-xl border border-[#E2E8F0] bg-gradient-to-br from-[#F8FAFC] to-white px-4 py-3 text-sm leading-relaxed text-[#0A1629]">
+                      {[defaultAddress.line1, defaultAddress.line2, defaultAddress.city, defaultAddress.state, defaultAddress.pincode]
+                        .filter(Boolean)
+                        .join(', ')}
+                    </p>
+                  ) : (
+                    <p className="mt-1.5 rounded-xl border border-dashed border-[#CBD5E1] bg-[#F8FAFC] px-4 py-3 text-sm text-[#64748B]">
+                      No address saved yet. Add one when applying for a service or from the mobile app.
+                    </p>
+                  )}
+                </div>
               </div>
-              <div>
-                <Label htmlFor="email">Email Address</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  className="mt-1.5"
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <Label>Permanent Address</Label>
-                {addressesLoading ? (
-                  <LoadingBlock className="mt-2 h-12" />
-                ) : defaultAddress ? (
-                  <p className="mt-1.5 rounded-xl border border-[#F1F5F9] bg-[#F8FAFC] px-3 py-2.5 text-sm text-[#0A1629]">
-                    {[defaultAddress.line1, defaultAddress.line2, defaultAddress.city, defaultAddress.state, defaultAddress.pincode]
-                      .filter(Boolean)
-                      .join(', ')}
-                  </p>
-                ) : (
-                  <p className="mt-1.5 text-sm text-[#94A3B8]">
-                    No address saved.{' '}
-                    <Link to="/documents" className="font-semibold text-[#2563EB] hover:underline">
-                      Add in Documents
-                    </Link>
-                  </p>
-                )}
-              </div>
-            </div>
 
-            <div className="mt-8 flex justify-end">
-              <Button type="submit" disabled={loading}>
-                {loading ? 'Saving…' : 'Save Changes'}
-              </Button>
-            </div>
-          </form>
+              <div className="mt-8 flex justify-end border-t border-[#F1F5F9] pt-6">
+                <Button type="submit" disabled={loading}>
+                  {loading ? 'Saving…' : 'Save Changes'}
+                </Button>
+              </div>
+            </form>
+          </PortalCard>
 
-          <section className="rounded-2xl border border-[#E8EDF5] bg-white p-6 shadow-sm">
-            <h2 className="font-display text-lg font-bold text-[#0A1629]">Linked Identities</h2>
-            <ul className="mt-4 divide-y divide-[#F1F5F9]">
-              {[
-                { name: 'Aadhaar Card', linked: false, action: 'View' },
-                { name: 'PAN Card', linked: false, action: 'View' },
-                { name: 'Voter ID Card', linked: false, action: 'Link Now' },
-              ].map(item => (
-                <li key={item.name} className="flex items-center justify-between gap-4 py-4">
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#EFF6FF] text-[#2563EB]">
-                      <FileText className="h-4 w-4" />
+          {/* Linked identities */}
+          <PortalCard padding="lg">
+            <SectionHeading
+              title="Linked Identities"
+              subtitle="Connect government IDs for faster verification during service applications."
+            />
+            <ul className="divide-y divide-[#F1F5F9]">
+              {IDENTITY_ITEMS.map(item => (
+                <li key={item.name} className="flex items-center justify-between gap-4 py-4 first:pt-0 last:pb-0">
+                  <div className="flex items-center gap-4">
+                    <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#EFF6FF] text-[#2563EB]">
+                      <Shield className="h-5 w-5" />
                     </span>
                     <div>
                       <p className="text-sm font-semibold text-[#0A1629]">{item.name}</p>
-                      <p className="text-xs text-[#94A3B8]">
-                        {item.linked ? 'Verified' : 'Not linked'}
-                      </p>
+                      <p className="text-xs text-[#94A3B8]">{item.hint}</p>
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-1 text-sm font-semibold text-[#2563EB]"
-                    onClick={() => toast.info('Identity linking will be available soon')}
-                  >
-                    <Link2 className="h-3.5 w-3.5" />
-                    {item.action}
-                  </button>
+                  <div className="flex items-center gap-3">
+                    <StatusPill tone={item.linked ? 'green' : 'slate'}>
+                      {item.linked ? 'Linked' : 'Not linked'}
+                    </StatusPill>
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 text-sm font-semibold text-[#2563EB] hover:underline"
+                      onClick={() => toast.info('Identity linking will be available soon')}
+                    >
+                      <Link2 className="h-3.5 w-3.5" />
+                      {item.linked ? 'View' : 'Link'}
+                    </button>
+                  </div>
                 </li>
               ))}
             </ul>
-          </section>
+          </PortalCard>
         </div>
 
         <aside className="space-y-6">
-          <section className="rounded-2xl border border-[#E8EDF5] bg-white p-5 shadow-sm">
+          <PortalCard padding="md">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="font-semibold text-[#0A1629]">Recent Application Activity</h2>
+              <h2 className="font-display text-base font-bold text-[#0A1629]">Recent Applications</h2>
               <Link to="/applications" className="text-sm font-semibold text-[#2563EB] hover:underline">
-                View All
+                View all
               </Link>
             </div>
             {appsLoading ? (
               <LoadingBlock className="h-24" />
             ) : recentApps.length === 0 ? (
-              <p className="text-sm text-[#94A3B8]">No applications yet.</p>
+              <div className="rounded-xl border border-dashed border-[#E2E8F0] px-4 py-8 text-center">
+                <User className="mx-auto h-8 w-8 text-[#CBD5E1]" />
+                <p className="mt-2 text-sm text-[#64748B]">No applications yet.</p>
+                <Link
+                  to="/services"
+                  className="mt-3 inline-block text-sm font-semibold text-[#2563EB] hover:underline"
+                >
+                  Browse services
+                </Link>
+              </div>
             ) : (
               <ul className="space-y-3">
                 {recentApps.map(app => {
@@ -243,7 +406,7 @@ export function ProfilePage() {
                     <li key={app.id}>
                       <Link
                         to={`/applications/${app.id}`}
-                        className="block rounded-xl border border-[#F1F5F9] p-3 transition hover:border-[#2563EB]/30"
+                        className="block rounded-xl border border-[#F1F5F9] p-3 transition hover:border-[#2563EB]/30 hover:bg-[#F8FAFC]"
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
@@ -265,30 +428,34 @@ export function ProfilePage() {
                 })}
               </ul>
             )}
-          </section>
+          </PortalCard>
 
-          <section className="rounded-2xl border border-[#E8EDF5] bg-white p-5 shadow-sm">
+          <PortalCard padding="md">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="font-semibold text-[#0A1629]">Secure Document Vault</h2>
+              <h2 className="font-display text-base font-bold text-[#0A1629]">Document Vault</h2>
               <Link to="/documents" className="text-sm font-semibold text-[#2563EB] hover:underline">
-                Upload Now
+                Manage
               </Link>
             </div>
             {docsLoading ? (
               <LoadingBlock className="h-24" />
             ) : savedDocs.length === 0 ? (
-              <p className="text-sm text-[#94A3B8]">
-                No saved documents.{' '}
-                <Link to="/documents" className="font-semibold text-[#2563EB]">
-                  Open vault
+              <div className="rounded-xl border border-dashed border-[#E2E8F0] px-4 py-8 text-center">
+                <FileText className="mx-auto h-8 w-8 text-[#CBD5E1]" />
+                <p className="mt-2 text-sm text-[#64748B]">Your secure vault is empty.</p>
+                <Link
+                  to="/documents"
+                  className="mt-3 inline-block text-sm font-semibold text-[#2563EB] hover:underline"
+                >
+                  Upload documents
                 </Link>
-              </p>
+              </div>
             ) : (
-              <ul className="space-y-3">
+              <ul className="space-y-2">
                 {savedDocs.slice(0, 4).map(doc => (
                   <li
                     key={doc.id}
-                    className="flex items-center justify-between gap-3 rounded-xl border border-[#F1F5F9] px-3 py-2.5"
+                    className="flex items-center justify-between gap-3 rounded-xl border border-[#F1F5F9] px-3 py-2.5 transition hover:bg-[#F8FAFC]"
                   >
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium text-[#0A1629]">{doc.name}</p>
@@ -301,7 +468,7 @@ export function ProfilePage() {
                     </div>
                     <button
                       type="button"
-                      className="shrink-0 text-[#2563EB]"
+                      className="shrink-0 rounded-lg p-2 text-[#2563EB] transition hover:bg-[#EFF6FF]"
                       onClick={() => void handleDownloadDoc(doc.id)}
                       aria-label="Download"
                     >
@@ -311,76 +478,8 @@ export function ProfilePage() {
                 ))}
               </ul>
             )}
-          </section>
+          </PortalCard>
         </aside>
-      </div>
-
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {[
-          { label: 'Track Applications', icon: Search, to: '/applications' },
-          { label: 'Download Certificates', icon: FolderOpen, to: '/documents' },
-          { label: 'Open Support Tickets', icon: HelpCircle, to: '/help/tickets' },
-          { label: 'Notification Settings', icon: Bell, to: '/notifications' },
-        ].map(item => {
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.label}
-              to={item.to}
-              className="flex items-center gap-3 rounded-2xl border border-[#E8EDF5] bg-white p-4 shadow-sm transition hover:border-[#2563EB]/30"
-            >
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#EFF6FF] text-[#2563EB]">
-                <Icon className="h-5 w-5" />
-              </span>
-              <span className="text-sm font-semibold text-[#0A1629]">{item.label}</span>
-              <ChevronRight className="ml-auto h-4 w-4 text-[#94A3B8]" />
-            </Link>
-          );
-        })}
-      </section>
-    </div>
-  );
-}
-
-function PortalProfileHeader({
-  fullName,
-  initials,
-  memberSince,
-  onEdit,
-}: {
-  fullName: string;
-  initials: string;
-  memberSince?: string;
-  onEdit: () => void;
-}) {
-  return (
-    <div className="flex flex-col gap-4 rounded-2xl border border-[#E8EDF5] bg-white p-6 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex items-center gap-4">
-        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-[#2563EB] to-[#1A3B8B] text-xl font-bold text-white">
-          {initials}
-        </div>
-        <div>
-          <h1 className="font-display text-2xl font-bold text-[#0A1629]">{fullName}</h1>
-          <div className="mt-1 flex flex-wrap items-center gap-2">
-            <StatusPill tone="green">Verified Profile</StatusPill>
-            {memberSince ? (
-              <span className="text-xs text-[#64748B]">
-                Citizen member since {formatDate(memberSince, 'long')}
-              </span>
-            ) : null}
-          </div>
-        </div>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        <Button type="button" variant="outline" onClick={onEdit}>
-          Edit Profile
-        </Button>
-        <Link to="/notifications">
-          <Button type="button">
-            <Settings className="mr-2 h-4 w-4" />
-            Account Settings
-          </Button>
-        </Link>
       </div>
     </div>
   );

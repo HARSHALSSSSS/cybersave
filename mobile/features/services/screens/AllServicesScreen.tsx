@@ -11,9 +11,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useQuery } from '@tanstack/react-query';
 import { ServicesStackParamList } from '@/types/navigation';
-import { FEATURED_STATES, STATE_PREVIEW_COUNT } from '@constants/featuredStates';
+import { FEATURED_STATES } from '@constants/featuredStates';
 import { useTheme } from '@app/providers/ThemeProvider';
+import { useTwoColumnCardWidth } from '@/hooks/useTwoColumnCardWidth';
 import { SearchBar } from '@components/SearchBar';
+import { ChevronRightIcon } from '@components/icons';
 import {
   CategoryBrowseCard,
   FilterChips,
@@ -26,6 +28,7 @@ import {
   getCatalogIconStyle,
   popularCatalogServices,
 } from '@features/services/utils/catalogHelpers';
+import { countServicesForState } from '@features/services/utils/stateServices';
 import { navigateToSubServiceFromStack } from '@features/services/utils/navigateToService';
 import { servicesApi, servicesQueryKeys } from '@services/api';
 import { useTranslation } from '@/i18n';
@@ -42,6 +45,7 @@ export const AllServicesScreen: React.FC<Props> = ({ navigation }) => {
   const { t, format } = useTranslation();
   const [activeFilter, setActiveFilter] = useState(ALL_FILTER);
   const [searchQuery, setSearchQuery] = useState('');
+  const stateCardWidth = useTwoColumnCardWidth();
 
   const { data: catalog = [], isLoading, isError, refetch } = useQuery({
     queryKey: servicesQueryKeys.catalog(),
@@ -71,7 +75,6 @@ export const AllServicesScreen: React.FC<Props> = ({ navigation }) => {
   }, [activeFilter, catalog, flattened, searchQuery]);
 
   const browsingHome = !searchQuery.trim() && activeFilter === ALL_FILTER;
-  const previewStates = FEATURED_STATES.slice(0, STATE_PREVIEW_COUNT);
 
   const styles = useMemo(
     () =>
@@ -86,11 +89,11 @@ export const AllServicesScreen: React.FC<Props> = ({ navigation }) => {
           borderTopLeftRadius: theme.radius['3xl'],
           borderTopRightRadius: theme.radius['3xl'],
           marginTop: -theme.spacing.lg,
-          paddingTop: theme.spacing['2xl'],
+          paddingTop: theme.spacing.xl,
         },
         searchWrap: {
           paddingHorizontal: theme.spacing['2xl'],
-          marginBottom: theme.spacing.md,
+          marginBottom: theme.spacing.sm,
         },
         section: {
           paddingHorizontal: theme.spacing['2xl'],
@@ -98,9 +101,10 @@ export const AllServicesScreen: React.FC<Props> = ({ navigation }) => {
         },
         sectionHeader: {
           flexDirection: 'row',
-          alignItems: 'center',
+          alignItems: 'flex-start',
           justifyContent: 'space-between',
           marginBottom: theme.spacing.md,
+          gap: theme.spacing.md,
         },
         sectionTitle: {
           ...theme.typography.headingSmall,
@@ -110,38 +114,56 @@ export const AllServicesScreen: React.FC<Props> = ({ navigation }) => {
           ...theme.typography.bodySmall,
           color: theme.colors.textSecondary,
           marginTop: 2,
+          lineHeight: 18,
         },
         viewAll: {
           ...theme.typography.labelMedium,
           color: theme.colors.primary,
           fontWeight: '700',
+          paddingTop: 2,
         },
-        statesRow: {
+        statesGrid: {
+          flexDirection: 'row',
+          flexWrap: 'wrap',
           gap: theme.spacing.md,
-          paddingRight: theme.spacing['2xl'],
         },
         stateCard: {
-          width: 168,
           borderRadius: theme.radius.xl,
           borderWidth: 1,
           borderColor: theme.colors.border,
           padding: theme.spacing.lg,
+          backgroundColor: theme.colors.surface,
+          ...theme.shadows.sm,
+        },
+        stateAccent: {
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 4,
+          borderTopLeftRadius: theme.radius.xl,
+          borderTopRightRadius: theme.radius.xl,
+        },
+        stateRow: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: theme.spacing.sm,
         },
         stateCode: {
-          width: 40,
-          height: 40,
+          width: 44,
+          height: 44,
           borderRadius: theme.radius.lg,
           alignItems: 'center',
           justifyContent: 'center',
-          marginBottom: theme.spacing.sm,
         },
         stateCodeText: {
           ...theme.typography.labelSmall,
           color: theme.colors.textInverse,
           fontWeight: '800',
         },
+        stateBody: { flex: 1, minWidth: 0 },
         stateName: {
-          ...theme.typography.bodyLarge,
+          ...theme.typography.labelMedium,
           color: theme.colors.textPrimary,
           fontWeight: '700',
         },
@@ -149,6 +171,18 @@ export const AllServicesScreen: React.FC<Props> = ({ navigation }) => {
           ...theme.typography.caption,
           color: theme.colors.textSecondary,
           marginTop: 2,
+        },
+        stateTagline: {
+          ...theme.typography.caption,
+          color: theme.colors.textSecondary,
+          marginTop: theme.spacing.sm,
+          lineHeight: 16,
+        },
+        stateMeta: {
+          ...theme.typography.caption,
+          color: theme.colors.primary,
+          fontWeight: '700',
+          marginTop: theme.spacing.xs,
         },
         categoryList: { gap: theme.spacing.md },
         center: {
@@ -159,11 +193,11 @@ export const AllServicesScreen: React.FC<Props> = ({ navigation }) => {
           ...theme.typography.bodyMedium,
           color: theme.colors.textSecondary,
           textAlign: 'center',
+          lineHeight: 22,
         },
         resultCount: {
           ...theme.typography.bodySmall,
           color: theme.colors.textSecondary,
-          paddingHorizontal: theme.spacing['2xl'],
           marginBottom: theme.spacing.md,
         },
       }),
@@ -234,9 +268,9 @@ export const AllServicesScreen: React.FC<Props> = ({ navigation }) => {
           </View>
         ) : browsingHome ? (
           <>
-            <View>
-              <View style={[styles.sectionHeader, { paddingHorizontal: theme.spacing['2xl'] }]}>
-                <View style={{ flex: 1, paddingRight: theme.spacing.md }}>
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <View style={{ flex: 1 }}>
                   <Text style={styles.sectionTitle}>{t.services.browseByState}</Text>
                   <Text style={styles.sectionSubtitle}>{t.services.browseByStateHint}</Text>
                 </View>
@@ -244,35 +278,49 @@ export const AllServicesScreen: React.FC<Props> = ({ navigation }) => {
                   <Text style={styles.viewAll}>{t.home.viewAll}</Text>
                 </Pressable>
               </View>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={[
-                  styles.statesRow,
-                  { paddingHorizontal: theme.spacing['2xl'] },
-                ]}>
-                {previewStates.map(state => (
-                  <Pressable
-                    key={state.code}
-                    style={[styles.stateCard, { backgroundColor: state.bg }]}
-                    onPress={() =>
-                      navigation.navigate('StateServices', { stateCode: state.code })
-                    }>
-                    <View style={[styles.stateCode, { backgroundColor: state.color }]}>
-                      <Text style={styles.stateCodeText}>{state.code}</Text>
-                    </View>
-                    <Text style={styles.stateName}>{state.name}</Text>
-                    <Text style={styles.statePortal} numberOfLines={1}>
-                      {state.portal}
-                    </Text>
-                  </Pressable>
-                ))}
-              </ScrollView>
+              <View style={styles.statesGrid}>
+                {FEATURED_STATES.map(state => {
+                  const count = countServicesForState(catalog, state.code);
+                  return (
+                    <Pressable
+                      key={state.code}
+                      style={[
+                        styles.stateCard,
+                        { width: stateCardWidth, backgroundColor: state.bg },
+                      ]}
+                      onPress={() =>
+                        navigation.navigate('StateServices', { stateCode: state.code })
+                      }>
+                      <View style={[styles.stateAccent, { backgroundColor: state.color }]} />
+                      <View style={styles.stateRow}>
+                        <View style={[styles.stateCode, { backgroundColor: state.color }]}>
+                          <Text style={styles.stateCodeText}>{state.code}</Text>
+                        </View>
+                        <View style={styles.stateBody}>
+                          <Text style={styles.stateName} numberOfLines={1}>
+                            {state.name}
+                          </Text>
+                          <Text style={styles.statePortal} numberOfLines={1}>
+                            {state.portal}
+                          </Text>
+                        </View>
+                        <ChevronRightIcon color={theme.colors.textSecondary} />
+                      </View>
+                      <Text style={styles.stateTagline} numberOfLines={2}>
+                        {state.tagline}
+                      </Text>
+                      <Text style={styles.stateMeta}>
+                        {format(t.services.serviceCount, { count })}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
             </View>
 
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
-                <View>
+                <View style={{ flex: 1 }}>
                   <Text style={styles.sectionTitle}>{t.services.browseByCategory}</Text>
                   <Text style={styles.sectionSubtitle}>{t.services.browseByCategoryHint}</Text>
                 </View>

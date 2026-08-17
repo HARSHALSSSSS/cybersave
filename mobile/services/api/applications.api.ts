@@ -346,6 +346,10 @@ export interface PaymentIntent {
   currency: string;
   status: string;
   provider?: string;
+  providerRef?: string | null;
+  idempotencyKey?: string;
+  keyId?: string;
+  orderId?: string | null;
 }
 
 export async function requestDocumentUpload(
@@ -384,6 +388,30 @@ export async function createPaymentIntent(
   return unwrapApiResponse<PaymentIntent>(response);
 }
 
+export async function confirmApplicationPayment(
+  applicationId: string,
+  body: {
+    paymentId: string;
+    mockCapture?: boolean;
+    razorpayPaymentId?: string;
+    razorpayOrderId?: string;
+    razorpaySignature?: string;
+  },
+) {
+  const response = await apiClient.post(`/applications/${applicationId}/payments/confirm`, body);
+  return unwrapApiResponse<{ success: boolean; paymentId: string }>(response);
+}
+
+export async function payWithWallet(applicationId: string, idempotencyKey: string) {
+  const response = await apiClient.post(`/applications/${applicationId}/pay-with-wallet`, {
+    idempotencyKey,
+  });
+  return unwrapApiResponse<{ success: boolean; paymentId: string; method: string; amount: number }>(
+    response,
+  );
+}
+
+/** @deprecated Use confirmApplicationPayment instead */
 export async function captureMockPayment(paymentId: string) {
   const response = await apiClient.post('/webhooks/payments/mock', { paymentId });
   return unwrapApiResponse<{ success: boolean }>(response);
@@ -441,6 +469,8 @@ export const applicationsApi = {
   requestDocumentUpload,
   completeDocumentUpload,
   createPaymentIntent,
+  confirmApplicationPayment,
+  payWithWallet,
   captureMockPayment,
   submitCorrection,
   getApplicationCertificate,

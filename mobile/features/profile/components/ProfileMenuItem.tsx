@@ -5,12 +5,14 @@ import { ChevronRightSmallIcon } from '@components/icons';
 
 type ProfileMenuItemProps = {
   label: string;
+  subtitle?: string;
   icon: React.ReactNode;
   onPress?: () => void;
 };
 
 export const ProfileMenuItem: React.FC<ProfileMenuItemProps> = ({
   label,
+  subtitle,
   icon,
   onPress,
 }) => {
@@ -23,23 +25,34 @@ export const ProfileMenuItem: React.FC<ProfileMenuItemProps> = ({
           flexDirection: 'row',
           alignItems: 'center',
           backgroundColor: theme.colors.surface,
-          borderRadius: theme.radius.lg,
+          borderRadius: theme.radius.xl,
           paddingVertical: theme.spacing.lg,
           paddingHorizontal: theme.spacing.lg,
           borderWidth: 1,
           borderColor: theme.colors.border,
           gap: theme.spacing.md,
+          ...theme.shadows.card,
         },
         iconWrap: {
-          width: 36,
-          height: 36,
+          width: 44,
+          height: 44,
           alignItems: 'center',
           justifyContent: 'center',
+          borderRadius: theme.radius.lg,
+          backgroundColor: theme.colors.primaryMuted,
+        },
+        textWrap: {
+          flex: 1,
+          minWidth: 0,
         },
         label: {
-          flex: 1,
           ...theme.typography.labelMedium,
           color: theme.colors.textPrimary,
+        },
+        subtitle: {
+          ...theme.typography.caption,
+          color: theme.colors.textSecondary,
+          marginTop: 2,
         },
       }),
     [theme],
@@ -47,11 +60,18 @@ export const ProfileMenuItem: React.FC<ProfileMenuItemProps> = ({
 
   return (
     <Pressable
-      style={({ pressed }) => [styles.item, pressed && { opacity: 0.92 }]}
+      style={({ pressed }) => [styles.item, pressed && { opacity: 0.92, transform: [{ scale: 0.995 }] }]}
       accessibilityRole="button"
       onPress={onPress}>
       <View style={styles.iconWrap}>{icon}</View>
-      <Text style={styles.label}>{label}</Text>
+      <View style={styles.textWrap}>
+        <Text style={styles.label}>{label}</Text>
+        {subtitle ? (
+          <Text style={styles.subtitle} numberOfLines={1}>
+            {subtitle}
+          </Text>
+        ) : null}
+      </View>
       <ChevronRightSmallIcon color={theme.colors.textSecondary} />
     </Pressable>
   );

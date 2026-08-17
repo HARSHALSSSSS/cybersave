@@ -69,6 +69,22 @@ export class RazorpayPaymentProvider implements PaymentProvider {
     return expected === signature;
   }
 
+  verifyCheckoutSignature(orderId: string, paymentId: string, signature: string): boolean {
+    const secret = this.configService.get<string>('payment.razorpayKeySecret');
+    if (!secret) {
+      this.logger.warn('RAZORPAY_KEY_SECRET not configured — skipping checkout signature check');
+      return true;
+    }
+    const expected = createHmac('sha256', secret)
+      .update(`${orderId}|${paymentId}`)
+      .digest('hex');
+    return expected === signature;
+  }
+
+  getPublicKeyId(): string | undefined {
+    return this.configService.get<string>('payment.razorpayKeyId');
+  }
+
   private async createRazorpayOrder(
     params: CreatePaymentOrderParams,
   ): Promise<RazorpayOrderResponse> {

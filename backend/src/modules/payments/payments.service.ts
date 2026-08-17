@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { PaymentStatus, Prisma } from '@prisma/client';
 
 import { PrismaService } from '@/database/database.module';
@@ -9,6 +9,8 @@ import {
   PAYMENT_PROVIDER,
   type PaymentProvider,
 } from '@/integrations/payment/payment-provider.interface';
+import { RazorpayPaymentProvider } from '@/integrations/payment/razorpay-payment.provider';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class PaymentsService {
@@ -17,6 +19,8 @@ export class PaymentsService {
     private readonly bundleService: ServiceVersionsBundleService,
     @Inject(PAYMENT_PROVIDER) private readonly provider: PaymentProvider,
     private readonly auditLogService: AuditLogService,
+    private readonly configService: ConfigService,
+    private readonly razorpayProvider: RazorpayPaymentProvider,
   ) {}
 
   async createForApplication(
@@ -88,6 +92,56 @@ export class PaymentsService {
       return { success: false, message: 'Payment not found' };
     }
     return this.capturePaymentRecord(payment);
+  }
+
+  async confirmCheckout(
+    paymentId: string,
+    citizenId: string,
+    options?: {
+      mockCapture?: boolean;
+      razorpayPaymentId?: string;
+      razorpayOrderId?: string;
+      razorpaySignature?: string;
+    },
+  ) {
+    const payment = await this.prisma.payment.findUnique({ where: { id: paymentId } });
+    if (!payment) throw new NotFoundException('Payment not found');
+    if (payment.citizenId !== citizenId) {
+      throw new ForbiddenException('Not allowed to confirm this payment');
+    }
+    if (payment.status === PaymentStatus.CAPTURED) {
+      return { success: true, paymentId: payment.id, status: payment.status };
+    }
+
+    const providerName = this.configService.get<string>('payment.provider') ?? 'mock';
+    const useMock =
+      options?.mockCapture === true ||
+      providerName === 'mock' ||
+      payment.provider === 'mock' ||
+      !payment.providerRef ||
+      payment.providerRef.startsWith('mock_');
+
+    if (!useMock) {
+      if (!options?.razorpayPaymentId || !options?.razorpayOrderId || !options?.razorpaySignature) {
+        throw new BadRequestException('Missing Razorpay payment details');
+      }
+      const valid = this.razorpayProvider.verifyCheckoutSignature(
+        options.razorpayOrderId,
+        options.razorpayPaymentId,
+        options.razorpaySignature,
+      );
+      if (!valid) {
+        throw new BadRequestException('Invalid payment signature');
+      }
+    }
+
+    return this.capturePaymentRecord(payment);
+  }
+
+  getCheckoutKeyId(): string {
+    const provider = this.configService.get<string>('payment.provider') ?? 'mock';
+    if (provider === 'mock') return 'mock_key';
+    return this.configService.get<string>('payment.razorpayKeyId') ?? 'mock_key';
   }
 
   private async capturePaymentRecord(payment: {

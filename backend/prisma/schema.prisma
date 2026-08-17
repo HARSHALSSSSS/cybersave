@@ -118,6 +118,18 @@ enum RefundStatus {
   FAILED
 }
 
+enum WalletTopUpStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+enum WalletTransactionType {
+  TOPUP
+  DEBIT
+  REFUND
+}
+
 enum StorageProviderType {
   LOCAL
   S3
@@ -196,6 +208,9 @@ model Citizen {
   bbpsBillPayments BbpsBillPayment[]
   manualApplySessions ManualApplySession[]
   manualApplyPayments ManualApplyPayment[]
+  wallet              Wallet?
+  walletTopUps        WalletTopUp[]
+  walletTransactions  WalletTransaction[]
 
   @@map("citizens")
 }
@@ -956,6 +971,61 @@ model Refund {
   payment Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
 
   @@map("refunds")
+}
+
+model Wallet {
+  id        String   @id @default(cuid())
+  citizenId String   @unique @map("citizen_id")
+  balance   Decimal  @default(0) @db.Decimal(12, 2)
+  currency  String   @default("INR")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  citizen      Citizen             @relation(fields: [citizenId], references: [id], onDelete: Cascade)
+  transactions WalletTransaction[]
+  topUps       WalletTopUp[]
+
+  @@map("wallets")
+}
+
+model WalletTopUp {
+  id                String            @id @default(cuid())
+  walletId          String            @map("wallet_id")
+  citizenId         String            @map("citizen_id")
+  amount            Decimal           @db.Decimal(12, 2)
+  currency          String            @default("INR")
+  status            WalletTopUpStatus @default(PENDING)
+  razorpayOrderId   String?           @map("razorpay_order_id")
+  razorpayPaymentId String?           @map("razorpay_payment_id")
+  idempotencyKey    String            @unique @map("idempotency_key")
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
+
+  wallet  Wallet  @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  citizen Citizen @relation(fields: [citizenId], references: [id], onDelete: Cascade)
+
+  @@index([citizenId])
+  @@map("wallet_top_ups")
+}
+
+model WalletTransaction {
+  id            String                @id @default(cuid())
+  walletId      String                @map("wallet_id")
+  citizenId     String                @map("citizen_id")
+  type          WalletTransactionType
+  amount        Decimal               @db.Decimal(12, 2)
+  balanceAfter  Decimal               @map("balance_after") @db.Decimal(12, 2)
+  referenceType String?               @map("reference_type")
+  referenceId   String?               @map("reference_id")
+  description   String?
+  createdAt     DateTime              @default(now()) @map("created_at")
+
+  wallet  Wallet  @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  citizen Citizen @relation(fields: [citizenId], references: [id], onDelete: Cascade)
+
+  @@index([citizenId, createdAt])
+  @@index([walletId])
+  @@map("wallet_transactions")
 }
 
 // ─── Bill Payments (BBPS) ─────────────────────────────────────────────────────

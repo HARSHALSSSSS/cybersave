@@ -32,6 +32,7 @@ import { ServiceVersionsBundleService } from '@/modules/service-versions/service
 import { calculateAssistedTotalAmount } from '@/modules/service-versions/utils/assisted-pricing.util';
 import { NotificationsService } from '@/modules/notifications/notifications.service';
 import { PaymentsService } from '@/modules/payments/payments.service';
+import { WalletService } from '@/modules/wallet/wallet.service';
 import { generateApplicationPublicRef } from '../constants/public-ref.util';
 import { CompleteUploadDto } from '../dto/citizen-application.dto';
 import { ApplicationSnapshotService } from './application-snapshot.service';
@@ -65,6 +66,7 @@ export class ApplicationsCitizenService {
     private readonly validationService: ApplicationValidationService,
     private readonly stateMachine: ApplicationStateMachineService,
     private readonly paymentsService: PaymentsService,
+    private readonly walletService: WalletService,
     private readonly notificationsService: NotificationsService,
   ) {}
 
@@ -694,6 +696,96 @@ export class ApplicationsCitizenService {
     return this.formatPaymentIntent(payment);
   }
 
+  async confirmApplicationPayment(
+    applicationId: string,
+    citizenId: string,
+    body: {
+      paymentId: string;
+      mockCapture?: boolean;
+      razorpayPaymentId?: string;
+      razorpayOrderId?: string;
+      razorpaySignature?: string;
+    },
+  ) {
+    const application = await this.findOwnedApplication(applicationId, citizenId);
+    const payment = await this.prisma.payment.findUnique({
+      where: { id: body.paymentId },
+    });
+    if (!payment || payment.applicationId !== application.id) {
+      throw new NotFoundException('Payment not found for this application');
+    }
+
+    const result = await this.paymentsService.confirmCheckout(body.paymentId, citizenId, body);
+    return {
+      ...result,
+      payment: await this.prisma.payment.findUnique({ where: { id: body.paymentId } }),
+      applicationId: application.id,
+    };
+  }
+
+  async payWithWallet(
+    applicationId: string,
+    citizenId: string,
+    idempotencyKey: string,
+  ) {
+    const application = await this.findOwnedApplication(applicationId, citizenId);
+    this.stateMachine.assertCanModifyDraft(application.status);
+
+    const validation = await this.validationService.validateApplication(applicationId);
+    if (!validation.valid) {
+      throw new BadRequestException({
+        message: 'Application must pass validation before payment',
+        errors: validation.errors,
+      });
+    }
+
+    const bundle = await this.bundleService.getFullBundle(application.serviceVersionId);
+    const totalAmount = this.calculateTotalFromBundle(
+      bundle,
+      application.applicantStateCode,
+    );
+    if (totalAmount <= 0) {
+      throw new BadRequestException('No payment required for this application');
+    }
+
+    let payment = await this.prisma.payment.findUnique({
+      where: { idempotencyKey },
+    });
+
+    if (!payment) {
+      payment = await this.paymentsService.createForApplication(
+        applicationId,
+        citizenId,
+        idempotencyKey,
+      );
+    } else if (payment.applicationId !== applicationId) {
+      throw new ConflictException('Idempotency key already used');
+    }
+
+    if (payment.status !== PaymentStatus.CAPTURED) {
+      await this.walletService.debitForApplication(
+        citizenId,
+        applicationId,
+        payment.id,
+        totalAmount,
+      );
+    }
+
+    if (application.status !== ApplicationStatus.PAYMENT_PENDING) {
+      await this.prisma.application.update({
+        where: { id: applicationId },
+        data: { status: ApplicationStatus.PAYMENT_PENDING },
+      });
+    }
+
+    return {
+      success: true,
+      paymentId: payment.id,
+      method: 'wallet',
+      amount: totalAmount,
+    };
+  }
+
   async submitApplication(applicationId: string, citizenId: string) {
     const application = await this.findOwnedApplication(
       applicationId,
@@ -1309,6 +1401,8 @@ export class ApplicationsCitizenService {
       provider: payment.provider,
       providerRef: payment.providerRef,
       idempotencyKey: payment.idempotencyKey,
+      orderId: payment.providerRef,
+      keyId: this.paymentsService.getCheckoutKeyId(),
       clientSecret: payment.providerRef ?? `stub_${payment.id}_${randomUUID()}`,
     };
   }

@@ -33,6 +33,7 @@ import {
   profileApi,
   profileQueryKeys,
 } from '@services/api';
+import { getProfileCompletion, getProfileInitials } from '@utils/profile';
 import {
   FileDocIcon,
   GlobeIcon,
@@ -59,22 +60,78 @@ type MenuItem = {
     | 'privacySecurity'
     | 'helpSupport'
     | 'about';
+  subtitleKey:
+    | 'menuPersonalSubtitle'
+    | 'menuDocumentsSubtitle'
+    | 'menuAddressesSubtitle'
+    | 'menuLanguageSubtitle'
+    | 'menuSettingsSubtitle'
+    | 'menuPrivacySubtitle'
+    | 'menuHelpSubtitle'
+    | 'menuAboutSubtitle';
   icon: string;
   screen?: keyof ProfileStackParamList;
 };
 
 const ACCOUNT_MENU: MenuItem[] = [
-  { id: 'personal', labelKey: 'personalInfo', icon: 'user', screen: 'PersonalInformation' },
-  { id: 'documents', labelKey: 'savedDocuments', icon: 'document', screen: 'SavedDocuments' },
-  { id: 'addresses', labelKey: 'addresses', icon: 'location', screen: 'Addresses' },
-  { id: 'language', labelKey: 'language', icon: 'globe', screen: 'LanguageSelection' },
-  { id: 'settings', labelKey: 'settings', icon: 'settings', screen: 'Settings' },
+  {
+    id: 'personal',
+    labelKey: 'personalInfo',
+    subtitleKey: 'menuPersonalSubtitle',
+    icon: 'user',
+    screen: 'PersonalInformation',
+  },
+  {
+    id: 'documents',
+    labelKey: 'savedDocuments',
+    subtitleKey: 'menuDocumentsSubtitle',
+    icon: 'document',
+    screen: 'SavedDocuments',
+  },
+  {
+    id: 'addresses',
+    labelKey: 'addresses',
+    subtitleKey: 'menuAddressesSubtitle',
+    icon: 'location',
+    screen: 'Addresses',
+  },
+  {
+    id: 'language',
+    labelKey: 'language',
+    subtitleKey: 'menuLanguageSubtitle',
+    icon: 'globe',
+    screen: 'LanguageSelection',
+  },
+  {
+    id: 'settings',
+    labelKey: 'settings',
+    subtitleKey: 'menuSettingsSubtitle',
+    icon: 'settings',
+    screen: 'Settings',
+  },
 ];
 
 const SUPPORT_MENU: MenuItem[] = [
-  { id: 'privacy', labelKey: 'privacySecurity', icon: 'shield', screen: 'PrivacySecurity' },
-  { id: 'help', labelKey: 'helpSupport', icon: 'help', screen: 'HelpSupport' },
-  { id: 'about', labelKey: 'about', icon: 'info' },
+  {
+    id: 'privacy',
+    labelKey: 'privacySecurity',
+    subtitleKey: 'menuPrivacySubtitle',
+    icon: 'shield',
+    screen: 'PrivacySecurity',
+  },
+  {
+    id: 'help',
+    labelKey: 'helpSupport',
+    subtitleKey: 'menuHelpSubtitle',
+    icon: 'help',
+    screen: 'HelpSupport',
+  },
+  {
+    id: 'about',
+    labelKey: 'about',
+    subtitleKey: 'menuAboutSubtitle',
+    icon: 'info',
+  },
 ];
 
 const MenuIcon = ({ icon }: { icon: string }) => {
@@ -105,7 +162,7 @@ export const ProfileScreen: React.FC<Props> = ({ navigation }) => {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const dispatch = useDispatch();
-  const { t, locale } = useTranslation();
+  const { t, locale, format } = useTranslation();
   const { citizen, isProfileComplete } = useCitizenProfile();
   const { openCompleteProfile, openUpdateProfile } = useProfileNavigation();
   const language = useSelector((state: RootState) => state.auth.language);
@@ -120,21 +177,29 @@ export const ProfileScreen: React.FC<Props> = ({ navigation }) => {
     queryFn: () => profileApi.listSavedDocuments(),
   });
 
+  const { data: addresses = [] } = useQuery({
+    queryKey: profileQueryKeys.addresses(),
+    queryFn: () => profileApi.listAddresses(),
+  });
+
   const displayName =
     [citizen?.firstName, citizen?.lastName].filter(Boolean).join(' ') ||
     citizen?.phone ||
     t.common.citizen;
-  const initials = displayName
-    .split(/\s+/)
-    .map(part => part[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
-
+  const initials = getProfileInitials(citizen);
   const applicationCount = applications?.data?.length ?? 0;
   const memberSince = citizen?.createdAt
     ? formatAppDate(citizen.createdAt, locale)
     : '—';
+
+  const completion = useMemo(
+    () =>
+      getProfileCompletion(citizen, {
+        addressCount: addresses.length,
+        documentCount: documents.length,
+      }),
+    [citizen, addresses.length, documents.length],
+  );
 
   const styles = useMemo(
     () =>
@@ -159,7 +224,7 @@ export const ProfileScreen: React.FC<Props> = ({ navigation }) => {
         },
         profileCard: {
           backgroundColor: theme.colors.surface,
-          borderRadius: theme.radius.xl,
+          borderRadius: theme.radius['2xl'],
           padding: theme.spacing['2xl'],
           marginBottom: theme.spacing.lg,
           ...theme.shadows.card,
@@ -170,9 +235,9 @@ export const ProfileScreen: React.FC<Props> = ({ navigation }) => {
           gap: theme.spacing.lg,
         },
         avatar: {
-          width: 72,
-          height: 72,
-          borderRadius: theme.radius.full,
+          width: 76,
+          height: 76,
+          borderRadius: theme.radius.xl,
           backgroundColor: theme.colors.primary,
           alignItems: 'center',
           justifyContent: 'center',
@@ -200,6 +265,36 @@ export const ProfileScreen: React.FC<Props> = ({ navigation }) => {
           backgroundColor: theme.colors.primaryMuted,
         },
         langChipText: { ...theme.typography.caption, color: theme.colors.primary, fontWeight: '600' },
+        progressSection: {
+          marginTop: theme.spacing.lg,
+          padding: theme.spacing.lg,
+          borderRadius: theme.radius.lg,
+          backgroundColor: theme.colors.backgroundSecondary,
+        },
+        progressHeader: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: theme.spacing.sm,
+        },
+        progressTitle: { ...theme.typography.labelMedium, color: theme.colors.textPrimary },
+        progressPercent: { ...theme.typography.headingSmall, color: theme.colors.primary },
+        progressTrack: {
+          height: 8,
+          borderRadius: theme.radius.full,
+          backgroundColor: theme.colors.border,
+          overflow: 'hidden',
+        },
+        progressFill: {
+          height: '100%',
+          borderRadius: theme.radius.full,
+          backgroundColor: theme.colors.primary,
+        },
+        progressHint: {
+          ...theme.typography.caption,
+          color: theme.colors.textSecondary,
+          marginTop: theme.spacing.sm,
+        },
         statsRow: {
           flexDirection: 'row',
           gap: theme.spacing.sm,
@@ -211,6 +306,8 @@ export const ProfileScreen: React.FC<Props> = ({ navigation }) => {
           borderRadius: theme.radius.lg,
           padding: theme.spacing.md,
           alignItems: 'center',
+          borderWidth: 1,
+          borderColor: theme.colors.border,
         },
         statValue: { ...theme.typography.headingSmall, color: theme.colors.primary },
         statLabel: {
@@ -219,14 +316,44 @@ export const ProfileScreen: React.FC<Props> = ({ navigation }) => {
           marginTop: 2,
           textAlign: 'center',
         },
-        incompleteBanner: {
+        quickActionsTitle: {
+          ...theme.typography.caption,
+          color: theme.colors.textSecondary,
+          letterSpacing: 1,
+          marginBottom: theme.spacing.sm,
           marginTop: theme.spacing.md,
-          paddingVertical: theme.spacing.sm,
-          paddingHorizontal: theme.spacing.md,
-          borderRadius: theme.radius.md,
-          backgroundColor: theme.colors.primaryMuted,
         },
-        incompleteText: { ...theme.typography.bodySmall, color: theme.colors.primary },
+        quickActionsRow: {
+          flexDirection: 'row',
+          gap: theme.spacing.sm,
+          marginBottom: theme.spacing.sm,
+        },
+        quickAction: {
+          flex: 1,
+          alignItems: 'center',
+          paddingVertical: theme.spacing.lg,
+          paddingHorizontal: theme.spacing.sm,
+          borderRadius: theme.radius.xl,
+          backgroundColor: theme.colors.surface,
+          borderWidth: 1,
+          borderColor: theme.colors.border,
+          ...theme.shadows.card,
+        },
+        quickActionLabel: {
+          ...theme.typography.caption,
+          color: theme.colors.textPrimary,
+          fontWeight: '600',
+          marginTop: theme.spacing.sm,
+          textAlign: 'center',
+        },
+        quickActionIcon: {
+          width: 40,
+          height: 40,
+          borderRadius: theme.radius.lg,
+          backgroundColor: theme.colors.primaryMuted,
+          alignItems: 'center',
+          justifyContent: 'center',
+        },
         profileAction: { marginTop: theme.spacing.lg },
         sectionTitle: {
           ...theme.typography.caption,
@@ -242,6 +369,8 @@ export const ProfileScreen: React.FC<Props> = ({ navigation }) => {
           borderRadius: theme.radius.xl,
           paddingVertical: theme.spacing.lg,
           alignItems: 'center',
+          borderWidth: 1,
+          borderColor: '#FECACA',
         },
         logoutText: { ...theme.typography.labelLarge, color: '#EF4444' },
       }),
@@ -283,6 +412,7 @@ export const ProfileScreen: React.FC<Props> = ({ navigation }) => {
           <ProfileMenuItem
             key={item.id}
             label={t.profile[item.labelKey]}
+            subtitle={t.profile[item.subtitleKey]}
             icon={<MenuIcon icon={item.icon} />}
             onPress={() => handleMenuPress(item)}
           />
@@ -306,7 +436,7 @@ export const ProfileScreen: React.FC<Props> = ({ navigation }) => {
         <View style={styles.profileCard}>
           <View style={styles.profileTop}>
             <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{initials || 'CS'}</Text>
+              <Text style={styles.avatarText}>{initials}</Text>
             </View>
             <View style={styles.profileInfo}>
               <View style={styles.nameRow}>
@@ -315,6 +445,7 @@ export const ProfileScreen: React.FC<Props> = ({ navigation }) => {
                 </Text>
                 <StatusBadge
                   label={isProfileComplete ? t.common.verified : t.common.incomplete}
+                  variant={isProfileComplete ? 'verified' : 'incomplete'}
                 />
               </View>
               <Text style={styles.contact}>
@@ -333,30 +464,48 @@ export const ProfileScreen: React.FC<Props> = ({ navigation }) => {
             </View>
           </View>
 
+          <View style={styles.progressSection}>
+            <View style={styles.progressHeader}>
+              <Text style={styles.progressTitle}>
+                {completion.percent === 100 ? t.profile.profileComplete : t.profile.profileProgress}
+              </Text>
+              <Text style={styles.progressPercent}>{completion.percent}%</Text>
+            </View>
+            <View style={styles.progressTrack}>
+              <View style={[styles.progressFill, { width: `${completion.percent}%` }]} />
+            </View>
+            <Text style={styles.progressHint}>
+              {format(t.profile.completionSteps, {
+                done: completion.completedCount,
+                total: completion.totalCount,
+              })}
+            </Text>
+          </View>
+
           <View style={styles.statsRow}>
-            <View style={styles.statCard}>
+            <Pressable
+              style={({ pressed }) => [styles.statCard, pressed && { opacity: 0.9 }]}
+              onPress={() => navigation.getParent()?.navigate('ApplicationsTab' as never)}>
               <Text style={styles.statValue}>{applicationCount}</Text>
               <Text style={styles.statLabel}>{t.profile.applications}</Text>
-            </View>
-            <View style={styles.statCard}>
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [styles.statCard, pressed && { opacity: 0.9 }]}
+              onPress={() => navigation.navigate('SavedDocuments')}>
               <Text style={styles.statValue}>{documents.length}</Text>
               <Text style={styles.statLabel}>{t.profile.documents}</Text>
-            </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statValue}>{isProfileComplete ? '✓' : '—'}</Text>
-              <Text style={styles.statLabel}>{t.profile.kycStatus}</Text>
-            </View>
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [styles.statCard, pressed && { opacity: 0.9 }]}
+              onPress={() => navigation.navigate('Addresses')}>
+              <Text style={styles.statValue}>{addresses.length}</Text>
+              <Text style={styles.statLabel}>{t.profile.addresses}</Text>
+            </Pressable>
           </View>
 
           <Text style={[styles.contact, { marginTop: theme.spacing.md }]}>
             {t.profile.memberSince}: {memberSince}
           </Text>
-
-          {!isProfileComplete ? (
-            <View style={styles.incompleteBanner}>
-              <Text style={styles.incompleteText}>{t.profile.incomplete}</Text>
-            </View>
-          ) : null}
 
           <View style={styles.profileAction}>
             {isProfileComplete ? (
@@ -372,6 +521,34 @@ export const ProfileScreen: React.FC<Props> = ({ navigation }) => {
               />
             )}
           </View>
+        </View>
+
+        <Text style={styles.quickActionsTitle}>{t.profile.quickActions}</Text>
+        <View style={styles.quickActionsRow}>
+          <Pressable
+            style={({ pressed }) => [styles.quickAction, pressed && { opacity: 0.92 }]}
+            onPress={() => navigation.getParent()?.navigate('ApplicationsTab' as never)}>
+            <View style={styles.quickActionIcon}>
+              <FileDocIcon color={theme.colors.primary} size={20} />
+            </View>
+            <Text style={styles.quickActionLabel}>{t.profile.trackApplications}</Text>
+          </Pressable>
+          <Pressable
+            style={({ pressed }) => [styles.quickAction, pressed && { opacity: 0.92 }]}
+            onPress={() => navigation.navigate('SavedDocuments')}>
+            <View style={styles.quickActionIcon}>
+              <ShieldIcon color={theme.colors.primary} size={20} />
+            </View>
+            <Text style={styles.quickActionLabel}>{t.profile.openVault}</Text>
+          </Pressable>
+          <Pressable
+            style={({ pressed }) => [styles.quickAction, pressed && { opacity: 0.92 }]}
+            onPress={() => navigation.navigate('HelpSupport')}>
+            <View style={styles.quickActionIcon}>
+              <HelpIcon color={theme.colors.primary} size={20} />
+            </View>
+            <Text style={styles.quickActionLabel}>{t.profile.getHelp}</Text>
+          </Pressable>
         </View>
 
         {renderMenuSection(t.profile.accountSection, ACCOUNT_MENU)}

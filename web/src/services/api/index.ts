@@ -15,6 +15,7 @@ export * from './bill-payments.api';
 export * from './manualApply.api';
 export * from './notifications.api';
 export * from './payments.api';
+export * from './wallet.api';
 export * from './schemes.api';
 
 import { apiClient } from './client';
