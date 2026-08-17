@@ -7,7 +7,11 @@ export const AUTH_TOKEN_STORAGE_KEY = 'cybersave_admin_token';
 
 export const apiClient = axios.create({
   baseURL: env.apiBaseUrl,
-  timeout: env.apiBaseUrl.includes('onrender.com') ? 60_000 : 15_000,
+  timeout:
+    env.apiBaseUrl.includes('onrender.com') ||
+    env.apiBaseUrl.includes('cybersaveonline.com')
+      ? 60_000
+      : 15_000,
   headers: {
     'Content-Type': 'application/json',
   },

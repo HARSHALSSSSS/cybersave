@@ -6,7 +6,7 @@ const REFRESH_KEY = 'cybersave_citizen_refresh';
 
 export const apiClient = axios.create({
   baseURL: env.apiBaseUrl,
-  timeout: 30000,
+  timeout: 18000,
   headers: {
     'Content-Type': 'application/json',
     Accept: 'application/json',

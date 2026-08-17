@@ -40,7 +40,7 @@ if (__DEV__) {
 }
 
 const RETRYABLE_STATUSES = new Set([502, 503, 504]);
-const MAX_TRANSIENT_RETRIES = 2;
+const MAX_TRANSIENT_RETRIES = 1;
 
 function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));

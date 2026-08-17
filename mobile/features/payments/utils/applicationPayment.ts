@@ -1,9 +1,6 @@
 import { applicationsApi } from '@services/api/applications.api';
-import {
-  isRazorpayUserCancelled,
-  openRazorpayCheckout,
-  shouldUseMockRazorpay,
-} from '@utils/razorpayCheckout';
+import { isRazorpayUserCancelled } from '@utils/razorpayCheckout';
+import { canUseLiveRazorpay, collectRazorpayPayment } from '@utils/razorpayExperience';
 
 export type PaymentMethod = 'razorpay' | 'wallet';
 
@@ -25,26 +22,21 @@ export async function processApplicationPayment(params: {
   const intent = await applicationsApi.createPaymentIntent(applicationId, idempotencyKey);
   if (intent.status === 'CAPTURED') return;
 
-  if (shouldUseMockRazorpay(intent)) {
-    await applicationsApi.confirmApplicationPayment(applicationId, {
-      paymentId: intent.paymentId,
-      mockCapture: true,
-    });
-    return;
-  }
-
-  const checkout = await openRazorpayCheckout({
-    keyId: intent.keyId!,
-    orderId: intent.orderId!,
-    amount,
-    name: 'Cybersave',
-    description: serviceName,
-    prefill,
-  });
+  const checkout = await collectRazorpayPayment(
+    {
+      keyId: intent.keyId ?? '',
+      orderId: intent.orderId ?? '',
+      amount,
+      name: 'Cybersave',
+      description: serviceName,
+      prefill,
+    },
+    intent,
+  );
 
   await applicationsApi.confirmApplicationPayment(applicationId, {
     paymentId: intent.paymentId,
-    mockCapture: false,
+    mockCapture: !canUseLiveRazorpay(intent),
     razorpayPaymentId: checkout.razorpay_payment_id,
     razorpayOrderId: checkout.razorpay_order_id,
     razorpaySignature: checkout.razorpay_signature,

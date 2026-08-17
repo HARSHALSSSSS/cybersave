@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { resolve } from 'path';
 
 import {
   adminAuthConfig,
@@ -17,6 +18,7 @@ import {
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      envFilePath: resolve(process.cwd(), '.env'),
       load: [
         appConfig,
         databaseConfig,

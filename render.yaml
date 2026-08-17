@@ -53,7 +53,7 @@ services:
       - key: STORAGE_LOCAL_PATH
         value: ./storage
       - key: STORAGE_PUBLIC_BASE_URL
-        value: https://cybersave-l972.onrender.com/api/v1/storage/local
+        value: https://api.cybersaveonline.com/api/v1/storage/local
       - key: CORS_ORIGINS
         value: "*"
       - key: SWAGGER_ENABLED
@@ -89,7 +89,7 @@ services:
         destination: /index.html
     envVars:
       - key: VITE_API_BASE_URL
-        value: https://cybersave-l972.onrender.com/api/v1
+        value: https://api.cybersaveonline.com/api/v1
       - key: VITE_ADMIN_BASE
         value: /
 
@@ -106,6 +106,6 @@ services:
         destination: /index.html
     envVars:
       - key: VITE_API_BASE_URL
-        value: https://cybersave-l972.onrender.com/api/v1
+        value: https://api.cybersaveonline.com/api/v1
       - key: VITE_APP_NAME
         value: Cybersave

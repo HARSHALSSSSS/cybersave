@@ -20,7 +20,7 @@ export function ApiWarmup() {
       if (!USE_HOSTED_API) {
         return;
       }
-      await ensureApiReachable(45000);
+      await ensureApiReachable(4000);
 
       const prefetch = [
         queryClient.prefetchQuery({

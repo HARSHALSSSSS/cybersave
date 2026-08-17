@@ -5,9 +5,9 @@ export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       // Render cold starts — retry with backoff but show cached data immediately.
-      retry: 2,
-      retryDelay: attempt => Math.min(800 * 2 ** attempt, 6000),
-      staleTime: 1000 * 60 * 10,
+      retry: 1,
+      retryDelay: attempt => Math.min(400 * 2 ** attempt, 2000),
+      staleTime: 1000 * 60 * 15,
       gcTime: 1000 * 60 * 60,
       refetchOnWindowFocus: false,
       refetchOnReconnect: true,

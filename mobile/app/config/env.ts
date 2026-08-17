@@ -1,14 +1,14 @@
 import { NativeModules, Platform } from 'react-native';
 
-/** Hosted Render API — used for testing production backend from admin/mobile */
+/** Production API — used by release builds and when USE_HOSTED_API is true. */
 export const HOSTED_API_BASE_URL =
-  'https://cybersave-l972.onrender.com/api/v1';
+  'https://api.cybersaveonline.com/api/v1';
 
 /**
  * Dev (Metro): local backend — same catalog as web (`localhost:8000`).
- * Release APK: hosted Render API.
+ * Release APK / current hosted connect: production API.
  */
-export const USE_HOSTED_API = !__DEV__;
+export const USE_HOSTED_API = true;
 
 /**
  * If auto-detect fails on your phone, set your PC's Wi‑Fi IP here (e.g. '192.168.1.42').

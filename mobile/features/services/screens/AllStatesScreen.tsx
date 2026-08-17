@@ -79,6 +79,8 @@ export const AllStatesScreen: React.FC<Props> = ({ navigation }) => {
           paddingBottom: getScrollBottomPadding(insets),
         },
         tile: {
+          position: 'relative',
+          overflow: 'hidden',
           borderRadius: theme.radius.xl,
           padding: theme.spacing.lg,
           borderWidth: 1,

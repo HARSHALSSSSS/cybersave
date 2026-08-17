@@ -70,8 +70,8 @@ function persistBase(baseURL: string): string {
  */
 export async function ensureApiReachable(timeoutMs = 3500): Promise<string | null> {
   if (!shouldUseDevDiscovery()) {
-    const hostedTimeout = USE_HOSTED_API ? Math.max(timeoutMs, 60000) : timeoutMs;
-    const pingAttempts = USE_HOSTED_API ? 3 : 1;
+    const hostedTimeout = USE_HOSTED_API ? Math.min(Math.max(timeoutMs, 2500), 5000) : timeoutMs;
+    const pingAttempts = USE_HOSTED_API ? 2 : 1;
     const base = ENV.API_BASE_URL;
     if (await pingBase(base, hostedTimeout, pingAttempts)) {
       return persistBase(base);

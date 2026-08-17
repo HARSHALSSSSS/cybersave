@@ -8,7 +8,8 @@ import { Button } from '@/components/ui/button';
 import { LoadingBlock, EmptyState } from '@/components/ui/primitives';
 import { useAuthStore } from '@/features/auth/store/auth.store';
 import { extractErrorMessage } from '@/features/apply/utils/validation-errors';
-import { isRazorpayUserCancelled, openRazorpayCheckout } from '@/lib/razorpay';
+import { isRazorpayUserCancelled } from '@/lib/razorpay';
+import { collectRazorpayPayment, canUseLiveRazorpay } from '@/lib/razorpayExperience';
 import { billPaymentsApi, billPaymentsQueryKeys } from '@/services/api';
 import { formatCurrency } from '@/lib/utils';
 import { getProfileDisplayName } from '@/lib/profile';
@@ -38,33 +39,24 @@ export function PayBillsConfirmPage() {
     mutationFn: async () => {
       const intent = await billPaymentsApi.createPaymentIntent(requestId);
       const payable = Number(intent.totalAmount || total);
-      const useMock =
-        import.meta.env.DEV ||
-        settings?.provider === 'mock' ||
-        intent.provider === 'mock' ||
-        !intent.keyId ||
-        !intent.orderId ||
-        intent.keyId === 'mock_key';
-
-      if (useMock) {
-        return billPaymentsApi.confirmPayment(intent.id, { mockCapture: true });
-      }
-
-      const checkout = await openRazorpayCheckout({
-        keyId: intent.keyId!,
-        orderId: intent.orderId!,
-        amount: payable,
-        name: 'Cybersave BBPS',
-        description: bill?.biller.name ?? 'Bill payment',
-        prefill: {
-          contact: citizen?.phone,
-          email: citizen?.email ?? undefined,
-          name: getProfileDisplayName(citizen),
+      const checkout = await collectRazorpayPayment(
+        {
+          keyId: intent.keyId ?? '',
+          orderId: intent.orderId ?? '',
+          amount: payable,
+          name: 'Cybersave BBPS',
+          description: bill?.biller.name ?? 'Bill payment',
+          prefill: {
+            contact: citizen?.phone,
+            email: citizen?.email ?? undefined,
+            name: getProfileDisplayName(citizen),
+          },
         },
-      });
+        { ...intent, provider: settings?.provider },
+      );
 
       return billPaymentsApi.confirmPayment(intent.id, {
-        mockCapture: false,
+        mockCapture: !canUseLiveRazorpay({ ...intent, provider: settings?.provider }),
         razorpayPaymentId: checkout.razorpay_payment_id,
         razorpayOrderId: checkout.razorpay_order_id,
         razorpaySignature: checkout.razorpay_signature,

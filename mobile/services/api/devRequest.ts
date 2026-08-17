@@ -26,7 +26,7 @@ function persistBase(baseURL: string) {
 }
 
 function hostedTimeoutMs(): number {
-  return USE_HOSTED_API ? 60_000 : 12_000;
+  return USE_HOSTED_API ? 18_000 : 12_000;
 }
 
 /** Dev-only: find a reachable local API host. Hosted API always uses apiClient base URL. */

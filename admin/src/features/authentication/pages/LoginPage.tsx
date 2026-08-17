@@ -8,7 +8,10 @@ import { env } from '@/app/config/env';
 
 const isDev = import.meta.env.VITE_APP_ENV === 'development' || import.meta.env.DEV;
 const showDemoCredentials =
-  isDev || env.apiBaseUrl.includes('onrender.com') || env.apiBaseUrl.includes('localhost');
+  isDev ||
+  env.apiBaseUrl.includes('onrender.com') ||
+  env.apiBaseUrl.includes('cybersaveonline.com') ||
+  env.apiBaseUrl.includes('localhost');
 
 export function LoginPage() {
   const navigate = useNavigate();

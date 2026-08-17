@@ -11,10 +11,8 @@ import { Button } from '@components/Button';
 import { LockSmallIcon } from '@components/icons';
 import { formatRupee } from '@features/bill-payments/components';
 import { BillPaymentScreenLayout } from '@features/bill-payments/components/BillPaymentScreenLayout';
-import {
-  isRazorpayUserCancelled,
-  openRazorpayCheckout,
-} from '@features/bill-payments/utils/razorpayCheckout';
+import { isRazorpayUserCancelled } from '@utils/razorpayCheckout';
+import { canUseLiveRazorpay, collectRazorpayPayment } from '@utils/razorpayExperience';
 import { BillPaymentsStackParamList } from '@/types/navigation';
 import { billPaymentsApi, billPaymentsQueryKeys, getBillPaymentsErrorMessage } from '@services/api/billPayments.api';
 
@@ -43,33 +41,24 @@ export const ConfirmPaymentScreen: React.FC<Props> = ({ navigation, route }) => 
     mutationFn: async () => {
       const intent = await billPaymentsApi.createPaymentIntent(requestId);
       const payable = Number(intent.totalAmount || billAmount + convenienceFee);
-      const useMock =
-        __DEV__ ||
-        settings?.provider === 'mock' ||
-        intent.provider === 'mock' ||
-        !intent.keyId ||
-        !intent.orderId ||
-        intent.keyId === 'mock_key';
-
-      if (useMock) {
-        return billPaymentsApi.confirmPayment(intent.id, { mockCapture: true });
-      }
-
-      const checkout = await openRazorpayCheckout({
-        keyId: intent.keyId!,
-        orderId: intent.orderId!,
-        amount: payable,
-        name: 'Cybersave BBPS',
-        description: bill?.biller.name ?? 'Bill payment',
-        prefill: {
-          contact: citizen?.phone,
-          email: citizen?.email ?? undefined,
-          name: [citizen?.firstName, citizen?.lastName].filter(Boolean).join(' ') || undefined,
+      const checkout = await collectRazorpayPayment(
+        {
+          keyId: intent.keyId ?? '',
+          orderId: intent.orderId ?? '',
+          amount: payable,
+          name: 'Cybersave BBPS',
+          description: bill?.biller.name ?? 'Bill payment',
+          prefill: {
+            contact: citizen?.phone,
+            email: citizen?.email ?? undefined,
+            name: [citizen?.firstName, citizen?.lastName].filter(Boolean).join(' ') || undefined,
+          },
         },
-      });
+        { ...intent, provider: settings?.provider },
+      );
 
       return billPaymentsApi.confirmPayment(intent.id, {
-        mockCapture: false,
+        mockCapture: !canUseLiveRazorpay({ ...intent, provider: settings?.provider }),
         razorpayPaymentId: checkout.razorpay_payment_id,
         razorpayOrderId: checkout.razorpay_order_id,
         razorpaySignature: checkout.razorpay_signature,

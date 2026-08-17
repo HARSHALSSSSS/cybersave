@@ -1,3 +1,4 @@
+import './load-env';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
@@ -7,6 +8,7 @@ import helmet from 'helmet';
 
 import { AppModule } from './app.module';
 import { parseListenPort } from './config/env';
+import { defaultListenPort } from './load-env';
 import { mountAdminSpa } from './spa/admin-spa';
 
 async function bootstrap() {
@@ -15,7 +17,7 @@ async function bootstrap() {
   });
 
   const configService = app.get(ConfigService);
-  const fallbackPort = process.env.RENDER ? 10000 : 8000;
+  const fallbackPort = defaultListenPort();
   const configPort = configService.get<number>('app.port');
   const port = parseListenPort(
     process.env.PORT,

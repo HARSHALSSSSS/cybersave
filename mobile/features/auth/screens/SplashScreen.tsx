@@ -42,7 +42,7 @@ import { getBoolean, StorageKeys } from '@services/storage';
 type Props = NativeStackScreenProps<RootStackParamList, 'Splash'>;
 
 /** Hosted Render cold starts can exceed local dev bootstrap time. */
-const BOOTSTRAP_MAX_MS = USE_HOSTED_API ? 70000 : 9000;
+const BOOTSTRAP_MAX_MS = USE_HOSTED_API ? 10000 : 6000;
 
 
 

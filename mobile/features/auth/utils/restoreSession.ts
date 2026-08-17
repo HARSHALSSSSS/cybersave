@@ -14,8 +14,8 @@ import { getBoolean, getString, setBoolean, StorageKeys } from '@services/storag
 
 export type BootstrapRoute = 'Main' | 'Auth' | 'Onboarding';
 
-const AUTH_TIMEOUT_MS = USE_HOSTED_API ? 25000 : 5000;
-const HOSTED_WARMUP_MS = 45000;
+const AUTH_TIMEOUT_MS = USE_HOSTED_API ? 8000 : 5000;
+const HOSTED_WARMUP_MS = 6000;
 
 async function withHostedRetry<T>(
   action: () => Promise<T>,

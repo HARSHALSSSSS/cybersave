@@ -7,7 +7,6 @@ import {
   ServiceHubScreen,
   StateSelectScreen,
   StateServicesScreen,
-  AllStatesScreen,
   ServiceDetailScreen,
   ApplyServiceScreen,
   UploadProofsScreen,
@@ -15,6 +14,7 @@ import {
   ServicePaymentScreen,
   ApplicationSuccessScreen,
 } from '@features/services/screens';
+import { AllStatesScreen } from '@features/services/screens/AllStatesScreen';
 
 const Stack = createNativeStackNavigator<ServicesStackParamList>();
 

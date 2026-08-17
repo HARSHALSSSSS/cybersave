@@ -46,17 +46,3 @@ export function isRazorpayUserCancelled(error: unknown): boolean {
   const description = String((error as { description?: string }).description ?? '').toLowerCase();
   return code === 0 || description.includes('cancel');
 }
-
-export function shouldUseMockRazorpay(intent: {
-  provider?: string;
-  keyId?: string | null;
-  orderId?: string | null;
-}): boolean {
-  return (
-    __DEV__ ||
-    intent.provider === 'mock' ||
-    !intent.keyId ||
-    !intent.orderId ||
-    intent.keyId === 'mock_key'
-  );
-}

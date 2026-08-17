@@ -12,6 +12,7 @@ import {
 } from './providers';
 import { LanguageBootstrap } from './providers/LanguageBootstrap';
 import { ApiWarmup } from './providers/ApiWarmup';
+import { RazorpayCheckoutHost } from '@components/payments/RazorpayCheckoutHost';
 import { RootNavigator } from './navigation';
 
 const AppContent: React.FC = () => {
@@ -21,6 +22,7 @@ const AppContent: React.FC = () => {
     <LanguageBootstrap>
       <>
         <ApiWarmup />
+        <RazorpayCheckoutHost />
         <StatusBar
           barStyle={theme.isDark ? 'light-content' : 'dark-content'}
           backgroundColor="transparent"
