@@ -8,7 +8,7 @@ const rootDir = path.dirname(fileURLToPath(import.meta.url));
 
 // `/admin/` when served by the API at https://your-api.onrender.com/admin/
 // `/` when deployed as a Render Static Site at its own URL (cybersave-admin.onrender.com)
-const adminBase = process.env.VITE_ADMIN_BASE ?? '/admin/';
+const adminBase = process.env.VITE_ADMIN_BASE ?? '/';
 
 export default defineConfig({
   base: adminBase.endsWith('/') ? adminBase : `${adminBase}/`,
