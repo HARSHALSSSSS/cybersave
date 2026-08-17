@@ -1,6 +1,7 @@
 import React, { Suspense, lazy } from 'react';
 import { createBrowserRouter, Navigate } from 'react-router';
 import AdminLayout from '@/app/layouts/AdminLayout';
+import { env } from '@/app/config/env';
 import { ProtectedRoute } from '@/features/authentication';
 import ComingSoonPage from '@/features/shared/ComingSoonPage';
 
@@ -178,4 +179,4 @@ export const router = createBrowserRouter([
       },
     ],
   },
-], { basename: '/admin' });
+], { basename: env.routerBasename });
