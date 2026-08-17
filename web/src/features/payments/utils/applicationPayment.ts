@@ -1,5 +1,6 @@
 import { collectRazorpayPayment, canUseLiveRazorpay } from '@/lib/razorpayExperience';
 import { isRazorpayUserCancelled } from '@/lib/razorpay';
+import { showPaymentSuccessTick } from '@/lib/razorpayCheckoutStore';
 import { applicationsApi } from '@/services/api/applications.api';
 
 export type PaymentMethod = 'razorpay' | 'wallet';
@@ -20,13 +21,16 @@ export async function processApplicationPayment(params: {
   }
 
   const intent = await applicationsApi.createPaymentIntent(applicationId, idempotencyKey);
-  if (intent.status === 'CAPTURED') return;
+  if (intent.status === 'CAPTURED') {
+    await showPaymentSuccessTick();
+    return;
+  }
 
   const checkout = await collectRazorpayPayment(
     {
       keyId: intent.keyId ?? '',
       orderId: intent.orderId ?? '',
-      amount,
+      amount: Number(intent.amount) || amount,
       name: 'Cybersave',
       description: serviceName,
       prefill,

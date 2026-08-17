@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useLayoutEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -46,7 +46,7 @@ function SuccessTick({ amount }: { amount?: number }) {
 
 export const RazorpayCheckoutHost: React.FC = () => {
   const [, setRev] = useState(0);
-  useEffect(() => subscribeRazorpayHost(() => setRev(n => n + 1)), []);
+  useLayoutEffect(() => subscribeRazorpayHost(() => setRev(n => n + 1)), []);
 
   const request = getCheckoutRequest();
   const success = getSuccessTick();

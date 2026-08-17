@@ -10,6 +10,10 @@ import {
   type PaymentProvider,
 } from '@/integrations/payment/payment-provider.interface';
 import { RazorpayPaymentProvider } from '@/integrations/payment/razorpay-payment.provider';
+import {
+  isLiveRazorpayOrderId,
+  publicRazorpayKeyId,
+} from '@/integrations/payment/razorpay-enabled';
 import { ConfigService } from '@nestjs/config';
 
 @Injectable()
@@ -113,13 +117,13 @@ export class PaymentsService {
       return { success: true, paymentId: payment.id, status: payment.status };
     }
 
-    const providerName = this.configService.get<string>('payment.provider') ?? 'mock';
+    const liveOrder = isLiveRazorpayOrderId(payment.providerRef);
     const useMock =
-      options?.mockCapture === true ||
-      providerName === 'mock' ||
-      payment.provider === 'mock' ||
-      !payment.providerRef ||
-      payment.providerRef.startsWith('mock_');
+      !liveOrder &&
+      (options?.mockCapture === true ||
+        payment.provider === 'mock' ||
+        !payment.providerRef ||
+        payment.providerRef.startsWith('mock_'));
 
     if (!useMock) {
       if (!options?.razorpayPaymentId || !options?.razorpayOrderId || !options?.razorpaySignature) {
@@ -139,9 +143,7 @@ export class PaymentsService {
   }
 
   getCheckoutKeyId(): string {
-    const provider = this.configService.get<string>('payment.provider') ?? 'mock';
-    if (provider === 'mock') return 'mock_key';
-    return this.configService.get<string>('payment.razorpayKeyId') ?? 'mock_key';
+    return publicRazorpayKeyId(this.configService);
   }
 
   private async capturePaymentRecord(payment: {

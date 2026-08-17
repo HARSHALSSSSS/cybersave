@@ -26,6 +26,7 @@ import {
   paginationMeta,
 } from '@/common/dto/pagination.dto';
 import { PrismaService } from '@/database/database.module';
+import { hasRazorpayKeys } from '@/integrations/payment/razorpay-enabled';
 import { LocalStorageProvider } from '@/integrations/storage/local-storage.provider';
 import { StorageService } from '@/integrations/storage/storage.service';
 import { ServiceVersionsBundleService } from '@/modules/service-versions/services/service-versions-bundle.service';
@@ -1249,7 +1250,8 @@ export class ApplicationsCitizenService {
     status: ApplicationStatus,
   ) {
     const skipVerification =
-      process.env.SKIP_PAYMENT_VERIFICATION === 'true';
+      process.env.SKIP_PAYMENT_VERIFICATION === 'true' &&
+      !hasRazorpayKeys();
 
     const application = await this.prisma.application.findUnique({
       where: { id: applicationId },

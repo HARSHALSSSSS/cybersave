@@ -1,4 +1,4 @@
-import { ApplicationStatus } from '@prisma/client';
+import type { ApplicationStatus } from '@prisma/client';
 
 export interface DefaultWorkflowStepInput {
   stepKey: string;
@@ -25,14 +25,14 @@ export const DEFAULT_WORKFLOW_STEPS: DefaultWorkflowStepInput[] = [
   {
     stepKey: 'submitted',
     name: 'Submitted',
-    applicationStatus: ApplicationStatus.SUBMITTED,
+    applicationStatus: 'SUBMITTED',
     sortOrder: 0,
     citizenVisible: true,
   },
   {
     stepKey: 'under_review',
     name: 'Under Review',
-    applicationStatus: ApplicationStatus.UNDER_REVIEW,
+    applicationStatus: 'UNDER_REVIEW',
     sortOrder: 1,
     isInitial: true,
     citizenVisible: true,
@@ -40,21 +40,21 @@ export const DEFAULT_WORKFLOW_STEPS: DefaultWorkflowStepInput[] = [
   {
     stepKey: 'processing',
     name: 'Processing',
-    applicationStatus: ApplicationStatus.PROCESSING,
+    applicationStatus: 'PROCESSING',
     sortOrder: 2,
     citizenVisible: true,
   },
   {
     stepKey: 'action_required',
     name: 'Action Required',
-    applicationStatus: ApplicationStatus.ACTION_REQUIRED,
+    applicationStatus: 'ACTION_REQUIRED',
     sortOrder: 3,
     citizenVisible: true,
   },
   {
     stepKey: 'approved',
     name: 'Approved',
-    applicationStatus: ApplicationStatus.APPROVED,
+    applicationStatus: 'APPROVED',
     sortOrder: 4,
     isTerminal: true,
     citizenVisible: true,
@@ -62,7 +62,7 @@ export const DEFAULT_WORKFLOW_STEPS: DefaultWorkflowStepInput[] = [
   {
     stepKey: 'rejected',
     name: 'Rejected',
-    applicationStatus: ApplicationStatus.REJECTED,
+    applicationStatus: 'REJECTED',
     sortOrder: 5,
     isTerminal: true,
     citizenVisible: true,
@@ -70,7 +70,7 @@ export const DEFAULT_WORKFLOW_STEPS: DefaultWorkflowStepInput[] = [
   {
     stepKey: 'completed',
     name: 'Completed',
-    applicationStatus: ApplicationStatus.COMPLETED,
+    applicationStatus: 'COMPLETED',
     sortOrder: 6,
     isTerminal: true,
     citizenVisible: true,

@@ -61,9 +61,9 @@ services:
       - key: SMS_PROVIDER
         value: console
       - key: PAYMENT_PROVIDER
-        value: mock
+        value: razorpay
       - key: SKIP_PAYMENT_VERIFICATION
-        value: "true"
+        value: "false"
       - key: BBPS_PROVIDER
         value: mock
       - key: BBPS_CONVENIENCE_FEE_FLAT

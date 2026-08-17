@@ -13,7 +13,7 @@ export async function processWalletTopUp(params: {
     {
       keyId: intent.keyId,
       orderId: intent.orderId ?? '',
-      amount: params.amount,
+      amount: Number(intent.amount) || params.amount,
       name: 'Cybersave Wallet',
       description: 'Wallet recharge',
       prefill: params.prefill,

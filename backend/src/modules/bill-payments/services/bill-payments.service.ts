@@ -29,6 +29,13 @@ import {
   BBPS_PROVIDER,
   type BbpsProvider,
 } from '@/integrations/bbps/bbps-provider.interface';
+import { RazorpayPaymentProvider } from '@/integrations/payment/razorpay-payment.provider';
+import {
+  hasRazorpayKeys,
+  isLiveRazorpayOrderId,
+  publicRazorpayKeyId,
+  shouldUseRazorpayProvider,
+} from '@/integrations/payment/razorpay-enabled';
 import { BillerSyncService } from './biller-sync.service';
 
 @Injectable()
@@ -40,6 +47,7 @@ export class BillPaymentsService implements OnModuleInit {
     private readonly configService: ConfigService,
     private readonly syncService: BillerSyncService,
     @Inject(BBPS_PROVIDER) private readonly bbpsProvider: BbpsProvider,
+    private readonly razorpayProvider: RazorpayPaymentProvider,
   ) {}
 
   async onModuleInit() {
@@ -48,8 +56,10 @@ export class BillPaymentsService implements OnModuleInit {
   }
 
   getSettings() {
+    const checkoutLive = shouldUseRazorpayProvider(this.configService);
     return {
-      provider: this.bbpsProvider.name,
+      provider: checkoutLive ? 'razorpay' : this.bbpsProvider.name,
+      checkoutProvider: checkoutLive ? 'razorpay' : 'mock',
       convenienceFeeFlat: this.getConvenienceFee(),
     };
   }
@@ -209,7 +219,14 @@ export class BillPaymentsService implements OnModuleInit {
       include: { biller: true, billRequest: true },
     });
     if (existing) {
-      return this.formatBillPayment(existing, true);
+      return {
+        ...this.formatBillPayment(existing, true),
+        orderId: existing.razorpayOrderId,
+        keyId: publicRazorpayKeyId(this.configService),
+        provider: isLiveRazorpayOrderId(existing.razorpayOrderId)
+          ? 'razorpay'
+          : this.bbpsProvider.name,
+      };
     }
 
     const billRequest = await this.prisma.bbpsBillRequest.findFirst({
@@ -243,7 +260,7 @@ export class BillPaymentsService implements OnModuleInit {
     const convenienceFee = this.getConvenienceFee();
     const totalAmount = billAmount + convenienceFee;
 
-    const order = await this.bbpsProvider.createPgOrder({
+    const order = await this.createCheckoutOrder({
       amount: totalAmount,
       currency: 'INR',
       receipt: idempotencyKey.slice(0, 40),
@@ -252,6 +269,9 @@ export class BillPaymentsService implements OnModuleInit {
         citizenId,
         type: 'bbps_bill_payment',
       },
+      citizenId,
+      billRequestId,
+      idempotencyKey,
     });
 
     const payment = await this.prisma.bbpsBillPayment.create({
@@ -279,7 +299,7 @@ export class BillPaymentsService implements OnModuleInit {
       ...this.formatBillPayment(payment, true),
       orderId: order.orderId,
       keyId: order.keyId,
-      provider: this.bbpsProvider.name,
+      provider: isLiveRazorpayOrderId(order.orderId) ? 'razorpay' : this.bbpsProvider.name,
     };
   }
 
@@ -314,7 +334,22 @@ export class BillPaymentsService implements OnModuleInit {
     }
 
     let razorpayPaymentId = payment.razorpayPaymentId ?? options?.razorpayPaymentId;
-    if (!razorpayPaymentId && payment.razorpayOrderId) {
+    const liveOrder = isLiveRazorpayOrderId(payment.razorpayOrderId);
+
+    if (liveOrder) {
+      if (!options?.razorpayPaymentId || !options?.razorpayOrderId || !options?.razorpaySignature) {
+        throw new BadRequestException('Missing Razorpay payment details');
+      }
+      const valid = this.razorpayProvider.verifyCheckoutSignature(
+        options.razorpayOrderId,
+        options.razorpayPaymentId,
+        options.razorpaySignature,
+      );
+      if (!valid) {
+        throw new BadRequestException('Invalid payment signature');
+      }
+      razorpayPaymentId = options.razorpayPaymentId;
+    } else if (!razorpayPaymentId && payment.razorpayOrderId) {
       if (this.bbpsProvider.name === 'mock' || options?.mockCapture) {
         const captured = await this.bbpsProvider.captureMockPayment(
           payment.razorpayOrderId,
@@ -788,6 +823,39 @@ export class BillPaymentsService implements OnModuleInit {
   private getConvenienceFee(): number {
     const fee = Number(this.configService.get<number>('bbps.convenienceFeeFlat', 5));
     return Number.isFinite(fee) && fee >= 0 ? fee : 5;
+  }
+
+  private async createCheckoutOrder(params: {
+    amount: number;
+    currency: string;
+    receipt: string;
+    notes: Record<string, string>;
+    citizenId: string;
+    billRequestId: string;
+    idempotencyKey: string;
+  }) {
+    if (hasRazorpayKeys(this.configService)) {
+      const order = await this.razorpayProvider.createOrder({
+        applicationId: `bbps-${params.billRequestId}`,
+        citizenId: params.citizenId,
+        amount: params.amount,
+        currency: params.currency,
+        idempotencyKey: params.idempotencyKey,
+      });
+      return {
+        orderId: order.providerRef,
+        amount: params.amount,
+        currency: params.currency,
+        keyId: publicRazorpayKeyId(this.configService),
+      };
+    }
+
+    return this.bbpsProvider.createPgOrder({
+      amount: params.amount,
+      currency: params.currency,
+      receipt: params.receipt,
+      notes: params.notes,
+    });
   }
 
   private async pollUntilPaymentSettles(

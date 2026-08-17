@@ -6,57 +6,72 @@ export type CheckoutRequest = {
   reject: (error: Error) => void;
 };
 
-let checkoutRequest: CheckoutRequest | null = null;
-let successTick: { resolve: () => void } | null = null;
-const listeners = new Set<() => void>();
+type HostState = {
+  checkoutRequest: CheckoutRequest | null;
+  successTick: { resolve: () => void } | null;
+  listeners: Set<() => void>;
+};
+
+const g = globalThis as typeof globalThis & { __cybersaveRazorpayHost?: HostState };
+
+function store(): HostState {
+  if (!g.__cybersaveRazorpayHost) {
+    g.__cybersaveRazorpayHost = {
+      checkoutRequest: null,
+      successTick: null,
+      listeners: new Set(),
+    };
+  }
+  return g.__cybersaveRazorpayHost;
+}
 
 function emit() {
-  listeners.forEach(listener => listener());
+  store().listeners.forEach(listener => listener());
 }
 
 export function subscribeRazorpayHost(listener: () => void) {
-  listeners.add(listener);
-  return () => listeners.delete(listener);
+  store().listeners.add(listener);
+  return () => store().listeners.delete(listener);
 }
 
 export function getCheckoutRequest() {
-  return checkoutRequest;
+  return store().checkoutRequest;
 }
 
 export function getSuccessTick() {
-  return successTick;
+  return store().successTick;
 }
 
 export function openSimulatedRazorpayCheckout(
   params: RazorpayCheckoutParams,
 ): Promise<RazorpaySuccess> {
   return new Promise((resolve, reject) => {
-    checkoutRequest = { params, resolve, reject };
+    store().checkoutRequest = { params, resolve, reject };
     emit();
   });
 }
 
 export function completeSimulatedCheckout(result: RazorpaySuccess) {
-  checkoutRequest?.resolve(result);
-  checkoutRequest = null;
+  store().checkoutRequest?.resolve(result);
+  store().checkoutRequest = null;
   emit();
 }
 
 export function cancelSimulatedCheckout() {
-  checkoutRequest?.reject(new Error('Payment cancelled'));
-  checkoutRequest = null;
+  store().checkoutRequest?.reject(new Error('Payment cancelled'));
+  store().checkoutRequest = null;
   emit();
 }
 
 export function showPaymentSuccessTick(durationMs = 1100): Promise<void> {
   return new Promise(resolve => {
     const timer = setTimeout(() => {
-      successTick?.resolve();
+      store().successTick?.resolve();
     }, durationMs);
-    successTick = {
+    store().successTick = {
       resolve: () => {
         clearTimeout(timer);
-        successTick = null;
+        store().successTick = null;
         emit();
         resolve();
       },

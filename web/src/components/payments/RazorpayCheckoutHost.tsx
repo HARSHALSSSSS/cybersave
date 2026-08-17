@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useLayoutEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Check, CreditCard, Landmark, Smartphone, Wallet, X } from 'lucide-react';
 import {
   cancelSimulatedCheckout,
@@ -24,14 +25,16 @@ function formatAmount(amount: number) {
 
 export function RazorpayCheckoutHost() {
   const [, setTick] = useState(0);
-  useEffect(() => subscribeRazorpayHost(() => setTick(n => n + 1)), []);
+  useLayoutEffect(() => subscribeRazorpayHost(() => setTick(n => n + 1)), []);
 
   const request = getCheckoutRequest();
   const success = getSuccessTick();
 
+  if (typeof document === 'undefined') return null;
+
   if (success) {
-    return (
-      <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/55 p-4">
+    return createPortal(
+      <div className="fixed inset-0 z-[10050] flex items-center justify-center bg-slate-950/55 p-4">
         <div className="flex w-full max-w-sm flex-col items-center rounded-3xl bg-white px-8 py-12 shadow-2xl">
           <div className="flex h-24 w-24 items-center justify-center rounded-full bg-emerald-500 shadow-[0_0_0_12px_rgba(16,185,129,0.18)]">
             <Check className="h-12 w-12 text-white" strokeWidth={3} />
@@ -39,13 +42,14 @@ export function RazorpayCheckoutHost() {
           <p className="mt-6 text-xl font-bold text-slate-900">Payment Successful</p>
           <p className="mt-1 text-sm text-slate-500">Secured by Razorpay</p>
         </div>
-      </div>
+      </div>,
+      document.body,
     );
   }
 
   if (!request) return null;
 
-  return <CheckoutSheet />;
+  return createPortal(<CheckoutSheet />, document.body);
 }
 
 function CheckoutSheet() {
@@ -82,7 +86,7 @@ function CheckoutSheet() {
 
   if (done) {
     return (
-      <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/55 p-4">
+      <div className="fixed inset-0 z-[10050] flex items-center justify-center bg-slate-950/55 p-4">
         <div className="flex w-full max-w-sm flex-col items-center rounded-3xl bg-white px-8 py-12 shadow-2xl">
           <div className="flex h-24 w-24 items-center justify-center rounded-full bg-emerald-500 shadow-[0_0_0_12px_rgba(16,185,129,0.18)]">
             <Check className="h-12 w-12 text-white" strokeWidth={3} />
@@ -96,7 +100,7 @@ function CheckoutSheet() {
   }
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-end justify-center bg-slate-950/55 p-0 sm:items-center sm:p-4">
+    <div className="fixed inset-0 z-[10050] flex items-end justify-center bg-slate-950/55 p-0 sm:items-center sm:p-4">
       <div className="w-full max-w-md overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl">
         <div className="flex items-center justify-between bg-[#0B2545] px-5 py-4 text-white">
           <div>

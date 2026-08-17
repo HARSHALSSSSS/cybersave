@@ -171,6 +171,7 @@ if (hasMigrations) {
   run('npx', ['prisma', 'migrate', 'deploy']);
 } else {
   console.log('[cybersave] Syncing database schema (prisma db push)...');
+  run('npx', ['prisma', 'generate']);
   run('npx', ['prisma', 'db', 'push', '--skip-generate']);
 }
 

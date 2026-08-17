@@ -1,9 +1,12 @@
-import { Module } from '@nestjs/common';
+import { Logger, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 
 import { MockPaymentProvider } from './mock-payment.provider';
 import { PAYMENT_PROVIDER } from './payment-provider.interface';
+import { shouldUseRazorpayProvider } from './razorpay-enabled';
 import { RazorpayPaymentProvider } from './razorpay-payment.provider';
+
+const paymentLogger = new Logger('PaymentModule');
 
 @Module({
   imports: [ConfigModule],
@@ -17,8 +20,11 @@ import { RazorpayPaymentProvider } from './razorpay-payment.provider';
         mock: MockPaymentProvider,
         razorpay: RazorpayPaymentProvider,
       ) => {
-        const provider = config.get<string>('payment.provider', 'mock');
-        return provider === 'razorpay' ? razorpay : mock;
+        const useRazorpay = shouldUseRazorpayProvider(config);
+        paymentLogger.log(
+          `Active payment provider: ${useRazorpay ? 'razorpay' : 'mock'} (PAYMENT_PROVIDER=${config.get('payment.provider', 'mock')})`,
+        );
+        return useRazorpay ? razorpay : mock;
       },
       inject: [ConfigService, MockPaymentProvider, RazorpayPaymentProvider],
     },

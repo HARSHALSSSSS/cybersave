@@ -54,11 +54,11 @@ export const ConfirmPaymentScreen: React.FC<Props> = ({ navigation, route }) => 
             name: [citizen?.firstName, citizen?.lastName].filter(Boolean).join(' ') || undefined,
           },
         },
-        { ...intent, provider: settings?.provider },
+        intent,
       );
 
       return billPaymentsApi.confirmPayment(intent.id, {
-        mockCapture: !canUseLiveRazorpay({ ...intent, provider: settings?.provider }),
+        mockCapture: !canUseLiveRazorpay(intent),
         razorpayPaymentId: checkout.razorpay_payment_id,
         razorpayOrderId: checkout.razorpay_order_id,
         razorpaySignature: checkout.razorpay_signature,

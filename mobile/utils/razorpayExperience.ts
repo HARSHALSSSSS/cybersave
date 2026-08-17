@@ -1,4 +1,5 @@
 import {
+  isRazorpayUserCancelled,
   openRazorpayCheckout,
   type RazorpayCheckoutParams,
   type RazorpaySuccess,
@@ -8,19 +9,18 @@ import {
   showPaymentSuccessTick,
 } from '@utils/razorpayCheckoutStore';
 
+export function isLiveRazorpayOrderId(orderId?: string | null): boolean {
+  const order = (orderId ?? '').trim();
+  return order.startsWith('order_') && !order.includes('mock');
+}
+
 export function canUseLiveRazorpay(intent: {
   provider?: string;
   keyId?: string | null;
   orderId?: string | null;
 }): boolean {
   const key = intent.keyId ?? '';
-  const order = intent.orderId ?? '';
-  return (
-    key.startsWith('rzp_') &&
-    Boolean(order) &&
-    !order.startsWith('mock') &&
-    intent.provider !== 'mock'
-  );
+  return key.startsWith('rzp_') && isLiveRazorpayOrderId(intent.orderId);
 }
 
 export async function collectRazorpayPayment(
@@ -32,13 +32,17 @@ export async function collectRazorpayPayment(
   },
 ): Promise<RazorpaySuccess> {
   if (intent && canUseLiveRazorpay(intent)) {
-    const result = await openRazorpayCheckout({
-      ...params,
-      keyId: intent.keyId!,
-      orderId: intent.orderId!,
-    });
-    await showPaymentSuccessTick();
-    return result;
+    try {
+      const result = await openRazorpayCheckout({
+        ...params,
+        keyId: intent.keyId!,
+        orderId: intent.orderId!,
+      });
+      await showPaymentSuccessTick();
+      return result;
+    } catch (error) {
+      if (isRazorpayUserCancelled(error)) throw error;
+    }
   }
 
   return openSimulatedRazorpayCheckout({

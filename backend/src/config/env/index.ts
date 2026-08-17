@@ -73,7 +73,7 @@ export const throttlerConfig = registerAs('throttler', () => ({
 
 export const paymentConfig = registerAs('payment', () => ({
   provider: process.env.PAYMENT_PROVIDER ?? 'mock',
-  skipVerification: process.env.SKIP_PAYMENT_VERIFICATION !== 'false',
+  skipVerification: process.env.SKIP_PAYMENT_VERIFICATION === 'true',
   razorpayKeyId: process.env.RAZORPAY_KEY_ID,
   razorpayKeySecret: process.env.RAZORPAY_KEY_SECRET,
   razorpayWebhookSecret: process.env.RAZORPAY_WEBHOOK_SECRET,

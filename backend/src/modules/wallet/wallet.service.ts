@@ -19,6 +19,11 @@ import {
   type PaymentProvider,
 } from '@/integrations/payment/payment-provider.interface';
 import { RazorpayPaymentProvider } from '@/integrations/payment/razorpay-payment.provider';
+import {
+  isLiveRazorpayOrderId,
+  publicRazorpayKeyId,
+  shouldUseRazorpayProvider,
+} from '@/integrations/payment/razorpay-enabled';
 
 @Injectable()
 export class WalletService {
@@ -40,7 +45,7 @@ export class WalletService {
     return {
       balance: Number(wallet.balance),
       currency: wallet.currency,
-      provider: this.configService.get<string>('payment.provider') ?? 'mock',
+      provider: shouldUseRazorpayProvider(this.configService) ? 'razorpay' : 'mock',
       keyId: this.getPublicKeyId(),
       transactions: transactions.map(tx => ({
         id: tx.id,
@@ -113,12 +118,12 @@ export class WalletService {
       throw new BadRequestException('Top-up failed. Start a new recharge.');
     }
 
-    const providerName = this.configService.get<string>('payment.provider') ?? 'mock';
+    const liveOrder = isLiveRazorpayOrderId(topUp.razorpayOrderId);
     const useMock =
-      options?.mockCapture === true ||
-      providerName === 'mock' ||
-      !topUp.razorpayOrderId ||
-      topUp.razorpayOrderId.startsWith('mock_');
+      !liveOrder &&
+      (options?.mockCapture === true ||
+        !topUp.razorpayOrderId ||
+        topUp.razorpayOrderId.startsWith('mock_'));
 
     if (!useMock) {
       if (!options?.razorpayPaymentId || !options?.razorpayOrderId || !options?.razorpaySignature) {
@@ -259,9 +264,7 @@ export class WalletService {
   }
 
   private getPublicKeyId(): string {
-    const provider = this.configService.get<string>('payment.provider') ?? 'mock';
-    if (provider === 'mock') return 'mock_key';
-    return this.configService.get<string>('payment.razorpayKeyId') ?? 'mock_key';
+    return publicRazorpayKeyId(this.configService);
   }
 
   private formatTopUpIntent(topUp: {
@@ -279,7 +282,7 @@ export class WalletService {
       status: topUp.status,
       orderId: topUp.razorpayOrderId,
       keyId: this.getPublicKeyId(),
-      provider: this.configService.get<string>('payment.provider') ?? 'mock',
+      provider: shouldUseRazorpayProvider(this.configService) ? 'razorpay' : 'mock',
       idempotencyKey: topUp.idempotencyKey,
     };
   }
