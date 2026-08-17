@@ -96,6 +96,19 @@ export async function verifyOtp(phone: string, code: string) {
   });
 }
 
+export async function verifyFirebaseToken(idToken: string) {
+  return postAuth<AuthTokens>('/auth/firebase/verify', { idToken });
+}
+
+export async function getAuthConfig() {
+  const response = await apiClient.get('/auth/config');
+  return unwrapApiResponse<{
+    authProvider: 'firebase' | 'legacy';
+    firebaseConfigured: boolean;
+    otpLength: number;
+  }>(response);
+}
+
 export async function getMe() {
   const response = await apiClient.get('/auth/me');
   return unwrapApiResponse<CitizenProfile>(response);
@@ -115,4 +128,12 @@ export async function refreshTokens(refreshToken: string) {
   return unwrapApiResponse<AuthTokens>(response);
 }
 
-export const authApi = { requestOtp, verifyOtp, getMe, updateProfile, refreshTokens };
+export const authApi = {
+  requestOtp,
+  verifyOtp,
+  verifyFirebaseToken,
+  getAuthConfig,
+  getMe,
+  updateProfile,
+  refreshTokens,
+};

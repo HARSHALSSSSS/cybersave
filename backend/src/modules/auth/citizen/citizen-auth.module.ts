@@ -4,6 +4,7 @@ import { PassportModule } from '@nestjs/passport';
 
 import { CitizenJwtAuthGuard } from '@/common/guards/auth.guards';
 import { SmsModule } from '@/integrations/sms/sms.module';
+import { FirebaseModule } from '@/integrations/firebase/firebase.module';
 import { CitizenAuthController } from './citizen-auth.controller';
 import { CitizenAuthService } from './citizen-auth.service';
 import { CitizenJwtStrategy } from './strategies/citizen-jwt.strategy';
@@ -11,6 +12,7 @@ import { CitizenJwtStrategy } from './strategies/citizen-jwt.strategy';
 @Module({
   imports: [
     SmsModule,
+    FirebaseModule,
     PassportModule.register({ defaultStrategy: 'citizen-jwt' }),
     JwtModule.register({}),
   ],

@@ -16,7 +16,13 @@ export const appConfig = registerAs('app', () => ({
     process.env.RENDER ? 10000 : process.env.NODE_ENV === 'production' ? 3000 : 8000,
   ),
   apiPrefix: process.env.API_PREFIX ?? 'api/v1',
-  corsOrigins: (process.env.CORS_ORIGINS ?? 'http://localhost:5173,http://localhost:5174,http://localhost:8081').split(','),
+  corsOrigins: (
+    process.env.CORS_ORIGINS ??
+    'http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173,http://127.0.0.1:5174,http://localhost:8081'
+  )
+    .split(',')
+    .map(origin => origin.trim())
+    .filter(Boolean),
   swaggerEnabled: process.env.SWAGGER_ENABLED !== 'false',
   skipPaymentVerification: process.env.SKIP_PAYMENT_VERIFICATION === 'true',
 }));
@@ -84,4 +90,18 @@ export const bbpsConfig = registerAs('bbps', () => ({
   convenienceFeeFlat: parseFloat(process.env.BBPS_CONVENIENCE_FEE_FLAT ?? '5'),
   pollIntervalMs: parseInt(process.env.BBPS_POLL_INTERVAL_MS ?? '2000', 10),
   pollMaxAttempts: parseInt(process.env.BBPS_POLL_MAX_ATTEMPTS ?? '30', 10),
+}));
+
+export const firebaseConfig = registerAs('firebase', () => ({
+  projectId: process.env.FIREBASE_PROJECT_ID,
+  clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+  privateKey: process.env.FIREBASE_PRIVATE_KEY,
+  /** When true, clients should use Firebase Phone Auth instead of legacy backend OTP. */
+  authEnabled:
+    process.env.AUTH_PROVIDER === 'firebase' ||
+    Boolean(
+      process.env.FIREBASE_PROJECT_ID &&
+        process.env.FIREBASE_CLIENT_EMAIL &&
+        process.env.FIREBASE_PRIVATE_KEY,
+    ),
 }));

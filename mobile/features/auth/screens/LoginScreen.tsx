@@ -22,6 +22,7 @@ import { Input } from '@components/Input';
 import { Header } from '@components/Header';
 import { setPhone } from '@features/auth/store/authSlice';
 import { authApi } from '@services/api';
+import { isFirebaseAuthEnabled, sendFirebasePhoneOtp } from '@utils/firebasePhoneAuth';
 import { formatPhoneNumber } from '@utils/format';
 import { useTranslation } from '@/i18n';
 import Svg, { Circle, Path } from 'react-native-svg';
@@ -95,10 +96,19 @@ export const LoginScreen: React.FC<Props> = ({ navigation }) => {
   });
 
   const requestOtpMutation = useMutation({
-    mutationFn: (phone: string) => authApi.requestOtp(phone),
+    mutationFn: async (phone: string) => {
+      if (isFirebaseAuthEnabled()) {
+        await sendFirebasePhoneOtp(phone);
+        return { message: 'OTP sent', expiresAt: new Date().toISOString() };
+      }
+      return authApi.requestOtp(phone);
+    },
     onSuccess: (data, phone) => {
       dispatch(setPhone(phone));
-      navigation.navigate('OTP', { phone, devCode: data.devCode });
+      navigation.navigate('OTP', {
+        phone,
+        devCode: isFirebaseAuthEnabled() ? undefined : data.devCode,
+      });
     },
     onError: (error: unknown) => {
       const message =

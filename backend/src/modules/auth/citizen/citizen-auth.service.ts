@@ -11,6 +11,7 @@ import { createHash, randomBytes, randomInt } from 'crypto';
 import * as bcrypt from 'bcrypt';
 
 import { PrismaService } from '@/database/database.module';
+import { FirebaseAdminService } from '@/integrations/firebase/firebase-admin.service';
 import { SmsService } from '@/integrations/sms/sms.service';
 import { CitizenJwtPayload } from './strategies/citizen-jwt.strategy';
 
@@ -23,6 +24,7 @@ export class CitizenAuthService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly smsService: SmsService,
+    private readonly firebaseAdmin: FirebaseAdminService,
   ) {}
 
   async requestOtp(phone: string) {
@@ -143,6 +145,35 @@ export class CitizenAuthService {
       where: { id: challenge.id },
       data: { usedAt: new Date() },
     });
+
+    return this.signInCitizenByPhone(normalizedPhone);
+  }
+
+  async verifyFirebaseToken(idToken: string) {
+    const decoded = await this.firebaseAdmin.verifyIdToken(idToken);
+    const phone = decoded.phone_number;
+    if (!phone) {
+      throw new UnauthorizedException('Phone number not verified with Firebase');
+    }
+    return this.signInCitizenByPhone(this.normalizePhone(phone));
+  }
+
+  getAuthConfig() {
+    const firebaseConfigured = this.firebaseAdmin.isConfigured();
+    const authProvider =
+      (process.env.AUTH_PROVIDER === 'firebase' || firebaseConfigured) && firebaseConfigured
+        ? 'firebase'
+        : 'legacy';
+    return {
+      authProvider,
+      firebaseConfigured,
+      otpLength: this.configService.get<number>('citizenAuth.otpLength', 6),
+      ...this.firebaseAdmin.credentialStatus(),
+    };
+  }
+
+  private async signInCitizenByPhone(normalizedPhone: string) {
+    const phoneVariants = this.phoneLookupVariants(normalizedPhone);
 
     let citizen = await this.prisma.citizen.findFirst({
       where: { phone: { in: phoneVariants } },

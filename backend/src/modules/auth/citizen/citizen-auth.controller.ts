@@ -33,6 +33,11 @@ class VerifyOtpDto {
   code!: string;
 }
 
+class VerifyFirebaseDto {
+  @IsString()
+  idToken!: string;
+}
+
 class RefreshTokenDto {
   @IsString()
   refreshToken!: string;
@@ -59,6 +64,13 @@ export class CitizenAuthController {
   constructor(private readonly authService: CitizenAuthService) {}
 
   @Public()
+  @Get('config')
+  @ApiOperation({ summary: 'Citizen auth configuration for clients' })
+  getAuthConfig() {
+    return this.authService.getAuthConfig();
+  }
+
+  @Public()
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('otp/request')
   @HttpCode(HttpStatus.OK)
@@ -74,6 +86,15 @@ export class CitizenAuthController {
   @ApiOperation({ summary: 'Verify OTP and issue tokens' })
   verifyOtp(@Body() dto: VerifyOtpDto) {
     return this.authService.verifyOtp(dto.phone, dto.code);
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  @Post('firebase/verify')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Verify Firebase Phone Auth ID token and issue Cybersave tokens' })
+  verifyFirebase(@Body() dto: VerifyFirebaseDto) {
+    return this.authService.verifyFirebaseToken(dto.idToken);
   }
 
   @Public()

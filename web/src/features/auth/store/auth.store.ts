@@ -2,6 +2,13 @@ import { create } from 'zustand';
 import axios from 'axios';
 import { authApi, type CitizenProfile } from '@/services/api/auth.api';
 import {
+  isFirebaseAuthEnabled,
+  missingFirebaseWebConfigKeys,
+  resetFirebasePhoneSession,
+  sendFirebasePhoneOtp,
+  verifyFirebasePhoneOtp,
+} from '@/lib/firebasePhoneAuth';
+import {
   clearAuthTokens,
   getAccessToken,
   getRefreshToken,
@@ -62,13 +69,29 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   async requestOtp(phone) {
+    if (import.meta.env.VITE_USE_FIREBASE_AUTH !== 'false') {
+      const missing = missingFirebaseWebConfigKeys();
+      if (missing.length > 0) {
+        throw new Error(
+          `Firebase web is missing: ${missing.join(', ')}. Add a Web app in Firebase Console and paste appId into web/.env`,
+        );
+      }
+    }
+    if (isFirebaseAuthEnabled()) {
+      resetFirebasePhoneSession();
+      await sendFirebasePhoneOtp(phone);
+      set({ pendingPhone: phone });
+      return {};
+    }
     const result = await authApi.requestOtp(phone);
     set({ pendingPhone: phone });
     return { devCode: result.devCode };
   },
 
   async verifyOtp(phone, code) {
-    const tokens = await authApi.verifyOtp(phone, code);
+    const tokens = isFirebaseAuthEnabled()
+      ? await authApi.verifyFirebaseToken(await verifyFirebasePhoneOtp(code))
+      : await authApi.verifyOtp(phone, code);
     setAuthTokens(tokens.accessToken, tokens.refreshToken);
     const citizen = await authApi.getMe();
     set({ citizen, isAuthenticated: true, pendingPhone: null, isLoading: false });

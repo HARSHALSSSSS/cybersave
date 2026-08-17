@@ -7,6 +7,7 @@ import { BrandLockup } from '@/components/brand/BrandLockup';
 import { useAuthStore } from '@/features/auth/store/auth.store';
 import { useAuthModalStore } from '@/features/auth/store/auth-modal.store';
 import { isProfileComplete } from '@/lib/profile';
+import { firebaseAuthErrorMessage, firebasePhoneAuthHostHint, isFirebaseAuthEnabled } from '@/lib/firebasePhoneAuth';
 import { normalizePhone } from '@/lib/utils';
 
 function IndiaFlag() {
@@ -48,6 +49,12 @@ export function AuthModal() {
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!open || !isFirebaseAuthEnabled()) return;
+    const hint = firebasePhoneAuthHostHint();
+    if (hint) toast.warning(hint, { duration: 12000 });
+  }, [open]);
 
   useEffect(() => {
     const state = location.state as { authRequired?: boolean; from?: string } | null;
@@ -93,8 +100,15 @@ export function AuthModal() {
       if (result.devCode) toast.message(`Dev OTP: ${result.devCode}`);
       setStep('otp');
       setOtp('');
-    } catch {
-      toast.error('Could not send OTP. Check backend is running.');
+    } catch (error) {
+      toast.error(
+        firebaseAuthErrorMessage(
+          error,
+          isFirebaseAuthEnabled()
+            ? 'Could not send OTP. Check Firebase web config and authorized domains.'
+            : 'Could not send OTP. Check backend is running.',
+        ),
+      );
     } finally {
       setLoading(false);
     }
@@ -112,8 +126,15 @@ export function AuthModal() {
       } else {
         await finishAuthFlow();
       }
-    } catch {
-      toast.error('Invalid OTP. Try 123456 in local dev.');
+    } catch (error) {
+      toast.error(
+        firebaseAuthErrorMessage(
+          error,
+          isFirebaseAuthEnabled()
+            ? 'Invalid OTP. Check the SMS code from Firebase.'
+            : 'Invalid OTP. Try 123456 in local dev.',
+        ),
+      );
     } finally {
       setLoading(false);
     }
@@ -197,6 +218,13 @@ export function AuthModal() {
                     />
                   </div>
                 </div>
+                {isFirebaseAuthEnabled() ? (
+                  <div
+                    id="firebase-recaptcha"
+                    className="flex min-h-[78px] justify-center rounded-xl bg-white/10 p-2"
+                    aria-label="Security verification"
+                  />
+                ) : null}
                 <Button
                   type="submit"
                   variant="secondary"

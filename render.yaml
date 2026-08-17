@@ -60,6 +60,14 @@ services:
         value: "true"
       - key: SMS_PROVIDER
         value: console
+      - key: AUTH_PROVIDER
+        value: firebase
+      - key: FIREBASE_PROJECT_ID
+        sync: false
+      - key: FIREBASE_CLIENT_EMAIL
+        sync: false
+      - key: FIREBASE_PRIVATE_KEY
+        sync: false
       - key: PAYMENT_PROVIDER
         value: razorpay
       - key: SKIP_PAYMENT_VERIFICATION
@@ -68,6 +76,12 @@ services:
         value: mock
       - key: BBPS_CONVENIENCE_FEE_FLAT
         value: "5"
+      - key: RAZORPAY_KEY_ID
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
+      - key: RAZORPAY_WEBHOOK_SECRET
+        sync: false
 
   - type: web
     name: cybersave-admin
@@ -109,3 +123,15 @@ services:
         value: https://api.cybersaveonline.com/api/v1
       - key: VITE_APP_NAME
         value: Cybersave
+      - key: VITE_USE_FIREBASE_AUTH
+        value: "true"
+      - key: VITE_FIREBASE_API_KEY
+        sync: false
+      - key: VITE_FIREBASE_AUTH_DOMAIN
+        sync: false
+      - key: VITE_FIREBASE_PROJECT_ID
+        sync: false
+      - key: VITE_FIREBASE_APP_ID
+        sync: false
+      - key: VITE_FIREBASE_MESSAGING_SENDER_ID
+        sync: false

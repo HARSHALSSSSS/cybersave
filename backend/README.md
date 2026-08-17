@@ -77,29 +77,18 @@ backend/
 
 See [`../docs/PROJECT_AUDIT_AND_ARCHITECTURE.md`](../docs/PROJECT_AUDIT_AND_ARCHITECTURE.md).
 
-## Production deployment
+## Production (MilesWeb)
 
-### Docker (API + Postgres + Redis)
-
-```bash
-cd backend
-docker compose -f docker-compose.prod.yml up -d --build
-docker compose -f docker-compose.prod.yml exec backend npx ts-node --transpile-only prisma/seed.ts
-```
-
-API: `http://localhost:8000/api/v1`
-
-### Environment
-
-Copy `.env.example` to `.env` and set strong JWT secrets before any non-local deployment.
+See **[DEPLOY.md](./DEPLOY.md)**. Copy `.env.milesweb.example` → `.env` on the server.
 
 | Variable | Purpose |
 |----------|---------|
-| `DATABASE_URL` | PostgreSQL connection |
-| `CITIZEN_JWT_SECRET` / `ADMIN_JWT_SECRET` | JWT signing (min 32 chars) |
-| `CORS_ORIGINS` | Admin + mobile dev origins |
-| `PAYMENT_PROVIDER` | `mock` (dev) or `razorpay` (prod) |
-| `SKIP_PAYMENT_VERIFICATION` | `false` in production |
+| `DATABASE_URL` | Cloud PostgreSQL |
+| `CITIZEN_JWT_SECRET` / `ADMIN_JWT_SECRET` | JWT signing (32+ chars) |
+| `CORS_ORIGINS` | Live web + admin URLs |
+| `STORAGE_PUBLIC_BASE_URL` | `https://api.cybersaveonline.com/api/v1/storage/local` |
+| `FIREBASE_*` | Firebase phone OTP |
+| `RAZORPAY_*` | Razorpay payments |
 
 ### Tests
 

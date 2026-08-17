@@ -25,7 +25,12 @@ function formatAmount(amount: number) {
 
 export function RazorpayCheckoutHost() {
   const [, setTick] = useState(0);
-  useLayoutEffect(() => subscribeRazorpayHost(() => setTick(n => n + 1)), []);
+  useLayoutEffect(() => {
+    const unsubscribe = subscribeRazorpayHost(() => setTick(n => n + 1));
+    return () => {
+      unsubscribe();
+    };
+  }, []);
 
   const request = getCheckoutRequest();
   const success = getSuccessTick();
@@ -72,6 +77,7 @@ function CheckoutSheet() {
   if (!request || !params) return null;
 
   async function pay() {
+    if (!params) return;
     setPaying(true);
     await new Promise(r => setTimeout(r, 700));
     setPaying(false);

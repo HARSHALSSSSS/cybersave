@@ -22,6 +22,12 @@ import { loginSuccess } from '@features/auth/store/authSlice';
 import { markOnboardingComplete } from '@features/auth/utils/restoreSession';
 import { authApi, setAuthTokens } from '@services/api';
 import { maskPhoneNumber } from '@utils/format';
+import {
+  clearPendingFirebaseConfirmation,
+  isFirebaseAuthEnabled,
+  sendFirebasePhoneOtp,
+  verifyFirebasePhoneOtp,
+} from '@utils/firebasePhoneAuth';
 import { resetToMain } from '@utils/navigation';
 import { useTranslation } from '@/i18n';
 import Svg, { Path } from 'react-native-svg';
@@ -58,7 +64,14 @@ export const OTPScreen: React.FC<Props> = ({ navigation, route }) => {
   }, [timer]);
 
   const resendMutation = useMutation({
-    mutationFn: () => authApi.requestOtp(phone),
+    mutationFn: async () => {
+      if (isFirebaseAuthEnabled()) {
+        clearPendingFirebaseConfirmation();
+        await sendFirebasePhoneOtp(phone);
+        return;
+      }
+      return authApi.requestOtp(phone);
+    },
     onSuccess: () => {
       setTimer(OTP_RESEND_SECONDS);
       setError(null);
@@ -70,7 +83,9 @@ export const OTPScreen: React.FC<Props> = ({ navigation, route }) => {
 
   const verifyMutation = useMutation({
     mutationFn: async (code: string) => {
-      const tokens = await authApi.verifyOtp(phone, code);
+      const tokens = isFirebaseAuthEnabled()
+        ? await authApi.verifyFirebaseToken(await verifyFirebasePhoneOtp(code))
+        : await authApi.verifyOtp(phone, code);
       setAuthTokens(tokens.accessToken, tokens.refreshToken);
       const citizen = await authApi.getMe();
       return { tokens, citizen };
@@ -251,8 +266,12 @@ export const OTPScreen: React.FC<Props> = ({ navigation, route }) => {
           <Text style={styles.description}>
             {t.auth.otpHint}{' '}
             <Text style={styles.phoneHighlight}>{maskPhoneNumber(phone)}</Text>
-            {' · '}
-            <Text style={styles.phoneHighlight}>{devCode ?? DEV_OTP_HINT}</Text>
+            {!isFirebaseAuthEnabled() && devCode ? (
+              <>
+                {' · '}
+                <Text style={styles.phoneHighlight}>{devCode ?? DEV_OTP_HINT}</Text>
+              </>
+            ) : null}
           </Text>
 
           <View style={styles.otpRow}>

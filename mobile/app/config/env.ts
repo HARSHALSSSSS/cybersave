@@ -8,7 +8,7 @@ export const HOSTED_API_BASE_URL =
  * Dev (Metro): local backend — same catalog as web (`localhost:8000`).
  * Release APK / current hosted connect: production API.
  */
-export const USE_HOSTED_API = true;
+export const USE_HOSTED_API = false;
 
 /**
  * If auto-detect fails on your phone, set your PC's Wi‑Fi IP here (e.g. '192.168.1.42').

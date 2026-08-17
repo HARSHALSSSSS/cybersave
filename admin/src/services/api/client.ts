@@ -40,8 +40,8 @@ apiClient.interceptors.response.use(
     if (status === 401 && !isPublicAuth) {
       localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
       localStorage.removeItem('cybersave_admin_refresh_token');
-      if (!window.location.pathname.startsWith('/login')) {
-        window.location.href = '/login';
+      if (!window.location.pathname.startsWith(env.loginPath)) {
+        window.location.href = env.loginPath;
       }
     }
     return Promise.reject(error);

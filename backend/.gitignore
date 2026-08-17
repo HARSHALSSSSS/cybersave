@@ -2,6 +2,12 @@ node_modules
 dist
 /storage
 .env
+.env.local
 *.log
 coverage
 .turbo
+dist.zip
+*.zip
+firebase-adminsdk.json
+firebase-service-account.json
+*-firebase-adminsdk-*.json
