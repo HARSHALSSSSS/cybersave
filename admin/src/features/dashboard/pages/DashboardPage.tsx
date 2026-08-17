@@ -2,6 +2,10 @@ import { useQuery } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import { Skeleton } from '@/components/ui';
 import { StatCard } from '@/components/data-display/stat-card';
+import type { AdminProfile } from '@/features/authentication/services/auth.service';
+import { getMe } from '@/features/authentication/services/auth.service';
+import { fullName } from '@/services/api/adapters';
+import { getGreeting } from '@/utils/greeting';
 import { getDashboardKpis } from '../services/dashboard.service';
 import { RevenueChart } from '../components/RevenueChart';
 import { ApplicationTrendsChart } from '../components/ApplicationTrendsChart';
@@ -10,9 +14,20 @@ import { CollectionsSummary } from '../components/CollectionsSummary';
 import { OperatorLogs } from '../components/OperatorLogs';
 import { RecentApplicationsTable } from '../components/RecentApplicationsTable';
 
-const TODAY = dayjs('2026-08-03');
+const TODAY = dayjs();
+
+function getGreetingName(user: AdminProfile | null | undefined): string {
+  if (!user) return 'Admin';
+  const name = fullName(user.firstName, user.lastName, '');
+  if (name) return name;
+  return user.email.split('@')[0] || 'Admin';
+}
 
 export function DashboardPage() {
+  const { data: profile } = useQuery({
+    queryKey: ['admin', 'me'],
+    queryFn: getMe,
+  });
   const { data: kpis, isLoading } = useQuery({
     queryKey: ['dashboard', 'kpis'],
     queryFn: getDashboardKpis,
@@ -24,7 +39,7 @@ export function DashboardPage() {
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl leading-8 font-bold tracking-tight text-foreground">
-            Good Morning, Rajesh
+            {getGreeting()}, {getGreetingName(profile)}
           </h1>
           <p className="text-sm leading-5 text-muted-foreground">
             Here's what's happening across your service centres today.

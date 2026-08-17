@@ -17,7 +17,8 @@ export type LucideIconName =
   | 'Settings'
   | 'Receipt'
   | 'Image'
-  | 'Globe';
+  | 'Globe'
+  | 'Landmark';
 
 export interface NavItem {
   path: string;
@@ -33,8 +34,8 @@ export const navItems: NavItem[] = [
   { path: '/dashboard', label: 'Dashboard', icon: 'LayoutDashboard', end: true },
   { path: '/users', label: 'User Management', icon: 'Users' },
   { path: '/applications', label: 'Applications', icon: 'FileText' },
-  { path: '/manual-apply', label: 'Manual Apply', icon: 'Globe' },
   { path: '/services', label: 'Services', icon: 'Layers' },
+  { path: '/schemes', label: 'Schemes', icon: 'Landmark' },
   { path: '/home-banners', label: 'Home Banners', icon: 'Image' },
   { path: '/operators', label: 'Operators', icon: 'UserCog' },
   { path: '/transactions', label: 'Transactions', icon: 'ArrowLeftRight' },

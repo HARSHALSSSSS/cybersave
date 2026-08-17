@@ -418,7 +418,10 @@ export class MockBbpsProvider implements BbpsProvider {
     }
 
     stored.pollCount += 1;
-    if (stored.status === 'processing' && stored.pollCount >= 2) {
+    if (
+      stored.status === 'processing' &&
+      (stored.pollCount >= 1 || Date.now() - stored.createdAt > 400)
+    ) {
       stored.status = 'success';
       stored.references = {
         bbps_reference: `BBPS${Date.now().toString().slice(-10)}`,

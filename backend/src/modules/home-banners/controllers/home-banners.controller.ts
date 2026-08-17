@@ -20,7 +20,7 @@ export class HomeBannersController {
 
   @Public()
   @Get()
-  @ApiOperation({ summary: 'List active promotional banners for mobile home' })
+    @ApiOperation({ summary: 'List active promotional banners for citizen web and mobile' })
   list(
     @Query() query: ListBannersQuery,
     @Headers('accept-language') acceptLanguage?: string,

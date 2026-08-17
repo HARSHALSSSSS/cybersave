@@ -11,31 +11,36 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useQuery } from '@tanstack/react-query';
 import { ServicesStackParamList } from '@/types/navigation';
-import { FEATURED_STATES } from '@constants/featuredStates';
-import { SERVICE_FILTERS, ServiceFilter } from '@constants/index';
+import { FEATURED_STATES, STATE_PREVIEW_COUNT } from '@constants/featuredStates';
 import { useTheme } from '@app/providers/ThemeProvider';
 import { SearchBar } from '@components/SearchBar';
 import {
+  CategoryBrowseCard,
   FilterChips,
-  ServiceGridCard,
   ServiceHubHeader,
 } from '@features/services/components';
 import {
-  filterCatalogByChip,
-  filterCatalogBySearch,
+  filterFlattenedServices,
+  flattenCatalog,
+  formatServiceFee,
   getCatalogIconStyle,
+  popularCatalogServices,
 } from '@features/services/utils/catalogHelpers';
+import { navigateToSubServiceFromStack } from '@features/services/utils/navigateToService';
 import { servicesApi, servicesQueryKeys } from '@services/api';
 import { useTranslation } from '@/i18n';
 import { getScrollBottomPadding } from '@utils/layout';
 
 type Props = NativeStackScreenProps<ServicesStackParamList, 'ServicesMain'>;
 
+const ALL_FILTER = 'all';
+const POPULAR_FILTER = 'popular';
+
 export const AllServicesScreen: React.FC<Props> = ({ navigation }) => {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
-  const { t } = useTranslation();
-  const [activeFilter, setActiveFilter] = useState<ServiceFilter>('All');
+  const { t, format } = useTranslation();
+  const [activeFilter, setActiveFilter] = useState(ALL_FILTER);
   const [searchQuery, setSearchQuery] = useState('');
 
   const { data: catalog = [], isLoading, isError, refetch } = useQuery({
@@ -44,10 +49,29 @@ export const AllServicesScreen: React.FC<Props> = ({ navigation }) => {
     staleTime: 1000 * 60 * 10,
   });
 
-  const services = useMemo(() => {
-    const byChip = filterCatalogByChip(catalog, activeFilter);
-    return filterCatalogBySearch(byChip, searchQuery);
-  }, [activeFilter, catalog, searchQuery]);
+  const filterChips = useMemo(
+    () => [
+      { id: ALL_FILTER, label: t.common.all },
+      { id: POPULAR_FILTER, label: t.home.popular },
+      ...catalog.map(item => ({ id: item.id, label: item.name })),
+    ],
+    [catalog, t.common.all, t.home.popular],
+  );
+
+  const flattened = useMemo(() => flattenCatalog(catalog), [catalog]);
+
+  const filteredServices = useMemo(() => {
+    let items =
+      activeFilter === ALL_FILTER
+        ? flattened
+        : activeFilter === POPULAR_FILTER
+          ? popularCatalogServices(catalog)
+          : flattenCatalog(catalog.filter(item => item.id === activeFilter));
+    return filterFlattenedServices(items, searchQuery);
+  }, [activeFilter, catalog, flattened, searchQuery]);
+
+  const browsingHome = !searchQuery.trim() && activeFilter === ALL_FILTER;
+  const previewStates = FEATURED_STATES.slice(0, STATE_PREVIEW_COUNT);
 
   const styles = useMemo(
     () =>
@@ -68,13 +92,65 @@ export const AllServicesScreen: React.FC<Props> = ({ navigation }) => {
           paddingHorizontal: theme.spacing['2xl'],
           marginBottom: theme.spacing.md,
         },
-        grid: {
-          flexDirection: 'row',
-          flexWrap: 'wrap',
+        section: {
           paddingHorizontal: theme.spacing['2xl'],
-          gap: theme.spacing.md,
-          paddingBottom: getScrollBottomPadding(insets),
+          marginBottom: theme.spacing['2xl'],
         },
+        sectionHeader: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: theme.spacing.md,
+        },
+        sectionTitle: {
+          ...theme.typography.headingSmall,
+          color: theme.colors.textPrimary,
+        },
+        sectionSubtitle: {
+          ...theme.typography.bodySmall,
+          color: theme.colors.textSecondary,
+          marginTop: 2,
+        },
+        viewAll: {
+          ...theme.typography.labelMedium,
+          color: theme.colors.primary,
+          fontWeight: '700',
+        },
+        statesRow: {
+          gap: theme.spacing.md,
+          paddingRight: theme.spacing['2xl'],
+        },
+        stateCard: {
+          width: 168,
+          borderRadius: theme.radius.xl,
+          borderWidth: 1,
+          borderColor: theme.colors.border,
+          padding: theme.spacing.lg,
+        },
+        stateCode: {
+          width: 40,
+          height: 40,
+          borderRadius: theme.radius.lg,
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: theme.spacing.sm,
+        },
+        stateCodeText: {
+          ...theme.typography.labelSmall,
+          color: theme.colors.textInverse,
+          fontWeight: '800',
+        },
+        stateName: {
+          ...theme.typography.bodyLarge,
+          color: theme.colors.textPrimary,
+          fontWeight: '700',
+        },
+        statePortal: {
+          ...theme.typography.caption,
+          color: theme.colors.textSecondary,
+          marginTop: 2,
+        },
+        categoryList: { gap: theme.spacing.md },
         center: {
           padding: theme.spacing['3xl'],
           alignItems: 'center',
@@ -84,74 +160,64 @@ export const AllServicesScreen: React.FC<Props> = ({ navigation }) => {
           color: theme.colors.textSecondary,
           textAlign: 'center',
         },
-        statesTitle: {
-          ...theme.typography.labelMedium,
+        resultCount: {
+          ...theme.typography.bodySmall,
           color: theme.colors.textSecondary,
           paddingHorizontal: theme.spacing['2xl'],
-          marginBottom: theme.spacing.sm,
-          textTransform: 'uppercase',
-        },
-        statesRow: {
-          paddingHorizontal: theme.spacing['2xl'],
-          marginBottom: theme.spacing.lg,
-          gap: theme.spacing.sm,
-        },
-        stateChip: {
-          paddingHorizontal: theme.spacing.md,
-          paddingVertical: theme.spacing.sm,
-          borderRadius: theme.radius.full,
-          borderWidth: 1,
-          borderColor: theme.colors.border,
-          marginRight: theme.spacing.sm,
-          backgroundColor: theme.colors.surface,
+          marginBottom: theme.spacing.md,
         },
       }),
-    [theme, insets],
+    [theme],
   );
 
-  const handleServicePress = useCallback(
+  const openCategory = useCallback(
     (categoryId: string) => {
       navigation.navigate('ServiceHub', { categoryId });
     },
     [navigation],
   );
 
+  const openSubService = useCallback(
+    (categoryId: string, sub: (typeof flattened)[number]['sub']) => {
+      navigateToSubServiceFromStack(navigation, categoryId, sub);
+    },
+    [navigation],
+  );
+
+  const activeChipLabel =
+    filterChips.find(chip => chip.id === activeFilter)?.label ?? t.common.all;
+
   return (
     <View style={styles.container}>
-      <ServiceHubHeader title={t.services.allServices} />
+      <ServiceHubHeader
+        title={t.services.allServices}
+        subtitle={t.services.browseSubtitle}
+      />
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={{ paddingBottom: getScrollBottomPadding(insets) }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}>
         <View style={styles.searchWrap}>
           <SearchBar
-            placeholder={t.home.search}
+            placeholder={t.services.searchPlaceholder}
             value={searchQuery}
             onChangeText={setSearchQuery}
             returnKeyType="search"
           />
         </View>
 
-        <FilterChips
-          filters={SERVICE_FILTERS}
-          active={activeFilter}
-          onChange={setActiveFilter}
-        />
-
-        <Text style={styles.statesTitle}>Browse by state</Text>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.statesRow}>
-          {FEATURED_STATES.map(state => (
-            <Pressable
-              key={state.code}
-              style={styles.stateChip}
-              onPress={() =>
-                navigation.navigate('StateServices', { stateCode: state.code })
-              }>
-              <Text style={theme.typography.labelSmall}>{state.name}</Text>
-            </Pressable>
-          ))}
-        </ScrollView>
+        {filterChips.length > 0 ? (
+          <FilterChips
+            filters={filterChips.map(chip => chip.label)}
+            active={activeChipLabel}
+            onChange={label => {
+              const match = filterChips.find(chip => chip.label === label);
+              setActiveFilter(match?.id ?? ALL_FILTER);
+            }}
+          />
+        ) : null}
 
         {isLoading ? (
           <View style={styles.center}>
@@ -161,36 +227,111 @@ export const AllServicesScreen: React.FC<Props> = ({ navigation }) => {
           <View style={styles.center}>
             <Text style={styles.message}>
               {t.services.loadError}{' '}
-              <Text
-                style={{ color: theme.colors.primary }}
-                onPress={() => refetch()}>
+              <Text style={{ color: theme.colors.primary }} onPress={() => refetch()}>
                 {t.common.retry}
               </Text>
             </Text>
           </View>
-        ) : services.length === 0 ? (
-          <View style={styles.center}>
-            <Text style={styles.message}>
-              {searchQuery.trim()
-                ? t.services.noSearchResults
-                : t.services.noServicesAvailable}
-            </Text>
-          </View>
+        ) : browsingHome ? (
+          <>
+            <View>
+              <View style={[styles.sectionHeader, { paddingHorizontal: theme.spacing['2xl'] }]}>
+                <View style={{ flex: 1, paddingRight: theme.spacing.md }}>
+                  <Text style={styles.sectionTitle}>{t.services.browseByState}</Text>
+                  <Text style={styles.sectionSubtitle}>{t.services.browseByStateHint}</Text>
+                </View>
+                <Pressable onPress={() => navigation.navigate('AllStates')}>
+                  <Text style={styles.viewAll}>{t.home.viewAll}</Text>
+                </Pressable>
+              </View>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={[
+                  styles.statesRow,
+                  { paddingHorizontal: theme.spacing['2xl'] },
+                ]}>
+                {previewStates.map(state => (
+                  <Pressable
+                    key={state.code}
+                    style={[styles.stateCard, { backgroundColor: state.bg }]}
+                    onPress={() =>
+                      navigation.navigate('StateServices', { stateCode: state.code })
+                    }>
+                    <View style={[styles.stateCode, { backgroundColor: state.color }]}>
+                      <Text style={styles.stateCodeText}>{state.code}</Text>
+                    </View>
+                    <Text style={styles.stateName}>{state.name}</Text>
+                    <Text style={styles.statePortal} numberOfLines={1}>
+                      {state.portal}
+                    </Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </View>
+
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <View>
+                  <Text style={styles.sectionTitle}>{t.services.browseByCategory}</Text>
+                  <Text style={styles.sectionSubtitle}>{t.services.browseByCategoryHint}</Text>
+                </View>
+              </View>
+              {catalog.length === 0 ? (
+                <Text style={styles.message}>{t.services.noServicesAvailable}</Text>
+              ) : (
+                <View style={styles.categoryList}>
+                  {catalog.map((service, index) => {
+                    const iconStyle = getCatalogIconStyle(service.slug, index);
+                    return (
+                      <CategoryBrowseCard
+                        key={service.id}
+                        title={service.name}
+                        description={service.description}
+                        meta={format(t.services.serviceCount, {
+                          count: service.subServices.length,
+                        })}
+                        icon={iconStyle.icon}
+                        iconColor={iconStyle.iconColor}
+                        iconBg={iconStyle.iconBg}
+                        onPress={() => openCategory(service.id)}
+                      />
+                    );
+                  })}
+                </View>
+              )}
+            </View>
+          </>
         ) : (
-          <View style={styles.grid}>
-            {services.map((service, index) => {
-              const iconStyle = getCatalogIconStyle(service.slug, index);
-              return (
-                <ServiceGridCard
-                  key={service.id}
-                  label={service.name}
-                  icon={iconStyle.icon}
-                  iconColor={iconStyle.iconColor}
-                  iconBg={iconStyle.iconBg}
-                  onPress={() => handleServicePress(service.id)}
-                />
-              );
-            })}
+          <View style={styles.section}>
+            <Text style={styles.resultCount}>
+              {format(t.services.resultsCount, { count: filteredServices.length })}
+            </Text>
+            {filteredServices.length === 0 ? (
+              <Text style={styles.message}>
+                {searchQuery.trim()
+                  ? t.services.noSearchResults
+                  : t.services.noServicesAvailable}
+              </Text>
+            ) : (
+              <View style={styles.categoryList}>
+                {filteredServices.map(({ main, sub }, index) => {
+                  const iconStyle = getCatalogIconStyle(main.slug, index);
+                  return (
+                    <CategoryBrowseCard
+                      key={sub.id}
+                      title={sub.displayName}
+                      description={sub.shortDescription ?? sub.description ?? main.name}
+                      meta={formatServiceFee(sub.baseFee, sub.currency)}
+                      icon={iconStyle.icon}
+                      iconColor={iconStyle.iconColor}
+                      iconBg={iconStyle.iconBg}
+                      onPress={() => openSubService(main.id, sub)}
+                    />
+                  );
+                })}
+              </View>
+            )}
           </View>
         )}
       </ScrollView>

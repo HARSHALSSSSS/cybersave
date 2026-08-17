@@ -8,6 +8,10 @@
 const { spawnSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+
+// MilesWeb / cPanel have no env UI — load backend/.env before Prisma boot.
+require('dotenv').config({ path: path.join(process.cwd(), '.env') });
+
 const { ensureProductionEnv } = require('./ensure-env');
 
 function run(command, args) {
@@ -27,6 +31,31 @@ function countMainServices() {
     const { PrismaClient } = require('@prisma/client');
     const prisma = new PrismaClient();
     prisma.mainService.count()
+      .then(async (n) => {
+        console.log(String(n));
+        await prisma.$disconnect();
+      })
+      .catch(async (e) => {
+        console.error(e.message || e);
+        try { await prisma.$disconnect(); } catch {}
+        process.exit(2);
+      });
+  `;
+  const result = spawnSync(process.execPath, ['-e', script], {
+    encoding: 'utf8',
+    env: process.env,
+  });
+  if (result.status !== 0) {
+    throw new Error((result.stderr || result.stdout || 'count failed').toString());
+  }
+  return Number((result.stdout || '0').trim()) || 0;
+}
+
+function countGovernmentSchemes() {
+  const script = `
+    const { PrismaClient } = require('@prisma/client');
+    const prisma = new PrismaClient();
+    prisma.governmentScheme.count()
       .then(async (n) => {
         console.log(String(n));
         await prisma.$disconnect();
@@ -81,7 +110,19 @@ if (autoSeed) {
       run('npx', ['ts-node', '--transpile-only', 'prisma/seed.ts']);
       console.log('[cybersave] Seed complete.');
     } else {
-      console.log(`[cybersave] Database already has data (${count} categories) — skip seed.`);
+      console.log(`[cybersave] Database already has data (${count} categories) — skip full seed.`);
+      try {
+        const schemeCount = countGovernmentSchemes();
+        if (schemeCount === 0) {
+          console.log('[cybersave] No government schemes — seeding schemes...');
+          run('npx', ['ts-node', '--transpile-only', 'prisma/seed-schemes.ts']);
+          console.log('[cybersave] Scheme seed complete.');
+        } else {
+          console.log(`[cybersave] Government schemes already present (${schemeCount}).`);
+        }
+      } catch (schemeError) {
+        console.error('[cybersave] Scheme seed skipped:', schemeError.message || schemeError);
+      }
     }
   } catch (error) {
     console.error('[cybersave] Auto-seed skipped:', error.message || error);

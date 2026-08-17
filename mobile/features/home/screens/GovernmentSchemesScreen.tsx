@@ -1,235 +1,155 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   FlatList,
+  Linking,
   ListRenderItem,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import LinearGradient from 'react-native-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useQuery } from '@tanstack/react-query';
-import { HomeStackParamList, MainTabParamList } from '@/types/navigation';
-import { useTranslation, getSchemeFilters, getGovernmentSchemes } from '@/i18n';
+import { SchemeStackParamList } from '@/types/navigation';
+import { useTranslation } from '@/i18n';
 import { useTheme } from '@app/providers/ThemeProvider';
 import { SearchBar } from '@components/SearchBar';
-import { BackIcon } from '@components/icons';
-import { FilterChips } from '@features/services/components';
+import { FilterChips, ServiceHubHeader } from '@features/services/components';
 import { PromotionalBannerCard } from '@features/home/components/PromotionalBannerCard';
-import { navigateToSubServiceById } from '@features/services/utils/navigateToService';
 import {
   homeBannersApi,
   homeBannersQueryKeys,
-  servicesApi,
-  servicesQueryKeys,
-  type MainServiceCatalogItem,
+  schemesApi,
+  schemesQueryKeys,
+  type GovernmentScheme,
 } from '@services/api';
 import { getScrollBottomPadding } from '@utils/layout';
 
-type Scheme = ReturnType<typeof getGovernmentSchemes>[number];
-type SchemeFilter = 'All' | 'Agriculture' | 'Education' | 'Health' | 'Housing';
-
-const SCHEME_SERVICE_HINTS: Record<string, string[]> = {
-  '1': ['income-certificate', 'certificate'],
-  '2': ['income-certificate', 'welfare', 'social'],
-  '3': ['pm-awas', 'pmay', 'awas'],
-  '4': ['pm-kisan', 'kisan'],
-  '5': ['scholarship'],
-};
-
-function findCatalogService(
-  catalogue: MainServiceCatalogItem[],
-  hints: string[],
-): { categoryId: string; optionId: string } | null {
-  for (const main of catalogue) {
-    for (const sub of main.subServices) {
-      if (
-        hints.some(
-          hint => sub.slug.includes(hint) || main.slug.includes(hint),
-        )
-      ) {
-        return { categoryId: main.id, optionId: sub.id };
-      }
-    }
-  }
-  return null;
-}
-
-type Props = NativeStackScreenProps<HomeStackParamList, 'GovernmentSchemes'>;
+type Props = NativeStackScreenProps<SchemeStackParamList, 'GovernmentSchemes'>;
 
 export const GovernmentSchemesScreen: React.FC<Props> = ({ navigation }) => {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
-  const schemes = useMemo(() => getGovernmentSchemes(t), [t]);
-  const schemeFilters = useMemo(() => getSchemeFilters(t), [t]);
-  const filterKeyMap = useMemo(() => {
-    const keys: SchemeFilter[] = [
-      'All',
-      'Agriculture',
-      'Education',
-      'Health',
-      'Housing',
-    ];
-    return Object.fromEntries(
-      schemeFilters.map((label, index) => [label, keys[index]]),
-    ) as Record<string, SchemeFilter>;
-  }, [schemeFilters]);
-  const [activeFilter, setActiveFilter] = useState(schemeFilters[0]);
+  const [activeFilter, setActiveFilter] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
 
-  useEffect(() => {
-    setActiveFilter(schemeFilters[0]);
-  }, [schemeFilters]);
+  const {
+    data: schemes = [],
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
+    queryKey: schemesQueryKeys.list(),
+    queryFn: () => schemesApi.getGovernmentSchemes(),
+  });
 
   const { data: schemeBanners = [] } = useQuery({
     queryKey: homeBannersQueryKeys.list('schemes'),
     queryFn: () => homeBannersApi.getHomeBanners('schemes'),
+    staleTime: 1000 * 60 * 10,
   });
 
-  const { data: homeBanners = [] } = useQuery({
-    queryKey: homeBannersQueryKeys.list('home'),
-    queryFn: () => homeBannersApi.getHomeBanners('home'),
-  });
-
-  const { data: catalogue = [] } = useQuery({
-    queryKey: servicesQueryKeys.catalog(),
-    queryFn: servicesApi.getServicesCatalog,
-  });
-
-  const linkedBanners = schemeBanners.length > 0 ? schemeBanners : homeBanners;
-
-  const goToServiceDetail = useCallback(
-    (categoryId: string, optionId: string) => {
-      navigateToSubServiceById(
-        navigation.getParent<BottomTabNavigationProp<MainTabParamList>>(),
-        catalogue,
-        categoryId,
-        optionId,
-      );
-    },
-    [catalogue, navigation],
+  const filters = useMemo(
+    () => ['All', ...Array.from(new Set(schemes.map(scheme => scheme.category)))],
+    [schemes],
   );
 
   const filtered = useMemo(() => {
-    let results = [...schemes];
-    const filterKey = filterKeyMap[activeFilter] ?? 'All';
-    if (filterKey !== 'All') {
-      results = results.filter(s => s.category === filterKey);
-    }
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      results = results.filter(
-        s =>
-          s.title.toLowerCase().includes(q) ||
-          s.ministry.toLowerCase().includes(q) ||
-          s.description.toLowerCase().includes(q),
-      );
-    }
-    return results;
-  }, [activeFilter, filterKeyMap, schemes, searchQuery]);
+    const query = searchQuery.trim().toLowerCase();
+    return schemes.filter(scheme => {
+      const matchesCategory = activeFilter === 'All' || scheme.category === activeFilter;
+      const hay = `${scheme.name} ${scheme.ministry ?? ''} ${scheme.description} ${scheme.whoCanApply}`.toLowerCase();
+      return matchesCategory && (!query || hay.includes(query));
+    });
+  }, [activeFilter, schemes, searchQuery]);
 
   const styles = useMemo(
     () =>
       StyleSheet.create({
-        container: {
-          flex: 1,
-          backgroundColor: theme.colors.backgroundSecondary,
-        },
-        headerGradient: {
-          paddingTop: insets.top + theme.spacing.md,
-          paddingHorizontal: theme.spacing['2xl'],
-          paddingBottom: theme.spacing['3xl'],
-          borderBottomLeftRadius: theme.radius['3xl'],
-          borderBottomRightRadius: theme.radius['3xl'],
-        },
-        headerRow: {
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: 44,
-        },
-        backButton: {
-          position: 'absolute',
-          left: 0,
-          width: 40,
-          height: 40,
-          borderRadius: theme.radius.full,
-          backgroundColor: theme.colors.surface,
-          alignItems: 'center',
-          justifyContent: 'center',
-        },
-        headerTitle: {
-          ...theme.typography.headingMedium,
-          color: theme.colors.textInverse,
-        },
+        container: { flex: 1, backgroundColor: theme.colors.backgroundSecondary },
         content: {
           flex: 1,
           backgroundColor: theme.colors.surface,
           borderTopLeftRadius: theme.radius['3xl'],
           borderTopRightRadius: theme.radius['3xl'],
           marginTop: -theme.spacing.lg,
+          paddingHorizontal: theme.spacing['2xl'],
           paddingTop: theme.spacing['2xl'],
         },
-        searchWrapper: {
-          paddingHorizontal: theme.spacing['2xl'],
-          marginBottom: theme.spacing.lg,
-        },
-        bannerSection: {
-          paddingHorizontal: theme.spacing['2xl'],
-          gap: theme.spacing.md,
-          marginBottom: theme.spacing.lg,
-        },
-        sectionLabel: {
-          ...theme.typography.labelLarge,
-          color: theme.colors.textPrimary,
-          paddingHorizontal: theme.spacing['2xl'],
-          marginBottom: theme.spacing.sm,
-        },
+        searchWrapper: { marginBottom: theme.spacing.md },
+        bannerBlock: { marginBottom: theme.spacing.lg, gap: theme.spacing.md },
         schemeCard: {
           backgroundColor: theme.colors.surface,
-          borderRadius: theme.radius['2xl'],
-          padding: theme.spacing['2xl'],
-          marginHorizontal: theme.spacing['2xl'],
+          borderRadius: theme.radius.xl,
+          padding: theme.spacing.xl,
           marginBottom: theme.spacing.md,
           borderWidth: 1,
           borderColor: theme.colors.border,
-          ...theme.shadows.card,
+        },
+        categoryBadge: {
+          alignSelf: 'flex-start',
+          backgroundColor: '#EFF6FF',
+          borderRadius: theme.radius.full,
+          paddingHorizontal: theme.spacing.md,
+          paddingVertical: 3,
+          marginBottom: theme.spacing.sm,
+        },
+        categoryBadgeText: {
+          ...theme.typography.caption,
+          color: theme.colors.primary,
+          fontWeight: '800',
+          letterSpacing: 0.4,
+          textTransform: 'uppercase',
         },
         schemeTitle: {
-          ...theme.typography.labelLarge,
+          ...theme.typography.headingSmall,
           color: theme.colors.textPrimary,
         },
         schemeMinistry: {
           ...theme.typography.bodySmall,
           color: theme.colors.textSecondary,
           marginTop: theme.spacing.xxs,
+          fontWeight: '600',
         },
         schemeDesc: {
           ...theme.typography.bodySmall,
           color: theme.colors.textSecondary,
           marginTop: theme.spacing.md,
           lineHeight: 20,
+          backgroundColor: theme.colors.backgroundSecondary,
+          borderRadius: theme.radius.md,
+          padding: theme.spacing.md,
         },
-        schemeFooter: {
+        whoCan: {
+          ...theme.typography.bodySmall,
+          color: theme.colors.textSecondary,
+          marginTop: theme.spacing.md,
+        },
+        whoCanLabel: {
+          fontWeight: '700',
+          color: theme.colors.textPrimary,
+        },
+        actions: {
           flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: theme.spacing.sm,
           marginTop: theme.spacing.lg,
         },
-        eligibilityBadge: {
-          paddingHorizontal: theme.spacing.md,
-          paddingVertical: theme.spacing.xs,
-          borderRadius: theme.radius.full,
+        detailsButton: {
+          paddingHorizontal: theme.spacing.lg,
+          paddingVertical: theme.spacing.sm,
+          borderRadius: theme.radius.md,
+          borderWidth: 1,
+          borderColor: theme.colors.primary,
+          backgroundColor: theme.colors.surface,
         },
-        eligibilityText: {
-          ...theme.typography.caption,
-          letterSpacing: 0,
-          fontSize: 11,
-          fontWeight: '600',
+        detailsText: {
+          ...theme.typography.labelSmall,
+          color: theme.colors.primary,
+          fontWeight: '700',
         },
         applyButton: {
           paddingHorizontal: theme.spacing.lg,
@@ -240,128 +160,65 @@ export const GovernmentSchemesScreen: React.FC<Props> = ({ navigation }) => {
         applyText: {
           ...theme.typography.labelSmall,
           color: theme.colors.textInverse,
+          fontWeight: '700',
         },
         listContent: {
           paddingBottom: getScrollBottomPadding(insets),
+        },
+        empty: {
+          ...theme.typography.bodyMedium,
+          color: theme.colors.textSecondary,
+          textAlign: 'center',
+          marginTop: theme.spacing['3xl'],
+        },
+        retry: {
+          color: theme.colors.primary,
+          fontWeight: '700',
         },
       }),
     [theme, insets],
   );
 
-  const handleSchemePress = useCallback(
-    (schemeId: string) => {
-      const hints = SCHEME_SERVICE_HINTS[schemeId];
-      if (hints?.length && catalogue.length > 0) {
-        const match = findCatalogService(catalogue, hints);
-        if (match) {
-          goToServiceDetail(match.categoryId, match.optionId);
-          return;
-        }
-      }
-      navigation
-        .getParent<BottomTabNavigationProp<MainTabParamList>>()
-        ?.navigate('ServicesTab', { screen: 'ServicesMain' });
-    },
-    [catalogue, goToServiceDetail, navigation],
-  );
+  const openPortal = useCallback((url: string) => {
+    void Linking.openURL(url);
+  }, []);
 
-  const renderItem: ListRenderItem<Scheme> = useCallback(
+  const renderItem: ListRenderItem<GovernmentScheme> = useCallback(
     ({ item }) => (
       <View style={styles.schemeCard}>
-        <Text style={styles.schemeTitle}>{item.title}</Text>
-        <Text style={styles.schemeMinistry}>{item.ministry}</Text>
+        <View style={styles.categoryBadge}>
+          <Text style={styles.categoryBadgeText}>{item.category}</Text>
+        </View>
+        <Text style={styles.schemeTitle}>{item.name}</Text>
+        {item.ministry ? <Text style={styles.schemeMinistry}>{item.ministry}</Text> : null}
         <Text style={styles.schemeDesc}>{item.description}</Text>
-        <View style={styles.schemeFooter}>
-          <View
-            style={[
-              styles.eligibilityBadge,
-              { backgroundColor: item.eligibilityBg },
-            ]}>
-            <Text
-              style={[styles.eligibilityText, { color: item.eligibilityColor }]}>
-              {item.eligibility}
-            </Text>
-          </View>
+        <Text style={styles.whoCan}>
+          <Text style={styles.whoCanLabel}>{t.home.whoCanApply}: </Text>
+          {item.whoCanApply}
+        </Text>
+        <View style={styles.actions}>
           <Pressable
-            style={styles.applyButton}
-            accessibilityRole="button"
-            onPress={() => handleSchemePress(item.id)}>
-            <Text style={styles.applyText}>{t.common.learnMore}</Text>
+            style={styles.detailsButton}
+            onPress={() => navigation.navigate('SchemeDetail', { schemeId: item.slug })}>
+            <Text style={styles.detailsText}>{t.home.viewDetails}</Text>
+          </Pressable>
+          <Pressable style={styles.applyButton} onPress={() => openPortal(item.officialPortalUrl)}>
+            <Text style={styles.applyText}>{item.officialPortalLabel || t.home.officialPortal}</Text>
           </Pressable>
         </View>
       </View>
     ),
-    [handleSchemePress, styles, t.common.learnMore],
-  );
-
-  const listHeader = useMemo(
-    () => (
-      <>
-        <View style={styles.searchWrapper}>
-          <SearchBar
-            placeholder={t.home.searchSchemes}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            returnKeyType="search"
-          />
-        </View>
-
-        <FilterChips
-          filters={schemeFilters}
-          active={activeFilter}
-          onChange={setActiveFilter}
-        />
-
-        {linkedBanners.length > 0 ? (
-          <>
-            <Text style={styles.sectionLabel}>{t.home.featuredSchemes}</Text>
-            <View style={styles.bannerSection}>
-              {linkedBanners.map(banner => (
-                <PromotionalBannerCard
-                  key={banner.id}
-                  banner={banner}
-                  onPress={() =>
-                    goToServiceDetail(banner.mainServiceId, banner.subServiceId)
-                  }
-                />
-              ))}
-            </View>
-            <Text style={styles.sectionLabel}>{t.home.allSchemes}</Text>
-          </>
-        ) : null}
-      </>
-    ),
-    [
-      activeFilter,
-      goToServiceDetail,
-      linkedBanners,
-      schemeFilters,
-      searchQuery,
-      styles.bannerSection,
-      styles.searchWrapper,
-      styles.sectionLabel,
-      t.home.allSchemes,
-      t.home.featuredSchemes,
-      t.home.searchSchemes,
-    ],
+    [navigation, openPortal, styles, t.home.officialPortal, t.home.viewDetails, t.home.whoCanApply],
   );
 
   return (
     <View style={styles.container}>
-      <LinearGradient
-        colors={[theme.colors.gradientHeaderStart, theme.colors.gradientHeaderEnd]}
-        style={styles.headerGradient}>
-        <View style={styles.headerRow}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t.accessibility.goBack}
-            onPress={() => navigation.goBack()}
-            style={styles.backButton}>
-            <BackIcon color={theme.colors.textPrimary} />
-          </Pressable>
-          <Text style={styles.headerTitle}>{t.home.schemesTitle}</Text>
-        </View>
-      </LinearGradient>
+      <ServiceHubHeader
+        title={t.home.schemesTitle}
+        subtitle={t.home.schemesSubtitle}
+        showBack
+        onBack={() => navigation.goBack()}
+      />
 
       <View style={styles.content}>
         <FlatList
@@ -369,23 +226,56 @@ export const GovernmentSchemesScreen: React.FC<Props> = ({ navigation }) => {
           data={filtered}
           renderItem={renderItem}
           keyExtractor={item => item.id}
-          ListHeaderComponent={listHeader}
+          ListHeaderComponent={
+            <>
+              {schemeBanners.length > 0 ? (
+                <View style={styles.bannerBlock}>
+                  {schemeBanners.map(banner => (
+                    <PromotionalBannerCard key={banner.id} banner={banner} onPress={() => undefined} />
+                  ))}
+                </View>
+              ) : null}
+              <View style={styles.searchWrapper}>
+                <SearchBar
+                  placeholder={t.home.searchSchemes}
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  returnKeyType="search"
+                />
+              </View>
+              {filters.length > 1 ? (
+                <FilterChips
+                  filters={filters.map(item => (item === 'All' ? t.home.filterAll : item))}
+                  active={activeFilter === 'All' ? t.home.filterAll : activeFilter}
+                  onChange={label =>
+                    setActiveFilter(label === t.home.filterAll ? 'All' : label)
+                  }
+                />
+              ) : null}
+            </>
+          }
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
-            <Text
-              style={{
-                ...theme.typography.bodyMedium,
-                color: theme.colors.textSecondary,
-                textAlign: 'center',
-                marginTop: theme.spacing['3xl'],
-                paddingHorizontal: theme.spacing['2xl'],
-              }}>
-              {searchQuery.trim()
-                ? t.services.noSearchResults
-                : t.home.noServices}
-            </Text>
+            isLoading ? (
+              <ActivityIndicator color={theme.colors.primary} style={{ marginTop: theme.spacing['3xl'] }} />
+            ) : (
+              <Text style={styles.empty}>
+                {isError ? (
+                  <>
+                    {t.home.schemesLoadError}{' '}
+                    <Text style={styles.retry} onPress={() => void refetch()}>
+                      {t.common.retry}
+                    </Text>
+                  </>
+                ) : searchQuery.trim() ? (
+                  t.services.noSearchResults
+                ) : (
+                  t.home.noSchemes
+                )}
+              </Text>
+            )
           }
         />
       </View>

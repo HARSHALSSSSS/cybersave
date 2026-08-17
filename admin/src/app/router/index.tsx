@@ -67,12 +67,12 @@ const PublishStepPageLazy = lazy(() =>
   import('@/features/services').then(m => ({ default: m.PublishStepPage })),
 );
 
-const ManualApplySessionsPageLazy = lazy(() =>
-  import('@/features/manual-apply').then(m => ({ default: m.ManualApplySessionsPage })),
-);
-
 const HomeBannersPageLazy = lazy(() =>
   import('@/features/home-banners').then(m => ({ default: m.HomeBannersPage })),
+);
+
+const GovernmentSchemesPageLazy = lazy(() =>
+  import('@/features/schemes').then(m => ({ default: m.SchemesPage })),
 );
 
 const OperatorsPageLazy = lazy(() =>
@@ -145,7 +145,6 @@ export const router = createBrowserRouter([
       { path: 'users/:citizenId', element: <RouteSuspense><CitizenDetailPageLazy /></RouteSuspense> },
       { path: 'applications', element: <RouteSuspense><ApplicationsPageLazy /></RouteSuspense> },
       { path: 'applications/:applicationId', element: <RouteSuspense><ApplicationDetailPageLazy /></RouteSuspense> },
-      { path: 'manual-apply', element: <RouteSuspense><ManualApplySessionsPageLazy /></RouteSuspense> },
       { path: 'services', element: <RouteSuspense><ServicesPageLazy /></RouteSuspense> },
       { path: 'services/new', element: <RouteSuspense><MainServiceStepPageLazy /></RouteSuspense> },
       { path: 'services/new/:mainServiceId/sub-services', element: <RouteSuspense><SubServiceStepPageLazy /></RouteSuspense> },
@@ -156,6 +155,7 @@ export const router = createBrowserRouter([
       { path: 'services/new/:mainServiceId/sub/:subServiceId/fulfillment', element: <RouteSuspense><FulfillmentStepPageLazy /></RouteSuspense> },
       { path: 'services/new/:mainServiceId/sub/:subServiceId/workflow', element: <RouteSuspense><WorkflowStepPageLazy /></RouteSuspense> },
       { path: 'services/new/:mainServiceId/sub/:subServiceId/publish', element: <RouteSuspense><PublishStepPageLazy /></RouteSuspense> },
+      { path: 'schemes', element: <RouteSuspense><GovernmentSchemesPageLazy /></RouteSuspense> },
       { path: 'home-banners', element: <RouteSuspense><HomeBannersPageLazy /></RouteSuspense> },
       { path: 'operators', element: <RouteSuspense><OperatorsPageLazy /></RouteSuspense> },
       { path: 'operators/:operatorId', element: <RouteSuspense><OperatorDetailPageLazy /></RouteSuspense> },
@@ -178,4 +178,4 @@ export const router = createBrowserRouter([
       },
     ],
   },
-]);
+], { basename: '/admin' });

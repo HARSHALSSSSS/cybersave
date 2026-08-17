@@ -17,6 +17,7 @@ import {
   Receipt,
   Image,
   Globe,
+  Landmark,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -42,6 +43,7 @@ const iconMap: Record<LucideIconName, LucideIcon> = {
   Receipt,
   Image,
   Globe,
+  Landmark,
 };
 
 export interface SidebarProps {

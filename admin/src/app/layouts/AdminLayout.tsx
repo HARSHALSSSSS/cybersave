@@ -61,6 +61,13 @@ function getHeaderConfig(pathname: string) {
       onAction: undefined,
     };
   }
+  if (pathname.startsWith('/schemes')) {
+    return {
+      searchPlaceholder: 'Search schemes by name, ministry...',
+      actionLabel: undefined,
+      onAction: undefined,
+    };
+  }
   if (pathname.startsWith('/services')) {
     return {
       searchPlaceholder: 'Search services by name, ID, category...',

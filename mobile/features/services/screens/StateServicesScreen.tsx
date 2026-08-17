@@ -11,7 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useQuery } from '@tanstack/react-query';
 import { ServicesStackParamList } from '@/types/navigation';
-import { FEATURED_STATES, getFeaturedState, getStateName } from '@constants/featuredStates';
+import { FEATURED_STATES, STATE_PREVIEW_COUNT, getFeaturedState, getStateName } from '@constants/featuredStates';
 import { useTheme } from '@app/providers/ThemeProvider';
 import { SearchBar } from '@components/SearchBar';
 import { ServiceHubHeader, ServiceOptionCard } from '@features/services/components';
@@ -35,7 +35,7 @@ export const StateServicesScreen: React.FC<Props> = ({ navigation, route }) => {
   const state = getFeaturedState(code);
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
-  const { t } = useTranslation();
+  const { t, format } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
 
   const { data: catalog = [], isLoading, isError, refetch } = useQuery({
@@ -50,6 +50,15 @@ export const StateServicesScreen: React.FC<Props> = ({ navigation, route }) => {
     () => filterStateServices(items, searchQuery),
     [items, searchQuery],
   );
+  const stateSpecific = useMemo(
+    () => filtered.filter(item => item.scope === 'state'),
+    [filtered],
+  );
+  const national = useMemo(
+    () => filtered.filter(item => item.scope === 'national'),
+    [filtered],
+  );
+  const otherStates = FEATURED_STATES.filter(s => s.code !== code).slice(0, STATE_PREVIEW_COUNT);
 
   const styles = useMemo(
     () =>
@@ -152,7 +161,9 @@ export const StateServicesScreen: React.FC<Props> = ({ navigation, route }) => {
   return (
     <View style={styles.container}>
       <ServiceHubHeader
-        title={`${state?.name ?? getStateName(code)} Services`}
+        title={format(t.services.stateServicesTitle, {
+          state: state?.name ?? getStateName(code),
+        })}
         showBack
         onBack={() => navigation.goBack()}
       />
@@ -169,22 +180,40 @@ export const StateServicesScreen: React.FC<Props> = ({ navigation, route }) => {
           </Text>
           <View style={styles.countPill}>
             <Text style={theme.typography.labelSmall}>
-              {items.length} services available
+              {format(t.services.stateServicesCount, { count: items.length })}
             </Text>
           </View>
         </View>
 
         <View style={styles.searchWrap}>
           <SearchBar
-            placeholder={`Search ${state?.name ?? code} services…`}
+            placeholder={format(t.services.searchStateServices, {
+              state: state?.name ?? code,
+            })}
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
         </View>
 
-        <Text style={styles.sectionTitle}>Other states</Text>
+        <View
+          style={{
+            paddingHorizontal: theme.spacing['2xl'],
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: theme.spacing.sm,
+          }}>
+          <Text style={[styles.sectionTitle, { paddingHorizontal: 0, marginBottom: 0 }]}>
+            {t.services.otherStates}
+          </Text>
+          <Pressable onPress={() => navigation.navigate('AllStates')}>
+            <Text style={{ ...theme.typography.labelMedium, color: theme.colors.primary, fontWeight: '700' }}>
+              {t.home.viewAll}
+            </Text>
+          </Pressable>
+        </View>
         <View style={styles.statesRow}>
-          {FEATURED_STATES.filter(s => s.code !== code).map(s => (
+          {otherStates.map(s => (
             <Pressable
               key={s.code}
               style={styles.stateChip}
@@ -194,8 +223,6 @@ export const StateServicesScreen: React.FC<Props> = ({ navigation, route }) => {
             </Pressable>
           ))}
         </View>
-
-        <Text style={styles.sectionTitle}>{t.common.availableServices}</Text>
 
         {isLoading && !catalog.length ? (
           <View style={styles.center}>
@@ -209,30 +236,59 @@ export const StateServicesScreen: React.FC<Props> = ({ navigation, route }) => {
           </View>
         ) : filtered.length === 0 ? (
           <View style={styles.center}>
-            <Text style={theme.typography.bodyMedium}>
-              No state-specific services found.
-            </Text>
+            <Text style={theme.typography.bodyMedium}>{t.services.noStateServices}</Text>
           </View>
         ) : (
-          <View style={styles.grid}>
-            {filtered.map(({ main, sub }) => {
-              const iconStyle = getCatalogIconStyle(main.slug, 0);
-              return (
-                <ServiceOptionCard
-                  key={sub.id}
-                  title={sub.displayName || sub.name}
-                  description={sub.shortDescription || sub.description || main.name}
-                  fee={formatServiceFee(sub.baseFee, sub.currency)}
-                  processingDays={sub.processingTime ?? undefined}
-                  icon={iconStyle.icon}
-                  iconColor={iconStyle.iconColor}
-                  iconBg={iconStyle.iconBg}
-                  variant="certificate"
-                  onPress={() => handleServicePress(main.id, sub)}
-                />
-              );
-            })}
-          </View>
+          <>
+            {stateSpecific.length > 0 ? (
+              <>
+                <Text style={styles.sectionTitle}>{t.services.stateSpecificServices}</Text>
+                <View style={styles.grid}>
+                  {stateSpecific.map(({ main, sub }) => {
+                    const iconStyle = getCatalogIconStyle(main.slug, 0);
+                    return (
+                      <ServiceOptionCard
+                        key={sub.id}
+                        title={sub.displayName || sub.name}
+                        description={sub.shortDescription || sub.description || main.name}
+                        fee={formatServiceFee(sub.baseFee, sub.currency)}
+                        processingDays={sub.processingTime ?? undefined}
+                        icon={iconStyle.icon}
+                        iconColor={iconStyle.iconColor}
+                        iconBg={iconStyle.iconBg}
+                        variant="certificate"
+                        onPress={() => handleServicePress(main.id, sub)}
+                      />
+                    );
+                  })}
+                </View>
+              </>
+            ) : null}
+            {national.length > 0 ? (
+              <>
+                <Text style={styles.sectionTitle}>{t.services.allIndiaServices}</Text>
+                <View style={styles.grid}>
+                  {national.map(({ main, sub }) => {
+                    const iconStyle = getCatalogIconStyle(main.slug, 0);
+                    return (
+                      <ServiceOptionCard
+                        key={sub.id}
+                        title={sub.displayName || sub.name}
+                        description={sub.shortDescription || sub.description || main.name}
+                        fee={formatServiceFee(sub.baseFee, sub.currency)}
+                        processingDays={sub.processingTime ?? undefined}
+                        icon={iconStyle.icon}
+                        iconColor={iconStyle.iconColor}
+                        iconBg={iconStyle.iconBg}
+                        variant="certificate"
+                        onPress={() => handleServicePress(main.id, sub)}
+                      />
+                    );
+                  })}
+                </View>
+              </>
+            ) : null}
+          </>
         )}
       </ScrollView>
     </View>

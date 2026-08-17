@@ -2,6 +2,11 @@ import { NavigatorScreenParams } from '@react-navigation/native';
 
 export type ThemeMode = 'light' | 'dark' | 'system';
 
+export type SchemeStackParamList = {
+  GovernmentSchemes: undefined;
+  SchemeDetail: { schemeId: string };
+};
+
 export type RootStackParamList = {
   Splash: undefined;
   Onboarding: undefined;
@@ -34,8 +39,8 @@ export type BillPaymentsStackParamList = {
 export type HomeStackParamList = {
   HomeMain: undefined;
   Notifications: undefined;
-  GovernmentSchemes: undefined;
-} & BillPaymentsStackParamList;
+} & SchemeStackParamList &
+  BillPaymentsStackParamList;
 
 export type WalletStackParamList = {
   WalletMain: undefined;
@@ -72,6 +77,7 @@ export type ProfileStackParamList = {
 export type ServicesStackParamList = {
   ServicesMain: undefined;
   ServiceSearch: { initialQuery?: string } | undefined;
+  AllStates: undefined;
   StateServices: { stateCode: string };
   ServiceHub: { categoryId: string };
   StateSelect: { categoryId: string; optionId: string; optionName: string };

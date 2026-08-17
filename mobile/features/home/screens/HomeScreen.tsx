@@ -24,6 +24,8 @@ import {
   homeBannersApi,
   homeBannersQueryKeys,
   mapApplicationListItem,
+  schemesApi,
+  schemesQueryKeys,
   servicesApi,
   servicesQueryKeys,
 } from '@services/api';
@@ -50,7 +52,7 @@ import {
   getProfileInitials,
   isProfileComplete,
 } from '@utils/profile';
-import { FEATURED_STATES } from '@constants/featuredStates';
+import { FEATURED_STATES, STATE_PREVIEW_COUNT } from '@constants/featuredStates';
 import { useUnreadNotificationCount } from '@/hooks/useUnreadNotificationCount';
 import { getScrollBottomPadding } from '@utils/layout';
 
@@ -146,6 +148,23 @@ export const HomeScreen: React.FC<Props> = ({ navigation }) => {
     placeholderData: previous => previous ?? [],
   });
 
+  const { data: schemeBanners = [] } = useQuery({
+    queryKey: homeBannersQueryKeys.list('schemes'),
+    queryFn: () => homeBannersApi.getHomeBanners('schemes'),
+    staleTime: 1000 * 60 * 10,
+    placeholderData: previous => previous ?? [],
+  });
+
+  const {
+    data: homeSchemes = [],
+    isError: schemesError,
+    refetch: refetchSchemes,
+  } = useQuery({
+    queryKey: schemesQueryKeys.list(),
+    queryFn: () => schemesApi.getGovernmentSchemes(),
+    staleTime: 1000 * 60 * 10,
+  });
+
   const unreadNotifications = useUnreadNotificationCount(Boolean(citizen));
 
   const goToStateServices = useCallback(
@@ -159,6 +178,12 @@ export const HomeScreen: React.FC<Props> = ({ navigation }) => {
     },
     [navigation],
   );
+
+  const goToAllStates = useCallback(() => {
+    navigation
+      .getParent<BottomTabNavigationProp<MainTabParamList>>()
+      ?.navigate('ServicesTab', { screen: 'AllStates' });
+  }, [navigation]);
   const profileComplete = isProfileComplete(citizen);
   const greetingName = getProfileGreetingName(citizen);
   const avatarInitials = getProfileInitials(citizen);
@@ -399,6 +424,9 @@ export const HomeScreen: React.FC<Props> = ({ navigation }) => {
           gap: theme.spacing.md,
           paddingRight: theme.spacing['2xl'],
         },
+        schemeBannerSlide: {
+          width: Math.min(screenWidth - theme.spacing['2xl'] * 2 - 24, 340),
+        },
         categoryCard: {
           width: categoryCardWidth,
           minHeight: 128,
@@ -594,8 +622,8 @@ export const HomeScreen: React.FC<Props> = ({ navigation }) => {
         {/* State services */}
         <View>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>State Services</Text>
-            <Pressable accessibilityRole="button" onPress={goToServices}>
+            <Text style={styles.sectionTitle}>{t.home.stateServices}</Text>
+            <Pressable accessibilityRole="button" onPress={goToAllStates}>
               <Text style={styles.viewAll}>{t.home.viewAll}</Text>
             </Pressable>
           </View>
@@ -603,7 +631,7 @@ export const HomeScreen: React.FC<Props> = ({ navigation }) => {
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.categoriesScroll}>
-            {FEATURED_STATES.map(state => (
+            {FEATURED_STATES.slice(0, STATE_PREVIEW_COUNT).map(state => (
               <Pressable
                 key={state.code}
                 style={styles.categoryCard}
@@ -684,6 +712,73 @@ export const HomeScreen: React.FC<Props> = ({ navigation }) => {
               </Pressable>
             ))}
           </ScrollView>
+        </View>
+
+        {/* Government schemes */}
+        <View>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>{t.home.schemesTitle}</Text>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => navigation.navigate('GovernmentSchemes')}>
+              <Text style={styles.viewAll}>{t.home.viewAll}</Text>
+            </Pressable>
+          </View>
+          {schemeBanners.length > 0 ? (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={[styles.categoriesScroll, { marginBottom: theme.spacing.md }]}>
+              {schemeBanners.map(banner => (
+                <View key={banner.id} style={styles.schemeBannerSlide}>
+                  <PromotionalBannerCard
+                    banner={banner}
+                    onPress={() =>
+                      goToServiceDetail(banner.mainServiceId, banner.subServiceId)
+                    }
+                  />
+                </View>
+              ))}
+            </ScrollView>
+          ) : null}
+          <View style={styles.servicesGroup}>
+            {schemesError ? (
+              <Pressable style={styles.serviceCard} onPress={() => void refetchSchemes()}>
+                <Text style={styles.serviceDesc}>
+                  {t.home.schemesLoadError} {t.common.retry}
+                </Text>
+              </Pressable>
+            ) : homeSchemes.length === 0 ? (
+              <Pressable
+                style={styles.serviceCard}
+                onPress={() => navigation.navigate('GovernmentSchemes')}>
+                <Text style={styles.serviceDesc}>{t.home.noSchemes}</Text>
+              </Pressable>
+            ) : (
+              homeSchemes.slice(0, 3).map((scheme, index) => {
+                const isLast = index === Math.min(homeSchemes.length, 3) - 1;
+                return (
+                  <Pressable
+                    key={scheme.id}
+                    style={[styles.serviceCard, !isLast && styles.serviceCardBorder]}
+                    accessibilityRole="button"
+                    onPress={() =>
+                      navigation.navigate('SchemeDetail', { schemeId: scheme.slug })
+                    }>
+                    <View style={styles.serviceContent}>
+                      <Text style={styles.serviceTitle} numberOfLines={1}>
+                        {scheme.name}
+                      </Text>
+                      <Text style={styles.serviceDesc} numberOfLines={2}>
+                        {scheme.whoCanApply}
+                      </Text>
+                    </View>
+                    <ChevronRightIcon color={theme.colors.textSecondary} />
+                  </Pressable>
+                );
+              })
+            )}
+          </View>
         </View>
 
         {/* Popular Services */}

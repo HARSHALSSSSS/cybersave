@@ -8,6 +8,7 @@ import {
 } from '../src/common/constants/permissions.constants';
 import { seedGovernmentServices } from './seed-services';
 import { seedHomeBanners } from './seed-banners';
+import { seedGovernmentSchemes } from './seed-schemes';
 
 const prisma = new PrismaClient();
 
@@ -169,6 +170,7 @@ async function main() {
 
   await seedGovernmentServices(prisma);
   await seedHomeBanners(prisma);
+  await seedGovernmentSchemes(prisma);
 }
 
 main()

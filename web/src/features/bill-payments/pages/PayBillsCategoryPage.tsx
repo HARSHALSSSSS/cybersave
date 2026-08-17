@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronRight } from 'lucide-react';
@@ -11,10 +11,22 @@ export function PayBillsCategoryPage() {
   const { category = '' } = useParams();
   const decoded = decodeURIComponent(category);
   const [search, setSearch] = useState('');
+  const [debounced, setDebounced] = useState('');
 
-  const { data, isLoading } = useQuery({
-    queryKey: billPaymentsQueryKeys.billers(decoded, search),
-    queryFn: () => billPaymentsApi.listBillers({ category: decoded, search: search || undefined, limit: 50 }),
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(search.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: billPaymentsQueryKeys.billers(decoded, debounced),
+    queryFn: () =>
+      billPaymentsApi.listBillers({
+        category: decoded,
+        search: debounced || undefined,
+        limit: 50,
+      }),
+    retry: 1,
   });
 
   const billers = data?.data ?? [];
@@ -33,10 +45,20 @@ export function PayBillsCategoryPage() {
       </h1>
       <SearchBar value={search} onChange={setSearch} placeholder="Search billers…" className="max-w-xl" />
 
-      {isLoading ? (
+      {isError ? (
+        <EmptyState
+          title="Could not load billers"
+          description="Check your connection and try again."
+          action={
+            <button type="button" className="text-sm font-semibold text-[#2563EB]" onClick={() => refetch()}>
+              Retry
+            </button>
+          }
+        />
+      ) : isLoading ? (
         <LoadingBlock className="h-64" />
       ) : billers.length === 0 ? (
-        <EmptyState title="No billers found" />
+        <EmptyState title="No billers found" description="Try a different search or another category." />
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
           {billers.map(b => (
@@ -47,7 +69,9 @@ export function PayBillsCategoryPage() {
             >
               <div>
                 <p className="font-semibold text-[#0A1629]">{b.name}</p>
-                {b.state ? <p className="text-xs text-[#64748B]">{b.state}</p> : null}
+                {b.aliasName || b.state ? (
+                  <p className="text-xs text-[#64748B]">{b.aliasName ?? b.state}</p>
+                ) : null}
               </div>
               <ChevronRight className="h-5 w-5 text-[#94A3B8]" />
             </Link>

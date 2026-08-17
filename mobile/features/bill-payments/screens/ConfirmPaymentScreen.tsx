@@ -16,7 +16,7 @@ import {
   openRazorpayCheckout,
 } from '@features/bill-payments/utils/razorpayCheckout';
 import { BillPaymentsStackParamList } from '@/types/navigation';
-import { billPaymentsApi, billPaymentsQueryKeys } from '@services/api/billPayments.api';
+import { billPaymentsApi, billPaymentsQueryKeys, getBillPaymentsErrorMessage } from '@services/api/billPayments.api';
 
 type Props = NativeStackScreenProps<BillPaymentsStackParamList, 'ConfirmPayment'>;
 
@@ -37,11 +37,12 @@ export const ConfirmPaymentScreen: React.FC<Props> = ({ navigation, route }) => 
     retry: 2,
   });
 
-  const convenienceFee = settings?.convenienceFeeFlat ?? 5;
+  const convenienceFee = Number(settings?.convenienceFeeFlat ?? 5) || 5;
 
   const payMutation = useMutation({
     mutationFn: async () => {
       const intent = await billPaymentsApi.createPaymentIntent(requestId);
+      const payable = Number(intent.totalAmount || billAmount + convenienceFee);
       const useMock =
         __DEV__ ||
         settings?.provider === 'mock' ||
@@ -57,7 +58,7 @@ export const ConfirmPaymentScreen: React.FC<Props> = ({ navigation, route }) => 
       const checkout = await openRazorpayCheckout({
         keyId: intent.keyId!,
         orderId: intent.orderId!,
-        amount: intent.totalAmount,
+        amount: payable,
         name: 'Cybersave BBPS',
         description: bill?.biller.name ?? 'Bill payment',
         prefill: {
@@ -79,9 +80,10 @@ export const ConfirmPaymentScreen: React.FC<Props> = ({ navigation, route }) => 
     },
     onError: (error: unknown) => {
       if (isRazorpayUserCancelled(error)) return;
-      const message =
-        error instanceof Error ? error.message : t.bills.couldNotComplete;
-      Alert.alert(t.bills.paymentFailed, message);
+      Alert.alert(
+        t.bills.paymentFailed,
+        getBillPaymentsErrorMessage(error, t.bills.couldNotComplete),
+      );
     },
   });
 
@@ -114,8 +116,10 @@ export const ConfirmPaymentScreen: React.FC<Props> = ({ navigation, route }) => 
     [theme],
   );
 
-  const billAmount = bill?.billAmount ?? 0;
+  const billAmount = Number(bill?.billAmount ?? 0);
   const total = billAmount + convenienceFee;
+
+  const canPay = billAmount > 0 && !payMutation.isPending;
 
   return (
     <BillPaymentScreenLayout
@@ -159,6 +163,7 @@ export const ConfirmPaymentScreen: React.FC<Props> = ({ navigation, route }) => 
             <Button
               title={t.bills.payNow.toUpperCase()}
               loading={payMutation.isPending}
+              disabled={!canPay}
               onPress={() => payMutation.mutate()}
             />
           </View>

@@ -22,6 +22,7 @@ import { CitizenAuthModule } from './modules/auth/citizen/citizen-auth.module';
 import { CitizenProfileModule } from './modules/citizen-profile/citizen-profile.module';
 import { BillPaymentsModule } from './modules/bill-payments/bill-payments.module';
 import { HomeBannersModule } from './modules/home-banners/home-banners.module';
+import { GovernmentSchemesModule } from './modules/government-schemes/government-schemes.module';
 import { ManualApplyModule } from './modules/manual-apply/manual-apply.module';
 import { CitizensModule } from './modules/citizens/citizens.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
@@ -67,6 +68,7 @@ import { SupportTicketsModule } from './modules/support-tickets/support-tickets.
     CitizenProfileModule,
     BillPaymentsModule,
     HomeBannersModule,
+    GovernmentSchemesModule,
     ManualApplyModule,
   ],
   providers: [

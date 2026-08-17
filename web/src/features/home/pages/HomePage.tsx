@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import {
   ArrowRight,
@@ -23,12 +23,14 @@ import {
   profileQueryKeys,
   servicesApi,
   servicesQueryKeys,
+  schemesApi,
+  schemesQueryKeys,
   type ApplicationListItem,
   type BackendApplicationStatus,
 } from '@/services/api';
 import { Button } from '@/components/ui/button';
 import { HERO_SHIELD_SRC } from '@/components/brand/brand-assets';
-import { GOVERNMENT_SCHEMES, getSchemeHref, isSchemeExternal } from '@/lib/government-schemes';
+import { HomeBannerStrip } from '@/features/home/components/HomeBannerStrip';
 import { ServiceIcon, LoadingBlock } from '@/components/ui/primitives';
 import {
   buildApplyUrl,
@@ -86,7 +88,6 @@ const QUICK_SERVICE_CARDS = [
     icon: 'bill' as const,
     color: '#F59E0B',
     bg: '#FEF3C7',
-    protected: true,
   },
   {
     id: 'banking',
@@ -198,6 +199,7 @@ function VerificationPipeline({ app }: { app: ApplicationListItem }) {
 }
 
 export function HomePage() {
+  const navigate = useNavigate();
   const citizen = useAuthStore(s => s.citizen);
   const isAuthenticated = useAuthStore(s => s.isAuthenticated);
   const openLogin = useAuthModalStore(s => s.openLogin);
@@ -207,6 +209,11 @@ export function HomePage() {
   const { data: catalog = [], isLoading: catalogLoading } = useQuery({
     queryKey: servicesQueryKeys.catalog(),
     queryFn: () => servicesApi.getServicesCatalog(),
+  });
+
+  const { data: homeSchemes = [] } = useQuery({
+    queryKey: schemesQueryKeys.list(),
+    queryFn: () => schemesApi.getGovernmentSchemes(),
   });
 
   const { data: appsData, isLoading: appsLoading } = useQuery({
@@ -375,6 +382,11 @@ export function HomePage() {
           </div>
         </SectionShell>
       </section>
+
+      {/* Admin-managed promotional banners (same as mobile home) */}
+      <SectionShell className="mt-10">
+        <HomeBannerStrip placement="home" />
+      </SectionShell>
 
       {/* Stats */}
       <SectionShell className="-mt-1 pt-8">
@@ -731,6 +743,7 @@ export function HomePage() {
       </SectionShell>
 
       {/* Government schemes */}
+      {homeSchemes.length > 0 ? (
       <SectionShell className="mt-14">
         <div className="mb-5 flex items-end justify-between">
           <h2 className="font-display text-2xl font-bold text-[#0A1629]">
@@ -741,57 +754,33 @@ export function HomePage() {
           </Link>
         </div>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {GOVERNMENT_SCHEMES.slice(0, 3).map(scheme => {
-            const href = getSchemeHref(scheme);
-            const external = isSchemeExternal(scheme);
-            const card = (
-              <>
-                <div className="border-b border-[#E8EDF5] bg-gradient-to-br from-[#EFF6FF] to-white px-5 py-4">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-[10px] font-bold tracking-wide text-[#64748B] uppercase">
-                      {scheme.ministry}
-                    </span>
-                    {scheme.matchLabel ? (
-                      <span className="rounded-full bg-[#2563EB] px-2 py-0.5 text-[10px] font-bold text-white">
-                        {scheme.matchLabel}
-                      </span>
-                    ) : null}
-                  </div>
-                  <h3 className="mt-2 text-lg font-bold text-[#0A1629]">{scheme.name}</h3>
-                </div>
-                <div className="flex flex-1 flex-col p-5">
-                  <p className="rounded-xl bg-[#F1F5F9] px-3 py-2 text-sm leading-6 text-[#334155]">
-                    {scheme.benefit}
-                  </p>
-                  <span className="mt-4 inline-flex text-sm font-semibold text-[#2563EB]">
-                    View Scheme Guidelines →
+          {homeSchemes.slice(0, 3).map(scheme => (
+            <Link
+              key={scheme.id}
+              to={`/schemes/${scheme.slug}`}
+              className="flex flex-col overflow-hidden rounded-2xl border border-[#E8EDF5] bg-white shadow-sm transition hover:shadow-md"
+            >
+              <div className="border-b border-[#E8EDF5] bg-gradient-to-br from-[#EFF6FF] to-white px-5 py-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[10px] font-bold tracking-wide text-[#64748B] uppercase">
+                    {scheme.ministry || scheme.category}
                   </span>
                 </div>
-              </>
-            );
-
-            return external ? (
-              <a
-                key={scheme.id}
-                href={href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex flex-col overflow-hidden rounded-2xl border border-[#E8EDF5] bg-white shadow-sm transition hover:shadow-md"
-              >
-                {card}
-              </a>
-            ) : (
-              <Link
-                key={scheme.id}
-                to={href}
-                className="flex flex-col overflow-hidden rounded-2xl border border-[#E8EDF5] bg-white shadow-sm transition hover:shadow-md"
-              >
-                {card}
-              </Link>
-            );
-          })}
+                <h3 className="mt-2 text-lg font-bold text-[#0A1629]">{scheme.name}</h3>
+              </div>
+              <div className="flex flex-1 flex-col p-5">
+                <p className="rounded-xl bg-[#F1F5F9] px-3 py-2 text-sm leading-6 text-[#334155]">
+                  {scheme.description}
+                </p>
+                <span className="mt-4 inline-flex text-sm font-semibold text-[#2563EB]">
+                  View scheme details →
+                </span>
+              </div>
+            </Link>
+          ))}
         </div>
       </SectionShell>
+      ) : null}
 
       {/* Payments summary */}
       <SectionShell className="mt-14">
@@ -810,10 +799,7 @@ export function HomePage() {
           <article className="rounded-2xl border border-dashed border-[#E8EDF5] bg-white p-10 text-center">
             <Wallet className="mx-auto h-10 w-10 text-[#CBD5E1]" />
             <p className="mt-4 font-semibold text-[#0A1629]">Sign in to view payment history</p>
-            <Button
-              className="mt-4"
-              onClick={() => requireAuthNavigate('/pay-bills', { requireProfile: true })}
-            >
+            <Button className="mt-4" onClick={() => navigate('/pay-bills')}>
               <Zap className="mr-2 h-4 w-4" />
               Pay Bills
             </Button>

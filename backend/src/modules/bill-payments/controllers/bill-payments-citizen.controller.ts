@@ -14,6 +14,7 @@ import { IsObject, IsOptional, IsString } from 'class-validator';
 import {
   AuthType,
   CurrentUser,
+  Public,
 } from '@/common/decorators/auth.decorators';
 import type { AuthenticatedCitizen } from '@/common/decorators/auth.decorators';
 import { BillPaymentsService } from '../services/bill-payments.service';
@@ -58,18 +59,21 @@ class ConfirmPaymentDto {
 export class BillPaymentsCitizenController {
   constructor(private readonly billPaymentsService: BillPaymentsService) {}
 
+  @Public()
   @Get('settings')
   @ApiOperation({ summary: 'Bill payments configuration' })
   getSettings() {
     return this.billPaymentsService.getSettings();
   }
 
+  @Public()
   @Get('categories')
   @ApiOperation({ summary: 'List bill payment categories' })
   listCategories() {
     return this.billPaymentsService.listCategories();
   }
 
+  @Public()
   @Get('categories/:category/billers')
   @ApiOperation({ summary: 'List billers for a category' })
   listBillers(
@@ -90,6 +94,7 @@ export class BillPaymentsCitizenController {
     });
   }
 
+  @Public()
   @Get('billers/:billerId')
   @ApiOperation({ summary: 'Get biller with dynamic form fields' })
   getBiller(@Param('billerId') billerId: string) {

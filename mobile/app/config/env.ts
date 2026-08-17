@@ -8,7 +8,7 @@ export const HOSTED_API_BASE_URL =
  * true  → mobile talks to Render (Metro dev + release builds)
  * false → mobile talks to local backend (localhost / LAN / emulator)
  */
-export const USE_HOSTED_API = false;
+export const USE_HOSTED_API = true;
 
 /**
  * If auto-detect fails on your phone, set your PC's Wi‑Fi IP here (e.g. '192.168.1.42').

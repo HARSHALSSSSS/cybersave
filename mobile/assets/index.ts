@@ -1,5 +1,4 @@
 export const Images = {
-  brandLogo: require('./images/brand-logo.png'),
   brandLockup: require('./images/brand-lockup.png'),
   brandLockupNav: require('./images/brand-lockup-nav.png'),
   onboarding1: require('./images/onboarding-1.png'),

@@ -25,6 +25,7 @@ import {
 } from '@/components/ui';
 
 import { getMe } from '@/features/authentication/services/auth.service';
+import { useAuthStore } from '@/features/authentication/store/auth.store';
 
 import { fullName, initials } from '@/services/api/adapters';
 
@@ -78,12 +79,11 @@ export function ProfileSettingsCard() {
 
     },
 
-    onSuccess: () => {
-
-      queryClient.invalidateQueries({ queryKey: ['admin', 'me'] });
-
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['admin', 'me'] });
+      const user = await getMe();
+      useAuthStore.getState().setUser(user);
       toast.success('Profile changes saved');
-
     },
 
     onError: () => toast.error('Failed to save profile'),

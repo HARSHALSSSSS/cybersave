@@ -48,11 +48,10 @@ export function LoginPage() {
         <div className="rounded-[28px] border border-[#EEF1F6] bg-white px-7 py-8 shadow-[0_8px_16px_rgba(15,23,42,0.04),0_24px_48px_rgba(37,99,235,0.10)] sm:px-9 sm:py-9">
           <div className="mb-6 flex flex-col items-center text-center">
             <img
-              src="/brand-logo.png"
+              src={`${import.meta.env.BASE_URL}admin-login-logo.png`}
               alt="Cybersave — Digital Services, Trusted Always"
-              className="h-auto w-[132px] sm:w-[148px]"
-              width={148}
-              height={148}
+              className="h-auto w-[180px] max-w-full sm:w-[200px]"
+              draggable={false}
             />
             <h1 className="mt-4 text-xl font-semibold tracking-tight text-[#0A1629]">
               Admin Console

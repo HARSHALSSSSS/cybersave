@@ -7,16 +7,25 @@ export function extractValidationIssues(error: unknown): ValidationIssue[] {
   const data = (error as {
     response?: {
       data?: {
-        error?: { details?: { errors?: ValidationIssue[] }; message?: string };
-        errors?: ValidationIssue[];
+        error?: {
+          details?: { errors?: ValidationIssue[] | Record<string, string> };
+          message?: string;
+        };
+        errors?: ValidationIssue[] | Record<string, string>;
       };
     };
   }).response?.data;
 
-  const nested = data?.error?.details?.errors;
-  if (Array.isArray(nested) && nested.length > 0) return nested;
-
-  if (Array.isArray(data?.errors) && data.errors.length > 0) return data.errors;
+  const nested = data?.error?.details?.errors ?? data?.errors;
+  if (Array.isArray(nested) && nested.length > 0) {
+    return nested.filter((issue) => issue && typeof issue === 'object' && 'field' in issue);
+  }
+  if (nested && typeof nested === 'object') {
+    return Object.entries(nested).map(([field, message]) => ({
+      field,
+      message: String(message),
+    }));
+  }
 
   return [];
 }

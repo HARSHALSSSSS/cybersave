@@ -37,6 +37,8 @@ export { manualApplyApi, manualApplyQueryKeys } from './manualApply.api';
 export type { ManualApplySession, ManualApplyPaymentIntent } from './manualApply.api';
 export { homeBannersApi, homeBannersQueryKeys } from './homeBanners.api';
 export type { HomeBanner } from './homeBanners.api';
+export { schemesApi, schemesQueryKeys } from './schemes.api';
+export type { GovernmentScheme } from './schemes.api';
 export { billPaymentsApi, billPaymentsQueryKeys } from './billPayments.api';
 export type {
   BbpsCategory,

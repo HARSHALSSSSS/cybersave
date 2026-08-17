@@ -24,7 +24,6 @@ import { formatDate } from '@/lib/utils';
 const FILTER_TAGS = [
   { id: 'all', label: 'All Services' },
   { id: 'popular', label: 'Popular' },
-  { id: 'schemes', label: 'Government Schemes' },
   { id: 'new', label: 'New Tags' },
 ] as const;
 
@@ -34,7 +33,6 @@ function matchesFilter(main: MainServiceCatalogItem, sub: MainServiceCatalogItem
   const hay = `${main.name} ${main.slug} ${sub.name} ${sub.slug} ${sub.displayName}`.toLowerCase();
   if (tag === 'all') return true;
   if (tag === 'popular') return true;
-  if (tag === 'schemes') return hay.includes('scheme') || hay.includes('pm-') || hay.includes('yojana');
   if (tag === 'new') return hay.includes('new') || hay.includes('update');
   return true;
 }

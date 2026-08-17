@@ -1186,6 +1186,28 @@ model TicketMessage {
   @@map("ticket_messages")
 }
 
+model GovernmentScheme {
+  id                  String   @id @default(cuid())
+  name                String
+  slug                String   @unique
+  ministry            String?
+  category            String
+  description         String
+  whoCanApply         String   @map("who_can_apply")
+  eligibility         String
+  documentsRequired   String[] @default([]) @map("documents_required")
+  officialPortalUrl   String   @map("official_portal_url")
+  officialPortalLabel String   @default("Official Portal") @map("official_portal_label")
+  displayOrder        Int      @default(0) @map("display_order")
+  isActive            Boolean  @default(true) @map("is_active")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  @@index([isActive, displayOrder])
+  @@index([category])
+  @@map("government_schemes")
+}
+
 model HomeBanner {
   id             String    @id @default(cuid())
   tag            String?

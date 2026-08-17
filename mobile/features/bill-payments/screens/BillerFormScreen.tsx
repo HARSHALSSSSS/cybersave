@@ -15,7 +15,7 @@ import { Button } from '@components/Button';
 import { DynamicBillerForm, billerInitial } from '@features/bill-payments/components';
 import { BillPaymentScreenLayout } from '@features/bill-payments/components/BillPaymentScreenLayout';
 import { BillPaymentsStackParamList } from '@/types/navigation';
-import { billPaymentsApi, billPaymentsQueryKeys } from '@services/api/billPayments.api';
+import { billPaymentsApi, billPaymentsQueryKeys, getBillPaymentsErrorMessage } from '@services/api/billPayments.api';
 
 type Props = NativeStackScreenProps<BillPaymentsStackParamList, 'BillerForm'>;
 
@@ -122,13 +122,11 @@ export const BillerFormScreen: React.FC<Props> = ({ navigation, route }) => {
       }
       await pollUntilDone(created.id);
     } catch (error) {
-      if (error instanceof Error && error.message !== 'Validation failed') {
-        const message =
-          error.message && error.message !== 'Network Error'
-            ? error.message
-            : t.bills.unableToStartFetch;
-        Alert.alert(t.bills.couldNotFetchBill, message);
-      }
+      if (error instanceof Error && error.message === 'Validation failed') return;
+      Alert.alert(
+        t.bills.couldNotFetchBill,
+        getBillPaymentsErrorMessage(error, t.bills.unableToStartFetch),
+      );
     }
   }, [fetchMutation, navigation, pollUntilDone]);
 

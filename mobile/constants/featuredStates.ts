@@ -66,10 +66,32 @@ export const FEATURED_STATES = [
   },
 ] as const;
 
+export const STATE_PREVIEW_COUNT = 4;
+
+const STATE_PALETTE = [
+  { color: '#F97316', bg: '#FFF7ED' },
+  { color: '#2563EB', bg: '#EFF6FF' },
+  { color: '#10B981', bg: '#ECFDF5' },
+  { color: '#8B5CF6', bg: '#EDE9FE' },
+  { color: '#EF4444', bg: '#FEE2E2' },
+  { color: '#6366F1', bg: '#E0E7FF' },
+  { color: '#F59E0B', bg: '#FEF3C7' },
+  { color: '#EC4899', bg: '#FCE7F3' },
+] as const;
+
 export function getFeaturedState(code: string) {
   return FEATURED_STATES.find(s => s.code === code.toUpperCase());
 }
 
 export function getStateName(code: string): string {
   return getFeaturedState(code)?.name ?? code.toUpperCase();
+}
+
+export function getStateTheme(code: string) {
+  const featured = getFeaturedState(code);
+  if (featured) {
+    return { color: featured.color, bg: featured.bg };
+  }
+  const index = Math.abs(code.toUpperCase().charCodeAt(0) + code.length) % STATE_PALETTE.length;
+  return STATE_PALETTE[index];
 }

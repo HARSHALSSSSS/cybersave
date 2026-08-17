@@ -385,7 +385,7 @@ export const OPERATOR_DOCUMENTS: OperatorDocument[] = [
 ];
 
 export const POLICY_CHANGES = [
-  { id: 'p1', title: 'Enabled Webhook Alerts', by: 'Rajesh Kumar', date: '24 Jan 2026' },
+  { id: 'p1', title: 'Enabled Webhook Alerts', by: 'System Admin', date: '24 Jan 2026' },
   { id: 'p2', title: 'Disabled Telemetry Export', by: 'System', date: '18 Jan 2026' },
-  { id: 'p3', title: 'Granted Dispatch Control', by: 'Rajesh Kumar', date: '10 Jan 2026' },
+  { id: 'p3', title: 'Granted Dispatch Control', by: 'System Admin', date: '10 Jan 2026' },
 ];

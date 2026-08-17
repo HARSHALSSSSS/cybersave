@@ -30,11 +30,31 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         code = HttpStatus[status] ?? 'HTTP_ERROR';
       } else if (typeof exceptionResponse === 'object' && exceptionResponse) {
         const body = exceptionResponse as Record<string, unknown>;
-        message = (body.message as string) ?? message;
-        code = (body.error as string) ?? (HttpStatus[status] ?? 'HTTP_ERROR');
-        details =
-          body.details ??
-          (Array.isArray(body.errors) ? { errors: body.errors } : undefined);
+        const rawMessage = body.message;
+        if (typeof rawMessage === 'string' && rawMessage.trim()) {
+          message = rawMessage;
+        } else if (Array.isArray(rawMessage) && typeof rawMessage[0] === 'string') {
+          message = rawMessage[0];
+        }
+        code =
+          (typeof body.code === 'string' && body.code) ||
+          (typeof body.error === 'string' && body.error) ||
+          HttpStatus[status] ||
+          'HTTP_ERROR';
+        if (body.details !== undefined) {
+          details = body.details;
+        } else if (Array.isArray(body.errors)) {
+          details = { errors: body.errors };
+        } else if (body.errors && typeof body.errors === 'object') {
+          details = {
+            errors: Object.entries(body.errors as Record<string, unknown>).map(
+              ([field, fieldMessage]) => ({
+                field,
+                message: String(fieldMessage),
+              }),
+            ),
+          };
+        }
       }
     } else if (exception instanceof Error) {
       this.logger.error(exception.message, exception.stack);

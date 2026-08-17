@@ -1,11 +1,11 @@
 import type { AdminProfile, LocalizationSettings, NotificationPreferences } from '../types';
 
 export const DEFAULT_PROFILE: AdminProfile = {
-  fullName: 'Rajesh Kumar',
-  email: 'rajesh.kumar@cybersave.gov.in',
+  fullName: 'Administrator',
+  email: 'admin@cybersave.local',
   phone: '+91 98765 12340',
   role: 'Portal Administrator',
-  initials: 'RK',
+  initials: 'AD',
 };
 
 export const ROLE_OPTIONS = ['Portal Administrator', 'Supervisor', 'Operator', 'Support Staff'];

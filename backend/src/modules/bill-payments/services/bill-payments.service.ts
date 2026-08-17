@@ -50,7 +50,7 @@ export class BillPaymentsService implements OnModuleInit {
   getSettings() {
     return {
       provider: this.bbpsProvider.name,
-      convenienceFeeFlat: this.configService.get<number>('bbps.convenienceFeeFlat', 5),
+      convenienceFeeFlat: this.getConvenienceFee(),
     };
   }
 
@@ -228,11 +228,19 @@ export class BillPaymentsService implements OnModuleInit {
       }
     }
 
-    const billAmount = Number(billRequest.billAmount ?? 0);
-    const convenienceFee = this.configService.get<number>(
-      'bbps.convenienceFeeFlat',
-      5,
-    );
+    const latestRequest = await this.prisma.bbpsBillRequest.findFirst({
+      where: { id: billRequestId, citizenId },
+      include: { biller: true },
+    });
+    const billAmount = Number(latestRequest?.billAmount ?? billRequest.billAmount ?? 0);
+    if (!Number.isFinite(billAmount) || billAmount <= 0) {
+      throw new BadRequestException({
+        message: userMessageForCode('BILL_NOT_FOUND'),
+        code: 'BILL_NOT_FOUND',
+      });
+    }
+
+    const convenienceFee = this.getConvenienceFee();
     const totalAmount = billAmount + convenienceFee;
 
     const order = await this.bbpsProvider.createPgOrder({
@@ -249,16 +257,18 @@ export class BillPaymentsService implements OnModuleInit {
     const payment = await this.prisma.bbpsBillPayment.create({
       data: {
         citizenId,
-        billerId: billRequest.billerId,
+        billerId: latestRequest?.billerId ?? billRequest.billerId,
         billRequestId: billRequest.id,
         razorpayOrderId: order.orderId,
         status: BbpsBillPaymentStatus.PROCESSING,
         billAmount,
         convenienceFee,
         totalAmount,
-        billDetails: (billRequest.billDetails as object) ?? {},
+        billDetails:
+          ((latestRequest?.billDetails ?? billRequest.billDetails) as object) ?? {},
         accountHolderMasked: maskAccountHolderData(
-          billRequest.accountHolderData as Record<string, string>,
+          (latestRequest?.accountHolderData ??
+            billRequest.accountHolderData) as Record<string, string>,
         ),
         idempotencyKey,
       },
@@ -379,7 +389,7 @@ export class BillPaymentsService implements OnModuleInit {
     });
 
     if (updated.status === BbpsBillPaymentStatus.PROCESSING) {
-      return this.pollBillPayment(updated);
+      return this.pollUntilPaymentSettles(updated);
     }
 
     await this.upsertSavedBiller(citizenId, updated);
@@ -441,7 +451,7 @@ export class BillPaymentsService implements OnModuleInit {
   async listRecentBillers(citizenId: string) {
     const payments = await this.prisma.bbpsBillPayment.findMany({
       where: { citizenId, status: BbpsBillPaymentStatus.SUCCESS },
-      include: { biller: true },
+      include: { biller: true, billRequest: true },
       orderBy: { paidAt: 'desc' },
       take: 20,
     });
@@ -458,6 +468,7 @@ export class BillPaymentsService implements OnModuleInit {
         category: p.biller.providerCategory,
         logoUrl: p.biller.logoUrl,
         accountMasked: p.accountHolderMasked,
+        accountHolder: (p.billRequest?.accountHolderData as Record<string, string> | undefined) ?? {},
         lastUsedAt: p.paidAt ?? p.createdAt,
         lastPaymentAmount: Number(p.totalAmount),
       });
@@ -716,7 +727,7 @@ export class BillPaymentsService implements OnModuleInit {
       biller: this.formatBillerSummary(record.biller),
       accountHolderData: record.accountHolderData,
       customerName: record.customerName,
-      billAmount: record.billAmount ? Number(record.billAmount) : null,
+      billAmount: record.billAmount == null ? null : Number(record.billAmount),
       dueDate: record.dueDate?.toISOString() ?? null,
       billNumber: record.billNumber,
       billDetails: details,
@@ -772,6 +783,45 @@ export class BillPaymentsService implements OnModuleInit {
     if (status === 'failed') return BbpsBillPaymentStatus.FAILED;
     if (status === 'pending') return BbpsBillPaymentStatus.PENDING;
     return BbpsBillPaymentStatus.PROCESSING;
+  }
+
+  private getConvenienceFee(): number {
+    const fee = Number(this.configService.get<number>('bbps.convenienceFeeFlat', 5));
+    return Number.isFinite(fee) && fee >= 0 ? fee : 5;
+  }
+
+  private async pollUntilPaymentSettles(
+    payment: Prisma.BbpsBillPaymentGetPayload<{
+      include: { biller: true; billRequest: true };
+    }>,
+  ) {
+    const maxAttempts = Math.min(
+      Number(this.configService.get<number>('bbps.pollMaxAttempts', 8) ?? 8),
+      8,
+    );
+    const intervalMs = Math.min(
+      Number(this.configService.get<number>('bbps.pollIntervalMs', 400) ?? 400),
+      800,
+    );
+
+    let current = payment;
+    let formatted = await this.pollBillPayment(current);
+
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      if (formatted.status !== 'processing') {
+        return formatted;
+      }
+      await new Promise((resolve) => setTimeout(resolve, intervalMs));
+      const fresh = await this.prisma.bbpsBillPayment.findFirst({
+        where: { id: payment.id },
+        include: { biller: true, billRequest: true },
+      });
+      if (!fresh) return formatted;
+      current = fresh;
+      formatted = await this.pollBillPayment(current);
+    }
+
+    return formatted;
   }
 
   private toUserError(error: unknown, fallback = 'SERVICE_UNAVAILABLE') {

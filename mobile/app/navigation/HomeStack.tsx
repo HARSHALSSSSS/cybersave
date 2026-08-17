@@ -4,6 +4,7 @@ import { HomeStackParamList } from '@/types/navigation';
 import { HomeScreen } from '@features/home/screens/HomeScreen';
 import { NotificationsScreen } from '@features/notifications/screens/NotificationsScreen';
 import { GovernmentSchemesScreen } from '@features/home/screens/GovernmentSchemesScreen';
+import { SchemeDetailScreen } from '@features/home/screens/SchemeDetailScreen';
 import {
   BillDetailsScreen,
   BillerFormScreen,
@@ -34,6 +35,11 @@ export const HomeStack: React.FC = () => (
     <Stack.Screen
       name="GovernmentSchemes"
       component={GovernmentSchemesScreen}
+      options={billScreenOptions}
+    />
+    <Stack.Screen
+      name="SchemeDetail"
+      component={SchemeDetailScreen}
       options={billScreenOptions}
     />
     <Stack.Screen

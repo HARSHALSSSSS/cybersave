@@ -7,6 +7,7 @@ import { PortalCard } from '@/components/ui/portal-primitives';
 import { Button } from '@/components/ui/button';
 import { LoadingBlock, EmptyState } from '@/components/ui/primitives';
 import { useAuthStore } from '@/features/auth/store/auth.store';
+import { extractErrorMessage } from '@/features/apply/utils/validation-errors';
 import { isRazorpayUserCancelled, openRazorpayCheckout } from '@/lib/razorpay';
 import { billPaymentsApi, billPaymentsQueryKeys } from '@/services/api';
 import { formatCurrency } from '@/lib/utils';
@@ -29,12 +30,14 @@ export function PayBillsConfirmPage() {
     enabled: Boolean(requestId),
   });
 
-  const convenienceFee = settings?.convenienceFeeFlat ?? 5;
-  const total = (bill?.billAmount ?? 0) + convenienceFee;
+  const convenienceFee = Number(settings?.convenienceFeeFlat ?? 5) || 5;
+  const billAmount = Number(bill?.billAmount ?? 0);
+  const total = billAmount + convenienceFee;
 
   const pay = useMutation({
     mutationFn: async () => {
       const intent = await billPaymentsApi.createPaymentIntent(requestId);
+      const payable = Number(intent.totalAmount || total);
       const useMock =
         import.meta.env.DEV ||
         settings?.provider === 'mock' ||
@@ -50,7 +53,7 @@ export function PayBillsConfirmPage() {
       const checkout = await openRazorpayCheckout({
         keyId: intent.keyId!,
         orderId: intent.orderId!,
-        amount: intent.totalAmount,
+        amount: payable,
         name: 'Cybersave BBPS',
         description: bill?.biller.name ?? 'Bill payment',
         prefill: {
@@ -69,21 +72,20 @@ export function PayBillsConfirmPage() {
     },
     onSuccess: payment => {
       void queryClient.invalidateQueries({ queryKey: billPaymentsQueryKeys.all });
-      toast.success('Payment successful!');
-      navigate('/pay-bills', { replace: true });
-      if (payment.status === 'success') {
-        toast.message(`Paid ${formatCurrency(payment.totalAmount)} to ${payment.biller.name}`);
-      }
+      navigate(`/pay-bills/receipt/${payment.id}`, { replace: true });
     },
     onError: (error: unknown) => {
       if (isRazorpayUserCancelled(error)) return;
-      toast.error(error instanceof Error ? error.message : 'Payment failed');
+      toast.error(extractErrorMessage(error, 'Payment failed'));
     },
   });
 
   if (isLoading) return <LoadingBlock className="h-96" />;
   if (!bill || bill.status !== 'success') {
     return <EmptyState title="Bill unavailable" description="Go back and fetch the bill again." />;
+  }
+  if (billAmount <= 0) {
+    return <EmptyState title="Bill amount unavailable" description="Fetch the bill again and retry." />;
   }
 
   return (
@@ -92,10 +94,11 @@ export function PayBillsConfirmPage() {
       <PortalCard>
         <h1 className="font-display text-xl font-bold text-[#0A1629]">Confirm Payment</h1>
         <p className="mt-1 text-sm text-[#64748B]">{bill.biller.name}</p>
+        {bill.customerName ? <p className="text-sm text-[#64748B]">{bill.customerName}</p> : null}
         <dl className="mt-6 space-y-3">
           <div className="flex justify-between text-sm">
             <dt className="text-[#64748B]">Bill Amount</dt>
-            <dd>{formatCurrency(bill.billAmount ?? 0)}</dd>
+            <dd>{formatCurrency(billAmount)}</dd>
           </div>
           <div className="flex justify-between text-sm">
             <dt className="text-[#64748B]">Convenience Fee</dt>
@@ -112,7 +115,7 @@ export function PayBillsConfirmPage() {
           disabled={pay.isPending}
           onClick={() => pay.mutate()}
         >
-          {pay.isPending ? 'Processing…' : `Pay ${formatCurrency(total)}`}
+          {pay.isPending ? 'Processing… Do not refresh' : `Pay ${formatCurrency(total)}`}
         </Button>
         <p className="mt-4 flex items-center justify-center gap-2 text-xs text-[#94A3B8]">
           <Lock className="h-3.5 w-3.5" />

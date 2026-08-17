@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useQuery } from '@tanstack/react-query';
 
@@ -32,8 +32,9 @@ export const BillDetailsScreen: React.FC<Props> = ({ navigation, route }) => {
 
   const { data: bill, isLoading, isError, refetch } = useQuery({
     queryKey: billPaymentsQueryKeys.billRequest(requestId),
-    queryFn: () => billPaymentsApi.getBillRequest(requestId),
+    queryFn: () => billPaymentsApi.getBillRequest(requestId, true),
     retry: 2,
+    refetchInterval: query => (query.state.data?.status === 'processing' ? 2000 : false),
   });
 
   const details = (bill?.billDetails ?? {}) as Record<string, unknown>;
@@ -102,6 +103,38 @@ export const BillDetailsScreen: React.FC<Props> = ({ navigation, route }) => {
       .find(v => typeof v === 'string' && v.trim())
       ?.replace(/.(?=.{4})/g, '•') ?? '—';
 
+  if (bill?.status === 'processing') {
+    return (
+      <BillPaymentScreenLayout
+        title={t.bills.billDetails}
+        showBack
+        onBack={() => navigation.goBack()}
+        scroll>
+        <View style={{ alignItems: 'center', paddingVertical: theme.spacing['3xl'] }}>
+          <ActivityIndicator color={theme.colors.primary} size="large" />
+          <Text style={{ ...theme.typography.bodyMedium, color: theme.colors.textSecondary, marginTop: theme.spacing.lg }}>
+            {t.bills.fetchingBill}
+          </Text>
+        </View>
+      </BillPaymentScreenLayout>
+    );
+  }
+
+  if (bill?.status === 'failed') {
+    return (
+      <BillPaymentScreenLayout
+        title={t.bills.billDetails}
+        showBack
+        onBack={() => navigation.goBack()}
+        error
+        errorMessage={bill.errorMessage ?? t.bills.couldNotFetchBill}
+        onRetry={() => navigation.goBack()}
+        scroll={false}>
+        {null}
+      </BillPaymentScreenLayout>
+    );
+  }
+
   return (
     <BillPaymentScreenLayout
       title={t.bills.billDetails}
@@ -144,6 +177,7 @@ export const BillDetailsScreen: React.FC<Props> = ({ navigation, route }) => {
           <View style={{ marginTop: theme.spacing['2xl'] }}>
             <Button
               title={`${t.bills.payNow.toUpperCase()} ${formatRupee(bill.billAmount ?? 0)}`}
+              disabled={!bill.billAmount || bill.status !== 'success'}
               onPress={() => navigation.navigate('ConfirmPayment', { requestId })}
             />
           </View>

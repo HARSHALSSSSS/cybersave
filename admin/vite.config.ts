@@ -7,6 +7,8 @@ import tailwindcss from '@tailwindcss/vite';
 const rootDir = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
+  // Same-domain hosting: https://cybersaveonline.com/admin
+  base: '/admin/',
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {

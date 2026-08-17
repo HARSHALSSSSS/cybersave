@@ -7,6 +7,7 @@ import {
   ServiceHubScreen,
   StateSelectScreen,
   StateServicesScreen,
+  AllStatesScreen,
   ServiceDetailScreen,
   ApplyServiceScreen,
   UploadProofsScreen,
@@ -26,6 +27,7 @@ export const ServicesStack: React.FC = () => (
       options={{ animation: 'slide_from_right' }}
     />
     <Stack.Screen name="ServiceHub" component={ServiceHubScreen} options={{ animation: 'slide_from_right' }} />
+    <Stack.Screen name="AllStates" component={AllStatesScreen} options={{ animation: 'slide_from_right' }} />
     <Stack.Screen name="StateServices" component={StateServicesScreen} options={{ animation: 'slide_from_right' }} />
     <Stack.Screen name="StateSelect" component={StateSelectScreen} options={{ animation: 'slide_from_right' }} />
     <Stack.Screen name="ServiceDetail" component={ServiceDetailScreen} options={{ animation: 'slide_from_right' }} />

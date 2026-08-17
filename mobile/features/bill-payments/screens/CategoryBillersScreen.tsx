@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -26,12 +26,22 @@ export const CategoryBillersScreen: React.FC<Props> = ({ navigation, route }) =>
   const { theme } = useTheme();
   const { t, format } = useTranslation();
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const safeCategoryName = categoryName ?? t.bills.billerName;
 
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: billPaymentsQueryKeys.billers(category, search),
+    queryKey: billPaymentsQueryKeys.billers(category, debouncedSearch),
     queryFn: () =>
-      billPaymentsApi.listBillers({ category, search: search.trim() || undefined, limit: 100 }),
+      billPaymentsApi.listBillers({
+        category,
+        search: debouncedSearch || undefined,
+        limit: 100,
+      }),
     retry: 2,
   });
 

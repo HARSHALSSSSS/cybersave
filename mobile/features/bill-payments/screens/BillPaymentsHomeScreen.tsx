@@ -332,7 +332,7 @@ export const BillPaymentsHomeScreen: React.FC<Props> = ({ navigation }) => {
                   ) : null}
                 </View>
               </View>
-              <Pressable style={styles.payAgain} onPress={() => payAgain(item.billerId)}>
+              <Pressable style={styles.payAgain} onPress={() => payAgain(item.billerId, item.accountHolder)}>
                 <Text style={styles.payAgainText}>{t.bills.payAgain}</Text>
               </Pressable>
             </View>

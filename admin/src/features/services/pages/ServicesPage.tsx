@@ -118,12 +118,20 @@ export function ServicesPage() {
         title="Government Services Directory"
         description="All citizen-facing services on web and mobile. Configure forms, states, assisted apply, and manual portal redirects."
         actions={
-          <Button asChild size="sm" className="gap-1.5 bg-[#2563EB] hover:bg-blue-700">
-            <Link to="/services/new">
-              <Plus className="h-4 w-4" />
-              Add New Service
-            </Link>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild size="sm" variant="outline" className="gap-1.5">
+              <Link to="/schemes">
+                <Plus className="h-4 w-4" />
+                Add Scheme
+              </Link>
+            </Button>
+            <Button asChild size="sm" className="gap-1.5 bg-[#2563EB] hover:bg-blue-700">
+              <Link to="/services/new">
+                <Plus className="h-4 w-4" />
+                Add New Service
+              </Link>
+            </Button>
+          </div>
         }
       />
 

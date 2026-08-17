@@ -138,7 +138,7 @@ export function HomeBannersPage() {
     <div className="space-y-6">
       <PageHeader
         title="Home Banners"
-        description="Promotional banners on the mobile home screen. Each banner links to a published service — users see the same service detail page with assisted and manual apply options."
+        description="Promotional banners on citizen web home and the mobile home screen. Each banner links to a published Cybersave service."
         actions={
           <div className="flex gap-2">
             <Button variant="outline" asChild>
@@ -346,8 +346,8 @@ export function HomeBannersPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="home">Home</SelectItem>
-                    <SelectItem value="schemes">Schemes</SelectItem>
+                    <SelectItem value="home">Home (web + mobile)</SelectItem>
+                    <SelectItem value="schemes">Schemes (web + mobile)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -364,7 +364,7 @@ export function HomeBannersPage() {
             </div>
 
             <div className="flex items-center justify-between rounded-lg border p-3">
-              <Label htmlFor="active">Active on mobile</Label>
+              <Label htmlFor="active">Visible on web and mobile</Label>
               <Switch
                 id="active"
                 checked={form.isActive ?? true}

@@ -86,6 +86,7 @@ export interface RecentBiller {
   category: string;
   logoUrl: string | null;
   accountMasked: string;
+  accountHolder?: Record<string, string>;
   lastUsedAt: string;
   lastPaymentAmount: number;
 }
@@ -140,6 +141,21 @@ function unwrapPaginatedBody<T>(body: unknown): { data: T; meta: Record<string, 
     return { data: envelope.data, meta: envelope.meta ?? {} };
   }
   return body as { data: T; meta: Record<string, unknown> };
+}
+
+export function getBillPaymentsErrorMessage(error: unknown, fallback: string): string {
+  const data = (
+    error as {
+      response?: { data?: { error?: { message?: unknown }; message?: unknown } };
+    }
+  )?.response?.data;
+  const raw = data?.error?.message ?? data?.message;
+  if (typeof raw === 'string' && raw.trim()) return raw;
+  if (Array.isArray(raw) && typeof raw[0] === 'string') return raw[0];
+  if (error instanceof Error && error.message && error.message !== 'Network Error' && error.message !== 'Validation failed') {
+    return error.message;
+  }
+  return fallback;
 }
 
 export const billPaymentsApi = {

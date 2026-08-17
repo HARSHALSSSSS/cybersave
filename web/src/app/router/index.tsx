@@ -9,6 +9,7 @@ const OtpPage = lazy(() => import('@/features/auth/pages/OtpPage').then(m => ({ 
 const HomePage = lazy(() => import('@/features/home/pages/HomePage').then(m => ({ default: m.HomePage })));
 const ServicesPage = lazy(() => import('@/features/services/pages/ServicesPage').then(m => ({ default: m.ServicesPage })));
 const SchemesPage = lazy(() => import('@/features/services/pages/SchemesPage').then(m => ({ default: m.SchemesPage })));
+const SchemeDetailPage = lazy(() => import('@/features/services/pages/SchemeDetailPage').then(m => ({ default: m.SchemeDetailPage })));
 const CategoryServicesPage = lazy(() => import('@/features/services/pages/CategoryServicesPage').then(m => ({ default: m.CategoryServicesPage })));
 const ServiceDetailPage = lazy(() => import('@/features/services/pages/ServiceDetailPage').then(m => ({ default: m.ServiceDetailPage })));
 const StateSelectPage = lazy(() => import('@/features/services/pages/StateSelectPage').then(m => ({ default: m.StateSelectPage })));
@@ -34,6 +35,8 @@ const PayBillsCategoryPage = lazy(() => import('@/features/bill-payments/pages/P
 const PayBillsBillerPage = lazy(() => import('@/features/bill-payments/pages/PayBillsBillerPage').then(m => ({ default: m.PayBillsBillerPage })));
 const PayBillsBillPage = lazy(() => import('@/features/bill-payments/pages/PayBillsBillPage').then(m => ({ default: m.PayBillsBillPage })));
 const PayBillsConfirmPage = lazy(() => import('@/features/bill-payments/pages/PayBillsConfirmPage').then(m => ({ default: m.PayBillsConfirmPage })));
+const PayBillsResultPage = lazy(() => import('@/features/bill-payments/pages/PayBillsResultPage').then(m => ({ default: m.PayBillsResultPage })));
+const PayBillsHistoryPage = lazy(() => import('@/features/bill-payments/pages/PayBillsHistoryPage').then(m => ({ default: m.PayBillsHistoryPage })));
 
 function Page({ children }: { children: React.ReactNode }) {
   return (
@@ -61,6 +64,10 @@ export const router = createBrowserRouter([
       { path: 'services/:mainSlug/:subSlug', element: <Page><ServiceDetailPage /></Page> },
       { path: 'services/:mainSlug/:subSlug/select-state', element: <Page><StateSelectPage /></Page> },
       { path: 'schemes', element: <Page><SchemesPage /></Page> },
+      { path: 'schemes/:schemeId', element: <Page><SchemeDetailPage /></Page> },
+      { path: 'pay-bills', element: <Page><PayBillsHomePage /></Page> },
+      { path: 'pay-bills/category/:category', element: <Page><PayBillsCategoryPage /></Page> },
+      { path: 'pay-bills/biller/:billerId', element: <Page><PayBillsBillerPage /></Page> },
       { path: 'help', element: <Page><HelpPage /></Page> },
       { path: 'login', element: <Page><LoginPage /></Page> },
       { path: 'otp', element: <Page><OtpPage /></Page> },
@@ -77,11 +84,10 @@ export const router = createBrowserRouter([
           { path: 'notifications', element: <Page><NotificationsPage /></Page> },
           { path: 'help/tickets', element: <Page><HelpTicketsPage /></Page> },
           { path: 'help/tickets/:ticketId', element: <Page><HelpTicketDetailPage /></Page> },
-          { path: 'pay-bills', element: <Page><PayBillsHomePage /></Page> },
-          { path: 'pay-bills/category/:category', element: <Page><PayBillsCategoryPage /></Page> },
-          { path: 'pay-bills/biller/:billerId', element: <Page><PayBillsBillerPage /></Page> },
           { path: 'pay-bills/bill/:requestId', element: <Page><PayBillsBillPage /></Page> },
           { path: 'pay-bills/confirm/:requestId', element: <Page><PayBillsConfirmPage /></Page> },
+          { path: 'pay-bills/receipt/:paymentId', element: <Page><PayBillsResultPage /></Page> },
+          { path: 'pay-bills/history', element: <Page><PayBillsHistoryPage /></Page> },
         ],
       },
     ],

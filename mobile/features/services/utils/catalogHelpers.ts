@@ -88,6 +88,27 @@ export function filterCatalogByChip(
   });
 }
 
+export function flattenCatalog(catalog: MainServiceCatalogItem[]) {
+  return catalog.flatMap(main => main.subServices.map(sub => ({ main, sub })));
+}
+
+export function filterFlattenedServices(
+  items: ReturnType<typeof flattenCatalog>,
+  query: string,
+) {
+  const q = query.trim().toLowerCase();
+  if (!q) return items;
+  return items.filter(({ main, sub }) => {
+    const hay = `${main.name} ${main.slug} ${sub.displayName} ${sub.name} ${sub.slug} ${sub.shortDescription ?? ''} ${sub.description ?? ''}`.toLowerCase();
+    return hay.includes(q);
+  });
+}
+
+export function popularCatalogServices(catalog: MainServiceCatalogItem[]) {
+  const ranked = [...catalog].sort((a, b) => b.subServices.length - a.subServices.length);
+  return flattenCatalog(ranked).slice(0, 10);
+}
+
 export function isCertificateHub(slug: string, subServiceCount: number): boolean {
   return slug.toLowerCase().includes('cert') || subServiceCount > 6;
 }
