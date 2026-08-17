@@ -68,6 +68,30 @@ services:
         value: "5"
 
   - type: web
+    name: cybersave-admin
+    runtime: static
+    plan: free
+    rootDir: admin
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    routes:
+      # Legacy builds used base /admin/ — map asset URLs to /assets/*
+      - type: rewrite
+        source: /admin/assets/*
+        destination: /assets/*
+      - type: rewrite
+        source: /admin/*
+        destination: /index.html
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_BASE_URL
+        value: https://cybersave-l972.onrender.com/api/v1
+      - key: VITE_ADMIN_BASE
+        value: /
+
+  - type: web
     name: cybersave-web
     runtime: static
     plan: free
@@ -80,7 +104,6 @@ services:
         destination: /index.html
     envVars:
       - key: VITE_API_BASE_URL
-        # Your live API — change only if the API URL changes
         value: https://cybersave-l972.onrender.com/api/v1
       - key: VITE_APP_NAME
         value: Cybersave

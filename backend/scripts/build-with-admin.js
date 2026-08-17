@@ -45,7 +45,10 @@ const apiBaseUrl =
 console.log(`[cybersave] Building admin SPA (VITE_API_BASE_URL=${apiBaseUrl})`);
 
 run(adminRoot, 'npm', ['ci']);
-run(adminRoot, 'npm', ['run', 'build'], { VITE_API_BASE_URL: apiBaseUrl });
+run(adminRoot, 'npm', ['run', 'build'], {
+  VITE_API_BASE_URL: apiBaseUrl,
+  VITE_ADMIN_BASE: '/admin',
+});
 
 if (!fs.existsSync(adminDistSrc)) {
   console.error('[cybersave] admin build did not produce admin/dist');

@@ -8,8 +8,16 @@ import express, { type NextFunction, type Request, type Response } from 'express
  * Serve the admin Vite build at /admin with correct asset MIME types and SPA fallback.
  * Built assets live in backend/admin-dist (see scripts/build-with-admin.js).
  */
+function resolveAdminDist(): string {
+  const fromCwd = join(process.cwd(), 'admin-dist');
+  if (existsSync(fromCwd)) {
+    return fromCwd;
+  }
+  return join(__dirname, '..', '..', 'admin-dist');
+}
+
 export function mountAdminSpa(app: NestExpressApplication): void {
-  const adminDist = join(__dirname, '..', '..', 'admin-dist');
+  const adminDist = resolveAdminDist();
 
   if (!existsSync(adminDist)) {
     console.warn(
