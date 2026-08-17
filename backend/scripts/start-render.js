@@ -147,7 +147,12 @@ function maybeSeed() {
 }
 
 console.log('[cybersave] Starting API...');
-console.log(`[cybersave] NODE_ENV=${process.env.NODE_ENV} PORT=${process.env.PORT}`);
+console.log(`[cybersave] NODE_ENV=${process.env.NODE_ENV} PORT=${JSON.stringify(process.env.PORT)}`);
+
+if (!process.env.PORT || Number.isNaN(Number.parseInt(String(process.env.PORT), 10))) {
+  process.env.PORT = process.env.RENDER ? '10000' : '8000';
+  console.log(`[cybersave] PORT was missing/invalid — using ${process.env.PORT}`);
+}
 
 if (!process.env.DATABASE_URL) {
   console.error('[cybersave] ERROR: DATABASE_URL is not set');

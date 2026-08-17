@@ -1,8 +1,17 @@
 import { registerAs } from '@nestjs/config';
 
+export function parseListenPort(raw: string | undefined, fallback = 8000): number {
+  const trimmed = (raw ?? '').trim();
+  const parsed = trimmed ? Number.parseInt(trimmed, 10) : fallback;
+  if (!Number.isInteger(parsed) || parsed < 0 || parsed > 65535) {
+    return fallback;
+  }
+  return parsed;
+}
+
 export const appConfig = registerAs('app', () => ({
   nodeEnv: process.env.NODE_ENV ?? 'development',
-  port: parseInt(process.env.PORT ?? '8000', 10),
+  port: parseListenPort(process.env.PORT, process.env.RENDER ? 10000 : 8000),
   apiPrefix: process.env.API_PREFIX ?? 'api/v1',
   corsOrigins: (process.env.CORS_ORIGINS ?? 'http://localhost:5173,http://localhost:5174,http://localhost:8081').split(','),
   swaggerEnabled: process.env.SWAGGER_ENABLED !== 'false',

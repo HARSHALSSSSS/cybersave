@@ -6,6 +6,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 
 import { AppModule } from './app.module';
+import { parseListenPort } from './config/env';
 import { mountAdminSpa } from './spa/admin-spa';
 
 async function bootstrap() {
@@ -14,7 +15,12 @@ async function bootstrap() {
   });
 
   const configService = app.get(ConfigService);
-  const port = configService.get<number>('app.port', 8000);
+  const fallbackPort = process.env.RENDER ? 10000 : 8000;
+  const configPort = configService.get<number>('app.port');
+  const port = parseListenPort(
+    process.env.PORT,
+    Number.isInteger(configPort) ? configPort : fallbackPort,
+  );
   const apiPrefix = configService.get<string>('app.apiPrefix', 'api/v1');
   const corsOrigins = configService.get<string[]>('app.corsOrigins', []);
   const swaggerEnabled = configService.get<boolean>('app.swaggerEnabled', true);
