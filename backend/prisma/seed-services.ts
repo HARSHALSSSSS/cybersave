@@ -60,24 +60,47 @@ async function syncPublishedMetadata(
   versionId: string,
   seed: SubServiceSeed,
 ) {
-  await prisma.serviceOverview.updateMany({
-    where: { serviceVersionId: versionId },
-    data: {
-      displayName: seed.displayName,
-      shortDescription: seed.shortDescription,
-      richDescription: seed.richDescription,
-      instructions: seed.instructions,
-      processingTime: seed.processingTime,
-      department: seed.department,
-      seoTags: [seed.slug, seed.name],
-      translations: buildServiceTranslations(seed),
-    },
-  });
+  const overviewPayload = {
+    displayName: seed.displayName,
+    shortDescription: seed.shortDescription,
+    richDescription: seed.richDescription,
+    instructions: seed.instructions,
+    processingTime: seed.processingTime,
+    department: seed.department,
+    seoTags: [seed.slug, seed.name],
+    translations: buildServiceTranslations(seed),
+  };
 
-  const fulfillment = await prisma.serviceFulfillmentConfig.findFirst({
+  const existingOverview = await prisma.serviceOverview.findFirst({
     where: { serviceVersionId: versionId },
   });
-  if (fulfillment) {
+  if (existingOverview) {
+    await prisma.serviceOverview.update({
+      where: { id: existingOverview.id },
+      data: overviewPayload,
+    });
+  } else {
+    await prisma.serviceOverview.create({
+      data: { serviceVersionId: versionId, ...overviewPayload },
+    });
+  }
+
+  let fulfillment = await prisma.serviceFulfillmentConfig.findFirst({
+    where: { serviceVersionId: versionId },
+  });
+  if (!fulfillment) {
+    fulfillment = await prisma.serviceFulfillmentConfig.create({
+      data: {
+        serviceVersionId: versionId,
+        assistedEnabled: true,
+        manualEnabled: true,
+        requiresStateSelection: seed.requiresState,
+        defaultPlatformFee: new Prisma.Decimal(seed.defaultPlatformFee ?? 49),
+        defaultPortalUrl: seed.defaultPortalUrl,
+        manualInstructions: seed.manualInstructions,
+      },
+    });
+  } else {
     await prisma.serviceFulfillmentConfig.update({
       where: { id: fulfillment.id },
       data: {
@@ -87,28 +110,28 @@ async function syncPublishedMetadata(
         manualInstructions: seed.manualInstructions,
       },
     });
+  }
 
-    await prisma.serviceStateVariant.deleteMany({
-      where: { fulfillmentConfigId: fulfillment.id },
+  await prisma.serviceStateVariant.deleteMany({
+    where: { fulfillmentConfigId: fulfillment.id },
+  });
+
+  if (seed.requiresState && seed.statePortals?.length) {
+    await prisma.serviceStateVariant.createMany({
+      data: seed.statePortals.map((s, index) => ({
+        fulfillmentConfigId: fulfillment!.id,
+        stateCode: s.code,
+        stateName: s.name,
+        officialPortalUrl: s.portalUrl,
+        platformFee: new Prisma.Decimal(s.platformFee ?? 49),
+        baseFeeOverride: s.baseFeeOverride
+          ? new Prisma.Decimal(s.baseFeeOverride)
+          : null,
+        processingTime: s.processingTime,
+        department: s.department,
+        sortOrder: index,
+      })),
     });
-
-    if (seed.requiresState && seed.statePortals?.length) {
-      await prisma.serviceStateVariant.createMany({
-        data: seed.statePortals.map((s, index) => ({
-          fulfillmentConfigId: fulfillment.id,
-          stateCode: s.code,
-          stateName: s.name,
-          officialPortalUrl: s.portalUrl,
-          platformFee: new Prisma.Decimal(s.platformFee ?? 49),
-          baseFeeOverride: s.baseFeeOverride
-            ? new Prisma.Decimal(s.baseFeeOverride)
-            : null,
-          processingTime: s.processingTime,
-          department: s.department,
-          sortOrder: index,
-        })),
-      });
-    }
   }
 
   const formVersion = await prisma.formVersion.findFirst({
@@ -163,24 +186,34 @@ async function syncPublishedMetadata(
     }
   }
 
-  const pricing = await prisma.pricingConfig.findFirst({
+  let pricing = await prisma.pricingConfig.findFirst({
     where: { serviceVersionId: versionId },
   });
-  if (pricing) {
+  if (!pricing) {
+    pricing = await prisma.pricingConfig.create({
+      data: {
+        serviceVersionId: versionId,
+        baseFee: new Prisma.Decimal(seed.baseFee),
+        taxEnabled: false,
+        taxRate: new Prisma.Decimal(0),
+        currency: 'INR',
+      },
+    });
+  } else {
     await prisma.pricingConfig.update({
       where: { id: pricing.id },
       data: { baseFee: new Prisma.Decimal(seed.baseFee) },
     });
-    await prisma.additionalCharge.deleteMany({ where: { pricingConfigId: pricing.id } });
-    if (seed.serviceFee && seed.serviceFee > 0) {
-      await prisma.additionalCharge.create({
-        data: {
-          pricingConfigId: pricing.id,
-          name: 'Cybersave Service Fee',
-          amount: new Prisma.Decimal(seed.serviceFee),
-        },
-      });
-    }
+  }
+  await prisma.additionalCharge.deleteMany({ where: { pricingConfigId: pricing.id } });
+  if (seed.serviceFee && seed.serviceFee > 0) {
+    await prisma.additionalCharge.create({
+      data: {
+        pricingConfigId: pricing.id,
+        name: 'Cybersave Service Fee',
+        amount: new Prisma.Decimal(seed.serviceFee),
+      },
+    });
   }
 
   const workflow = await prisma.workflowDefinition.findFirst({
@@ -216,6 +249,23 @@ async function publishSubService(
   if (existingPublished) {
     await syncPublishedMetadata(prisma, existingPublished.id, seed);
     console.log(`  sync (published): ${seed.displayName}`);
+    return;
+  }
+
+  const reusableVersion = await prisma.serviceVersion.findFirst({
+    where: { subServiceId: sub.id },
+    orderBy: { versionNumber: 'asc' },
+  });
+  if (reusableVersion) {
+    await prisma.serviceVersion.update({
+      where: { id: reusableVersion.id },
+      data: {
+        lifecycleStatus: ServiceVersionLifecycleStatus.PUBLISHED,
+        publishedAt: new Date(),
+      },
+    });
+    await syncPublishedMetadata(prisma, reusableVersion.id, seed);
+    console.log(`  republished: ${seed.displayName}`);
     return;
   }
 

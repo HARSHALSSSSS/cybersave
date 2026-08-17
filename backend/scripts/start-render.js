@@ -14,7 +14,7 @@ require('dotenv').config({ path: path.join(process.cwd(), '.env') });
 
 const { ensureProductionEnv } = require('./ensure-env');
 
-function run(command, args) {
+function run(command, args, { fatal = true } = {}) {
   console.log(`[cybersave] ${command} ${args.join(' ')}`);
   const result = spawnSync(command, args, {
     stdio: 'inherit',
@@ -22,8 +22,12 @@ function run(command, args) {
     shell: process.platform === 'win32',
   });
   if (result.status !== 0) {
-    process.exit(result.status ?? 1);
+    if (fatal) {
+      process.exit(result.status ?? 1);
+    }
+    return false;
   }
+  return true;
 }
 
 function countMainServices() {
@@ -111,17 +115,22 @@ if (autoSeed) {
       console.log('[cybersave] Seed complete.');
     } else {
       console.log(`[cybersave] Database already has data (${count} categories) — syncing services catalog...`);
-      try {
-        run('npx', ['ts-node', '--transpile-only', 'prisma/sync-services-catalog.ts']);
+      if (
+        run('npx', ['ts-node', '--transpile-only', 'prisma/sync-services-catalog.ts'], {
+          fatal: false,
+        })
+      ) {
         console.log('[cybersave] Services catalog sync complete.');
-      } catch (syncError) {
-        console.error('[cybersave] Catalog sync skipped:', syncError.message || syncError);
+      } else {
+        console.error('[cybersave] Catalog sync failed — continuing API startup.');
       }
       try {
         const schemeCount = countGovernmentSchemes();
         if (schemeCount === 0) {
           console.log('[cybersave] No government schemes — seeding schemes...');
-          run('npx', ['ts-node', '--transpile-only', 'prisma/seed-schemes.ts']);
+          run('npx', ['ts-node', '--transpile-only', 'prisma/seed-schemes.ts'], {
+            fatal: false,
+          });
           console.log('[cybersave] Scheme seed complete.');
         } else {
           console.log(`[cybersave] Government schemes already present (${schemeCount}).`);

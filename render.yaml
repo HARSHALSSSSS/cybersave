@@ -12,10 +12,10 @@ services:
     name: cybersave-api
     runtime: node
     plan: free
-    rootDir: backend
-    # --include=dev so Nest CLI / types are available at build time on Render
-    buildCommand: npm ci --include=dev && npx prisma generate && npm run build
-    startCommand: node scripts/start-render.js
+    # Repository root so admin/ is available when building the admin SPA
+    rootDir: .
+    buildCommand: cd backend && npm ci --include=dev && node scripts/build-with-admin.js && npx prisma generate && npm run build
+    startCommand: cd backend && node scripts/start-render.js
     healthCheckPath: /api/v1/health
     envVars:
       - key: NODE_ENV

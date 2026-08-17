@@ -1,13 +1,15 @@
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 
 import { AppModule } from './app.module';
+import { mountAdminSpa } from './spa/admin-spa';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, {
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     rawBody: true,
   });
 
@@ -18,7 +20,8 @@ async function bootstrap() {
   const swaggerEnabled = configService.get<boolean>('app.swaggerEnabled', true);
 
   app.setGlobalPrefix(apiPrefix);
-  app.use(helmet());
+  mountAdminSpa(app);
+  app.use(helmet({ contentSecurityPolicy: false }));
   const allowAllCors =
     corsOrigins.length === 0 ||
     corsOrigins.includes('*') ||
