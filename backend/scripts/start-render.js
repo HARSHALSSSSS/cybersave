@@ -2,17 +2,24 @@
 /**
  * Render / production boot (Node runtime):
  * 1) sync Prisma schema
- * 2) auto-seed if DB empty
- * 3) start NestJS
+ * 2) start compiled NestJS (never nest start — that OOMs on 512MB)
+ * 3) optional ts-node seed only when RUN_BOOT_SEED=true
  */
 const { spawnSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
-// MilesWeb / cPanel have no env UI — load backend/.env before Prisma boot.
-require('dotenv').config({ path: path.join(process.cwd(), '.env') });
+try {
+  require('dotenv').config({ path: path.join(process.cwd(), '.env') });
+} catch {
+  // dotenv is optional; Render injects env vars.
+}
 
 const { ensureProductionEnv } = require('./ensure-env');
+
+if (!process.env.NODE_OPTIONS) {
+  process.env.NODE_OPTIONS = '--max-old-space-size=384';
+}
 
 function run(command, args, { fatal = true } = {}) {
   console.log(`[cybersave] ${command} ${args.join(' ')}`);
@@ -80,41 +87,36 @@ function countGovernmentSchemes() {
   return Number((result.stdout || '0').trim()) || 0;
 }
 
-console.log('[cybersave] Starting API...');
-console.log(`[cybersave] NODE_ENV=${process.env.NODE_ENV} PORT=${process.env.PORT}`);
+function maybeSeed() {
+  const autoSeed =
+    process.env.AUTO_SEED !== 'false' && process.env.AUTO_SEED !== '0';
+  if (!autoSeed) {
+    return;
+  }
 
-if (!process.env.DATABASE_URL) {
-  console.error('[cybersave] ERROR: DATABASE_URL is not set');
-  console.error('[cybersave] Create a free Neon DB (neon.tech) and paste DATABASE_URL in Render Environment.');
-  process.exit(1);
-}
+  const onRender = Boolean(process.env.RENDER);
+  const forceSeed = process.env.RUN_BOOT_SEED === 'true' || process.env.RUN_BOOT_SEED === '1';
+  // ts-node + Nest on a 512MB free instance typically OOMs. Skip unless forced.
+  if (onRender && !forceSeed) {
+    console.log(
+      '[cybersave] Skipping catalog seed/sync at boot (avoids heap OOM). API will start now.',
+    );
+    console.log(
+      '[cybersave] After the service is live, set RUN_BOOT_SEED=true and redeploy once to load services.',
+    );
+    return;
+  }
 
-ensureProductionEnv();
-
-const migrationsDir = path.join(process.cwd(), 'prisma', 'migrations');
-const hasMigrations =
-  fs.existsSync(migrationsDir) &&
-  fs.readdirSync(migrationsDir).some((name) => !name.startsWith('.'));
-
-if (hasMigrations) {
-  run('npx', ['prisma', 'migrate', 'deploy']);
-} else {
-  console.log('[cybersave] Syncing database schema (prisma db push)...');
-  run('npx', ['prisma', 'db', 'push', '--skip-generate']);
-}
-
-const autoSeed =
-  process.env.AUTO_SEED !== 'false' && process.env.AUTO_SEED !== '0';
-
-if (autoSeed) {
   try {
     const count = countMainServices();
     if (count === 0) {
       console.log('[cybersave] Empty database — seeding demo data automatically...');
-      run('npx', ['ts-node', '--transpile-only', 'prisma/seed.ts']);
-      console.log('[cybersave] Seed complete.');
+      run('npx', ['ts-node', '--transpile-only', 'prisma/seed.ts'], { fatal: false });
+      console.log('[cybersave] Seed step finished.');
     } else {
-      console.log(`[cybersave] Database already has data (${count} categories) — syncing services catalog...`);
+      console.log(
+        `[cybersave] Database already has data (${count} categories) — syncing services catalog...`,
+      );
       if (
         run('npx', ['ts-node', '--transpile-only', 'prisma/sync-services-catalog.ts'], {
           fatal: false,
@@ -144,6 +146,31 @@ if (autoSeed) {
   }
 }
 
+console.log('[cybersave] Starting API...');
+console.log(`[cybersave] NODE_ENV=${process.env.NODE_ENV} PORT=${process.env.PORT}`);
+
+if (!process.env.DATABASE_URL) {
+  console.error('[cybersave] ERROR: DATABASE_URL is not set');
+  console.error('[cybersave] Create a free Neon DB (neon.tech) and paste DATABASE_URL in Render Environment.');
+  process.exit(1);
+}
+
+ensureProductionEnv();
+
+const migrationsDir = path.join(process.cwd(), 'prisma', 'migrations');
+const hasMigrations =
+  fs.existsSync(migrationsDir) &&
+  fs.readdirSync(migrationsDir).some((name) => !name.startsWith('.'));
+
+if (hasMigrations) {
+  run('npx', ['prisma', 'migrate', 'deploy']);
+} else {
+  console.log('[cybersave] Syncing database schema (prisma db push)...');
+  run('npx', ['prisma', 'db', 'push', '--skip-generate']);
+}
+
+maybeSeed();
+
 function resolveMainEntry() {
   const candidates = [
     path.join(process.cwd(), 'dist', 'main.js'),
@@ -155,6 +182,8 @@ function resolveMainEntry() {
     }
   }
   console.error('[cybersave] ERROR: Nest build output not found (expected dist/main.js)');
+  console.error('[cybersave] Build Command must run: npm run build');
+  console.error('[cybersave] Do not use "npm start" / "nest start" on Render.');
   process.exit(1);
 }
 

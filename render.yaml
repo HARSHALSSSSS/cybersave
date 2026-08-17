@@ -14,12 +14,14 @@ services:
     plan: free
     # Repository root so admin/ is available when building the admin SPA
     rootDir: .
-    buildCommand: cd backend && npm ci --include=dev && node scripts/build-with-admin.js && npx prisma generate && npm run build
+    buildCommand: cd backend && npm ci --include=dev && npx prisma generate && npm run build
     startCommand: cd backend && node scripts/start-render.js
     healthCheckPath: /api/v1/health
     envVars:
       - key: NODE_ENV
         value: production
+      - key: NODE_OPTIONS
+        value: --max-old-space-size=384
       - key: DATABASE_URL
         sync: false
       - key: API_PREFIX

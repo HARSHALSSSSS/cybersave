@@ -9,7 +9,7 @@
     "build": "nest build",
     "build:render": "node scripts/build-with-admin.js && nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\" \"prisma/**/*.ts\"",
-    "start": "nest start",
+    "start": "node scripts/start-render.js",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
