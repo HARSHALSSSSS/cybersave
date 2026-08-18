@@ -1,6 +1,12 @@
 import { apiClient } from './client';
 import { unwrapApiResponse, unwrapPaginated } from './types';
 
+/** Apply-flow API timeouts — generous for slow mobile networks and hosted API cold starts. */
+const APPLY_WRITE_TIMEOUT_MS = 180_000;
+const APPLY_UPLOAD_TIMEOUT_MS = 300_000;
+const APPLY_SUBMIT_TIMEOUT_MS = 180_000;
+const APPLY_PAYMENT_TIMEOUT_MS = 120_000;
+
 export type BackendApplicationStatus =
   | 'DRAFT'
   | 'FORM_IN_PROGRESS'
@@ -139,7 +145,7 @@ export async function createDraftApplication(
     subServiceId,
     stateCode,
     stateName,
-  });
+  }, { timeout: APPLY_WRITE_TIMEOUT_MS });
   return unwrapApiResponse<ApplicationDetail>(response);
 }
 
@@ -172,14 +178,11 @@ export async function validateApplication(
 }
 
 /** Submit runs validation, snapshots and workflow setup, so it needs longer than the default. */
-const SUBMIT_TIMEOUT_MS = 60000;
-const APPLY_WRITE_TIMEOUT_MS = 45000;
-
 export async function submitApplication(applicationId: string) {
   const response = await apiClient.post(
     `/applications/${applicationId}/submit`,
     undefined,
-    { timeout: SUBMIT_TIMEOUT_MS },
+    { timeout: APPLY_SUBMIT_TIMEOUT_MS },
   );
   return unwrapApiResponse<ApplicationDetail>(response);
 }
@@ -194,7 +197,7 @@ export async function requestDocumentUpload(
     documentRequirementId,
     originalFileName,
     mimeType,
-  });
+  }, { timeout: APPLY_WRITE_TIMEOUT_MS });
   return unwrapApiResponse<DocumentUploadSession>(response);
 }
 
@@ -219,6 +222,7 @@ export async function uploadApplicationFile(
       ],
       maxBodyLength: Infinity,
       maxContentLength: Infinity,
+      timeout: APPLY_UPLOAD_TIMEOUT_MS,
     },
   );
   return unwrapApiResponse<{ success: boolean; storageKey: string; sizeBytes: number }>(response);
@@ -232,14 +236,14 @@ export async function completeDocumentUpload(
   const response = await apiClient.post(`/applications/${applicationId}/uploads/complete`, {
     uploadSessionId,
     storedFileId,
-  });
+  }, { timeout: APPLY_WRITE_TIMEOUT_MS });
   return unwrapApiResponse<ApplicationDetail>(response);
 }
 
 export async function createPaymentIntent(applicationId: string, idempotencyKey: string) {
   const response = await apiClient.post(`/applications/${applicationId}/payment-intent`, {
     idempotencyKey,
-  });
+  }, { timeout: APPLY_PAYMENT_TIMEOUT_MS });
   return unwrapApiResponse<PaymentIntent>(response);
 }
 
@@ -253,14 +257,16 @@ export async function confirmApplicationPayment(
     razorpaySignature?: string;
   },
 ) {
-  const response = await apiClient.post(`/applications/${applicationId}/payments/confirm`, body);
+  const response = await apiClient.post(`/applications/${applicationId}/payments/confirm`, body, {
+    timeout: APPLY_PAYMENT_TIMEOUT_MS,
+  });
   return unwrapApiResponse<{ success: boolean; paymentId: string }>(response);
 }
 
 export async function payWithWallet(applicationId: string, idempotencyKey: string) {
   const response = await apiClient.post(`/applications/${applicationId}/pay-with-wallet`, {
     idempotencyKey,
-  });
+  }, { timeout: APPLY_PAYMENT_TIMEOUT_MS });
   return unwrapApiResponse<{ success: boolean; paymentId: string; method: string; amount: number }>(
     response,
   );
@@ -285,7 +291,7 @@ export async function submitCorrection(
 ) {
   const response = await apiClient.post(`/applications/${applicationId}/corrections/submit`, {
     values,
-  });
+  }, { timeout: APPLY_WRITE_TIMEOUT_MS });
   return unwrapApiResponse<ApplicationDetail>(response);
 }
 

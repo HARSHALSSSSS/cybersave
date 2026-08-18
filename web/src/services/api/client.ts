@@ -6,7 +6,8 @@ const REFRESH_KEY = 'cybersave_citizen_refresh';
 
 export const apiClient = axios.create({
   baseURL: env.apiBaseUrl,
-  timeout: 18000,
+  /** Baseline for catalog/list calls; apply-flow writes use longer per-request timeouts. */
+  timeout: 60_000,
   headers: {
     'Content-Type': 'application/json',
     Accept: 'application/json',

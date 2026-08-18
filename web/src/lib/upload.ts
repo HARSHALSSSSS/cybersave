@@ -1,6 +1,6 @@
 import { env } from '@/app/config/env';
 
-const UPLOAD_TIMEOUT_MS = 120_000;
+const UPLOAD_TIMEOUT_MS = 300_000;
 
 /** Align presigned storage URLs with the API base URL (fixes localhost in dev/production). */
 export function rewriteStorageUrl(url: string): string {
