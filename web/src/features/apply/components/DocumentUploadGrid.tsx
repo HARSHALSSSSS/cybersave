@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import type { DocumentRequirement } from '@/services/api/services.api';
 import type { ApplicationDetail, ApplicationDocument } from '@/services/api/applications.api';
 import { applicationsApi } from '@/services/api/applications.api';
-import { uploadToPresignedUrl } from '@/lib/upload';
+import { transferFileToUploadSession } from '@/lib/upload';
 import { cn } from '@/lib/utils';
 
 type DocumentUploadGridProps = {
@@ -64,20 +64,18 @@ function UploadTile({
         file.type || guessMimeType(file),
       );
 
-      if (session.uploadUrl) {
-        await uploadToPresignedUrl(
-          session.uploadUrl,
-          file,
-          session.headers ?? {},
-          session.method || 'PUT',
-        );
-      } else {
-        await applicationsApi.uploadApplicationFile(
-          applicationId,
-          session.uploadSessionId,
-          file,
-        );
-      }
+      await transferFileToUploadSession(
+        session.uploadUrl,
+        session.method,
+        session.headers,
+        file,
+        () =>
+          applicationsApi.uploadApplicationFile(
+            applicationId,
+            session.uploadSessionId,
+            file,
+          ),
+      );
 
       const updated = await applicationsApi.completeDocumentUpload(
         applicationId,
@@ -88,8 +86,10 @@ function UploadTile({
       onApplicationUpdated?.(updated);
     } catch (error) {
       const message =
-        (error as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error
-          ?.message ?? `Could not upload ${requirement.name}`;
+        error instanceof Error
+          ? error.message
+          : (error as { response?: { data?: { error?: { message?: string } } } })?.response?.data
+              ?.error?.message ?? `Could not upload ${requirement.name}`;
       toast.error(message);
     } finally {
       setUploading(false);

@@ -23,17 +23,22 @@ import { LocalStorageProvider } from './local-storage.provider';
 export class LocalStorageController {
   constructor(private readonly localStorage: LocalStorageProvider) {}
 
+  private decodeStorageKeyParam(storageKey: string | string[]): string {
+    const raw = Array.isArray(storageKey) ? storageKey.join('/') : storageKey;
+    return decodeURIComponent(raw);
+  }
+
   @Public()
-  @Put('upload/:storageKey')
+  @Put('upload/*storageKey')
   async upload(
-    @Param('storageKey') storageKey: string,
+    @Param('storageKey') storageKey: string | string[],
     @Query('token') token: string,
     @Query('expiresAt') expiresAtRaw: string,
     @Headers('x-max-size') maxSizeHeader: string | undefined,
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
-    const decodedKey = decodeURIComponent(storageKey);
+    const decodedKey = this.decodeStorageKeyParam(storageKey);
     const expiresAt = expiresAtRaw ? new Date(expiresAtRaw) : new Date(NaN);
 
     if (
@@ -58,16 +63,16 @@ export class LocalStorageController {
   }
 
   @Public()
-  @Get('download/:storageKey')
+  @Get('download/*storageKey')
   async download(
-    @Param('storageKey') storageKey: string,
+    @Param('storageKey') storageKey: string | string[],
     @Query('token') token: string,
     @Query('expiresAt') expiresAtRaw: string,
     @Query('fileName') fileName: string | undefined,
     @Query('mimeType') mimeType: string | undefined,
     @Res() res: Response,
   ): Promise<void> {
-    const decodedKey = decodeURIComponent(storageKey);
+    const decodedKey = this.decodeStorageKeyParam(storageKey);
     const expiresAt = expiresAtRaw ? new Date(expiresAtRaw) : new Date(NaN);
 
     if (

@@ -119,6 +119,28 @@ export async function completeProfileDocumentUpload(uploadSessionId: string, sto
   }>(response);
 }
 
+export async function uploadProfileDocumentFile(uploadSessionId: string, file: File) {
+  const form = new FormData();
+  form.append('file', file);
+  const response = await apiClient.post(
+    `/profile/documents/uploads/${uploadSessionId}/file`,
+    form,
+    {
+      transformRequest: [
+        (data, headers) => {
+          if (data instanceof FormData) {
+            delete headers['Content-Type'];
+          }
+          return data;
+        },
+      ],
+      maxBodyLength: Infinity,
+      maxContentLength: Infinity,
+    },
+  );
+  return unwrapApiResponse<{ storedFileId: string; sizeBytes: number }>(response);
+}
+
 export async function getSavedDocumentDownload(id: string) {
   const response = await apiClient.get(`/profile/documents/${id}/download`);
   return unwrapApiResponse<{ downloadUrl: string }>(response);
@@ -133,6 +155,7 @@ export const profileApi = {
   deleteSavedDocument,
   requestProfileDocumentUpload,
   completeProfileDocumentUpload,
+  uploadProfileDocumentFile,
   getSavedDocumentDownload,
 };
 
