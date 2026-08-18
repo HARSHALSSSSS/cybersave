@@ -13,6 +13,7 @@ import { formatRupee } from '@features/bill-payments/components';
 import { BillPaymentScreenLayout } from '@features/bill-payments/components/BillPaymentScreenLayout';
 import { isRazorpayUserCancelled } from '@utils/razorpayCheckout';
 import { collectRazorpayPayment, isSimulatedRazorpayCheckout } from '@utils/razorpayExperience';
+import { settlePayment } from '@utils/paymentResilience';
 import { BillPaymentsStackParamList } from '@/types/navigation';
 import { billPaymentsApi, billPaymentsQueryKeys, getBillPaymentsErrorMessage } from '@services/api/billPayments.api';
 
@@ -57,15 +58,25 @@ export const ConfirmPaymentScreen: React.FC<Props> = ({ navigation, route }) => 
         intent,
       );
 
-      return billPaymentsApi.confirmPayment(intent.id, {
-        mockCapture: isSimulatedRazorpayCheckout(checkout),
-        razorpayPaymentId: checkout.razorpay_payment_id,
-        razorpayOrderId: checkout.razorpay_order_id,
-        razorpaySignature: checkout.razorpay_signature,
+      await settlePayment({
+        confirm: () =>
+          billPaymentsApi.confirmPayment(intent.id, {
+            mockCapture: isSimulatedRazorpayCheckout(checkout),
+            razorpayPaymentId: checkout.razorpay_payment_id,
+            razorpayOrderId: checkout.razorpay_order_id,
+            razorpaySignature: checkout.razorpay_signature,
+          }),
+        verify: async () => {
+          const payment = await billPaymentsApi.getPayment(intent.id, true);
+          return payment.status === 'success' || payment.status === 'processing';
+        },
       });
+
+      // The receipt screen polls for the authoritative status.
+      return intent.id;
     },
-    onSuccess: payment => {
-      navigation.replace('PaymentResult', { paymentId: payment.id });
+    onSuccess: paymentId => {
+      navigation.replace('PaymentResult', { paymentId });
     },
     onError: (error: unknown) => {
       if (isRazorpayUserCancelled(error)) return;

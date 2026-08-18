@@ -60,5 +60,5 @@ export type {
 } from './profile.api';
 export { walletApi, walletQueryKeys } from './wallet.api';
 export type { WalletSummary, WalletTransaction, WalletTopUpIntent } from './wallet.api';
-export { unwrapApiResponse, unwrapPaginated } from './types';
+export { getApiErrorMessage, unwrapApiResponse, unwrapPaginated } from './types';
 export type { ApiEnvelope, ApiErrorBody } from './types';

@@ -156,14 +156,31 @@ export const ReviewApplicationScreen: React.FC<Props> = ({
     });
   }, [applicationId, categoryId, navigation, optionId, stateCode, stateName]);
 
-  if (!applicationId) return null;
-
-  if (isLoading && !application) {
+  if (!applicationId) {
     return (
       <View style={{ flex: 1, backgroundColor: theme.colors.backgroundSecondary }}>
         <ServiceHubHeader title={t.services.reviewDetails} showBack onBack={() => goBackInServicesStack(navigation)} />
         <View style={styles.center}>
-          <ActivityIndicator color={theme.colors.primary} />
+          <Text style={{ color: theme.colors.textSecondary, textAlign: 'center' }}>
+            {t.services.applicationNotFound}
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
+  if (!application) {
+    return (
+      <View style={{ flex: 1, backgroundColor: theme.colors.backgroundSecondary }}>
+        <ServiceHubHeader title={t.services.reviewDetails} showBack onBack={() => goBackInServicesStack(navigation)} />
+        <View style={styles.center}>
+          {isLoading ? (
+            <ActivityIndicator color={theme.colors.primary} />
+          ) : (
+            <Text style={{ color: theme.colors.textSecondary, textAlign: 'center' }}>
+              {t.services.applicationNotFound}
+            </Text>
+          )}
         </View>
       </View>
     );

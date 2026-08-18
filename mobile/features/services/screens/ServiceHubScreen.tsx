@@ -122,7 +122,21 @@ export const ServiceHubScreen: React.FC<Props> = ({ navigation, route }) => {
   }
 
   if (!category) {
-    return null;
+    return (
+      <View style={styles.container}>
+        <ServiceHubHeader
+          title={t.common.governmentServices}
+          subtitle={t.common.error}
+          showBack
+          onBack={() => goBackInServicesStack(navigation)}
+        />
+        <View style={[styles.center, { flex: 1, justifyContent: 'center' }]}>
+          <Text style={{ color: theme.colors.textSecondary, textAlign: 'center' }}>
+            {t.common.noData}
+          </Text>
+        </View>
+      </View>
+    );
   }
 
   const isCertificates = isCertificateHub(

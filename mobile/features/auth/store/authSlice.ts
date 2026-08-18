@@ -2,6 +2,10 @@ import { PayloadAction, createSlice } from '@reduxjs/toolkit';
 
 import type { CitizenProfile } from '@services/api';
 import { clearAuthTokens, setAuthTokens } from '@services/api';
+import {
+  cacheCitizenProfile,
+  clearCachedCitizenProfile,
+} from '@features/auth/utils/sessionCache';
 
 type AuthState = {
   isAuthenticated: boolean;
@@ -44,9 +48,11 @@ const authSlice = createSlice({
       state.refreshToken = action.payload.refreshToken;
       state.citizen = action.payload.citizen;
       setAuthTokens(action.payload.accessToken, action.payload.refreshToken);
+      cacheCitizenProfile(action.payload.citizen);
     },
     setCitizen: (state, action: PayloadAction<CitizenProfile>) => {
       state.citizen = action.payload;
+      cacheCitizenProfile(action.payload);
     },
     logout: state => {
       state.isAuthenticated = false;
@@ -55,6 +61,7 @@ const authSlice = createSlice({
       state.citizen = null;
       state.phone = null;
       clearAuthTokens();
+      clearCachedCitizenProfile();
     },
   },
 });

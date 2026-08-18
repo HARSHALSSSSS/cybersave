@@ -22,6 +22,7 @@ import {
   processApplicationPayment,
   type PaymentMethod,
 } from '@features/payments/utils/applicationPayment';
+import { isPaymentSettledError, runAfterPayment } from '@utils/paymentResilience';
 import {
   applicationsApi,
   applicationsQueryKeys,
@@ -108,10 +109,15 @@ export const ServicePaymentScreen: React.FC<Props> = ({ navigation, route }) => 
         },
       });
 
-      return applicationsApi.submitApplication(applicationId);
+      return runAfterPayment(
+        () => applicationsApi.submitApplication(applicationId),
+        t.services.paymentReceivedSubmitFailed,
+      );
     },
     onSuccess: result => {
       void queryClient.invalidateQueries({ queryKey: walletQueryKeys.summary() });
+      void queryClient.invalidateQueries({ queryKey: applicationsQueryKeys.all });
+      queryClient.setQueryData(applicationsQueryKeys.detail(result.id), result);
       navigation.replace('ApplicationSuccess', {
         categoryId,
         optionId,
@@ -123,6 +129,10 @@ export const ServicePaymentScreen: React.FC<Props> = ({ navigation, route }) => 
       if (isRazorpayUserCancelled(error)) return;
       if (error instanceof Error && error.message === 'INSUFFICIENT_WALLET') {
         Alert.alert(t.wallet.insufficientBalance, t.wallet.addMoneyHint);
+        return;
+      }
+      if (isPaymentSettledError(error)) {
+        Alert.alert(t.services.paymentReceivedTitle, error.message);
         return;
       }
       Alert.alert(t.common.error, t.services.paymentFailed);
@@ -231,7 +241,22 @@ export const ServicePaymentScreen: React.FC<Props> = ({ navigation, route }) => 
     payMutation.mutate();
   }, [payMutation]);
 
-  if (!applicationId) return null;
+  if (!applicationId) {
+    return (
+      <View style={{ flex: 1, backgroundColor: theme.colors.backgroundSecondary }}>
+        <ServiceHubHeader
+          title={t.services.payment}
+          showBack
+          onBack={() => goBackInServicesStack(navigation)}
+        />
+        <View style={styles.center}>
+          <Text style={{ color: theme.colors.textSecondary, textAlign: 'center' }}>
+            {t.services.applicationNotFound}
+          </Text>
+        </View>
+      </View>
+    );
+  }
 
   if (isLoading && !application) {
     return (

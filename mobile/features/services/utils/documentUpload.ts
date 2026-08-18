@@ -234,14 +234,47 @@ export async function uploadPickedDocument(
 }
 
 /**
+ * A presigned URL that still points at our own API host (dev discovery rewrites
+ * it) buys nothing over the authenticated multipart route.
+ */
+function presignedGoesDirectToStorage(uploadUrl: string): boolean {
+  if (!uploadUrl) return false;
+  try {
+    const apiBase = apiClient.defaults.baseURL ?? ENV.API_BASE_URL;
+    return new URL(uploadUrl).hostname !== new URL(apiBase).hostname;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Transfer file bytes for an open upload session.
- * Prefers authenticated direct API upload; falls back to presigned PUT.
+ *
+ * Uploading straight to storage skips a relay through the API server, which is
+ * the slowest part of attaching a document. The authenticated multipart route
+ * stays as a fallback for hosts we cannot reach directly.
  */
 export async function transferFileToUploadSession(
   file: PickedDocument,
   directUploadPath: string,
   presigned: Pick<DocumentUploadSession, 'uploadUrl' | 'method' | 'headers'>,
 ): Promise<void> {
+  if (presignedGoesDirectToStorage(presigned.uploadUrl)) {
+    try {
+      await uploadPickedDocument(
+        presigned.uploadUrl,
+        presigned.method,
+        presigned.headers,
+        file.uri,
+        file.mimeType,
+        file.name,
+      );
+      return;
+    } catch {
+      // Storage host unreachable — relay through the API instead.
+    }
+  }
+
   try {
     await uploadFileViaApi(directUploadPath, file);
   } catch (directError) {

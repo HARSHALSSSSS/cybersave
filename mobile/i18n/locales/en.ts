@@ -444,6 +444,9 @@ export const en: TranslationTree = {
     applicationLabel: 'Application',
     paymentFailed: 'Payment failed',
     paymentFailedMessage: 'Could not complete payment or submit. Please try again.',
+    paymentReceivedTitle: 'Payment received',
+    paymentReceivedSubmitFailed:
+      'Your payment went through, but we could not submit the application. Tap Pay again to finish — you will not be charged twice.',
     noPaymentRequired:
       'No payment is required for this service. Tap below to submit your application to the government portal.',
     mockPaymentNote:

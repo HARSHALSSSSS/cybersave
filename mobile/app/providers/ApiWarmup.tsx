@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 import { USE_HOSTED_API, shouldUseDevDiscovery } from '@app/config/env';
 import {
+  applicationsApi,
+  applicationsQueryKeys,
   homeBannersApi,
   homeBannersQueryKeys,
   notificationsApi,
@@ -25,7 +27,9 @@ export function ApiWarmup() {
       if (!USE_HOSTED_API) {
         return;
       }
-      await ensureApiReachable(4000);
+      // The hosted base URL is fixed, so the health ping only warms the server.
+      // Waiting on it would delay the prefetches that actually fill the tabs.
+      void ensureApiReachable(4000).catch(() => undefined);
 
       const prefetch = [
         queryClient.prefetchQuery({
@@ -54,6 +58,12 @@ export function ApiWarmup() {
             queryKey: walletQueryKeys.summary(),
             queryFn: () => walletApi.getWalletSummary(),
             staleTime: 1000 * 60 * 15,
+          }),
+          // Same key/shape the home screen asks for, so it lands as a cache hit.
+          queryClient.prefetchQuery({
+            queryKey: applicationsQueryKeys.all,
+            queryFn: () => applicationsApi.listApplications({ page: 1, limit: 1 }),
+            staleTime: 1000 * 60 * 2,
           }),
         );
       }

@@ -1,6 +1,14 @@
 import { walletApi } from '@services/api/wallet.api';
 import { isRazorpayUserCancelled } from '@utils/razorpayCheckout';
 import { collectRazorpayPayment, isSimulatedRazorpayCheckout } from '@utils/razorpayExperience';
+import { settlePayment } from '@utils/paymentResilience';
+
+async function topUpCredited(topUpId: string): Promise<boolean> {
+  const summary = await walletApi.getWalletSummary();
+  return summary.transactions.some(
+    tx => tx.type === 'TOPUP' && tx.referenceId === topUpId,
+  );
+}
 
 export async function processWalletTopUp(params: {
   amount: number;
@@ -21,11 +29,15 @@ export async function processWalletTopUp(params: {
     intent,
   );
 
-  await walletApi.confirmWalletTopUp(intent.id, {
-    mockCapture: isSimulatedRazorpayCheckout(checkout),
-    razorpayPaymentId: checkout.razorpay_payment_id,
-    razorpayOrderId: checkout.razorpay_order_id,
-    razorpaySignature: checkout.razorpay_signature,
+  await settlePayment({
+    confirm: () =>
+      walletApi.confirmWalletTopUp(intent.id, {
+        mockCapture: isSimulatedRazorpayCheckout(checkout),
+        razorpayPaymentId: checkout.razorpay_payment_id,
+        razorpayOrderId: checkout.razorpay_order_id,
+        razorpaySignature: checkout.razorpay_signature,
+      }),
+    verify: () => topUpCredited(intent.id),
   });
 }
 

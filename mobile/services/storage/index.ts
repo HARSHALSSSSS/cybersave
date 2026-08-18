@@ -8,6 +8,7 @@ export const StorageKeys = {
   ONBOARDING_COMPLETE: 'onboarding_complete',
   AUTH_TOKEN: 'auth_token',
   REFRESH_TOKEN: 'refresh_token',
+  CITIZEN_PROFILE: 'citizen_profile',
   API_BASE_URL: 'api_base_url',
   WALLET_BALANCE: 'wallet_balance',
   WALLET_EXTRA_TRANSACTIONS: 'wallet_extra_transactions',

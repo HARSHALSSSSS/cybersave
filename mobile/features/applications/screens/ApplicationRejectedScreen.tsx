@@ -151,7 +151,22 @@ export const ApplicationRejectedScreen: React.FC<Props> = ({
     );
   }
 
-  if (isError || !application) return null;
+  if (isError || !application) {
+    return (
+      <View style={styles.container}>
+        <GradientScreenHeader
+          title={t.applications.applicationDetail}
+          showBack
+          onBack={() => navigation.goBack()}
+        />
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <Text style={{ color: theme.colors.textSecondary, textAlign: 'center' }}>
+            {t.services.applicationNotFound}
+          </Text>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>

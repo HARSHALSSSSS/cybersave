@@ -20,7 +20,10 @@ import { getBoolean, StorageKeys } from '@services/storage';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Splash'>;
 
-const BOOTSTRAP_MAX_MS = USE_HOSTED_API ? 12000 : 6000;
+const BOOTSTRAP_MAX_MS = USE_HOSTED_API ? 8000 : 5000;
+/** Long enough to read the brand mark, short enough not to feel like a stall. */
+const RETURNING_USER_DELAY_MS = 350;
+const FIRST_RUN_DELAY_MS = Math.min(animations.splashDelay, 1400);
 
 function fallbackBootstrapRoute(returningUser: boolean): BootstrapRoute {
   if (returningUser) return 'Main';
@@ -40,7 +43,15 @@ export const SplashScreen: React.FC<Props> = ({ navigation }) => {
 
     async function bootstrap() {
       const returningUser = hasPersistedSession();
-      const minDelayMs = returningUser ? 500 : animations.splashDelay;
+      const minDelayMs = returningUser
+        ? RETURNING_USER_DELAY_MS
+        : FIRST_RUN_DELAY_MS;
+
+      // The brand delay runs alongside the session check rather than after it,
+      // so bootstrap costs max(delay, network) instead of the sum.
+      const minDelay = new Promise<void>(resolve =>
+        setTimeout(resolve, minDelayMs),
+      );
 
       let route: BootstrapRoute = fallbackBootstrapRoute(returningUser);
       try {
@@ -54,7 +65,7 @@ export const SplashScreen: React.FC<Props> = ({ navigation }) => {
         route = fallbackBootstrapRoute(returningUser);
       }
 
-      await new Promise<void>(resolve => setTimeout(resolve, minDelayMs));
+      await minDelay;
       if (cancelled) return;
 
       setBootstrapping(false);

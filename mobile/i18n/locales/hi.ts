@@ -426,6 +426,9 @@ export const hi: TranslationTree = {
     applicationLabel: 'आवेदन',
     paymentFailed: 'भुगतान विफल',
     paymentFailedMessage: 'भुगतान या जमा पूरा नहीं हो सका। पुनः प्रयास करें।',
+    paymentReceivedTitle: 'भुगतान प्राप्त हुआ',
+    paymentReceivedSubmitFailed:
+      'आपका भुगतान हो गया है, लेकिन आवेदन जमा नहीं हो सका। पूरा करने के लिए फिर से भुगतान पर टैप करें — आपसे दोबारा शुल्क नहीं लिया जाएगा।',
     noPaymentRequired:
       'इस सेवा के लिए भुगतान आवश्यक नहीं। नीचे टैप करके आवेदन जमा करें।',
     mockPaymentNote:

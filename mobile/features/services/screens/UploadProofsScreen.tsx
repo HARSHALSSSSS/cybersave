@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -30,6 +30,7 @@ import { useTranslation } from '@/i18n';
 import {
   applicationsApi,
   applicationsQueryKeys,
+  getApiErrorMessage,
   servicesApi,
   servicesQueryKeys,
 } from '@services/api';
@@ -47,7 +48,6 @@ export const UploadProofsScreen: React.FC<Props> = ({ navigation, route }) => {
   const { theme } = useTheme();
   const { t, format } = useTranslation();
   const queryClient = useQueryClient();
-  const [uploads, setUploads] = useState<Record<string, UploadedDoc>>({});
   const [uploadingId, setUploadingId] = useState<string | null>(null);
 
   const { data: config, isLoading } = useQuery({
@@ -63,10 +63,11 @@ export const UploadProofsScreen: React.FC<Props> = ({ navigation, route }) => {
     enabled: Boolean(applicationId),
   });
 
-  useEffect(() => {
-    if (!application?.documents?.length) return;
+  // Derived from the application rather than mirrored into local state: a local
+  // copy used to survive a delete and make the removed document reappear.
+  const uploads = useMemo(() => {
     const next: Record<string, UploadedDoc> = {};
-    for (const doc of application.documents as Array<{
+    for (const doc of (application?.documents ?? []) as Array<{
       id?: string;
       documentRequirementId?: string;
       documentRequirement?: { id?: string; name?: string };
@@ -84,8 +85,8 @@ export const UploadProofsScreen: React.FC<Props> = ({ navigation, route }) => {
           t.services.uploadedDocument,
       };
     }
-    setUploads(prev => ({ ...next, ...prev }));
-  }, [application]);
+    return next;
+  }, [application, t.services.uploadedDocument]);
 
   const uploadMutation = useMutation({
     mutationFn: async (requirementId: string) => {
@@ -122,39 +123,12 @@ export const UploadProofsScreen: React.FC<Props> = ({ navigation, route }) => {
         session.storedFileId,
       );
 
-      const attached = (updated.documents as Array<{
-        id: string;
-        documentRequirementId?: string;
-        documentRequirement?: { id?: string };
-      }>)?.find(
-        d =>
-          (d.documentRequirementId ?? d.documentRequirement?.id) === requirementId,
-      );
-
-      return {
-        result: {
-          requirementId,
-          name: picked.name,
-          documentId: attached?.id,
-        },
-        updated,
-      };
+      return updated;
     },
-    onSuccess: payload => {
+    onSuccess: updated => {
       setUploadingId(null);
-      if (!payload?.result) return;
-      const { result, updated } = payload;
-      setUploads(prev => ({
-        ...prev,
-        [result.requirementId]: {
-          name: result.name,
-          requirementId: result.requirementId,
-          documentId: result.documentId,
-        },
-      }));
-      if (applicationId) {
-        queryClient.setQueryData(applicationsQueryKeys.detail(applicationId), updated);
-      }
+      if (!updated || !applicationId) return;
+      queryClient.setQueryData(applicationsQueryKeys.detail(applicationId), updated);
     },
     onError: (error: Error) => {
       setUploadingId(null);
@@ -163,27 +137,19 @@ export const UploadProofsScreen: React.FC<Props> = ({ navigation, route }) => {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (payload: { requirementId: string; documentId?: string }) => {
-      if (applicationId && payload.documentId) {
-        const updated = await applicationsApi.deleteApplicationDocument(
-          applicationId,
-          payload.documentId,
-        );
-        return { requirementId: payload.requirementId, updated };
-      }
-      return { requirementId: payload.requirementId, updated: null };
+    mutationFn: async (documentId: string) => {
+      if (!applicationId) throw new Error('Missing application');
+      return applicationsApi.deleteApplicationDocument(applicationId, documentId);
     },
-    onSuccess: ({ requirementId, updated }) => {
-      setUploads(prev => {
-        const next = { ...prev };
-        delete next[requirementId];
-        return next;
-      });
-      if (applicationId && updated) {
-        queryClient.setQueryData(applicationsQueryKeys.detail(applicationId), updated);
-      }
+    onSuccess: updated => {
+      if (!applicationId) return;
+      queryClient.setQueryData(applicationsQueryKeys.detail(applicationId), updated);
     },
-    onError: () => Alert.alert(t.services.removeFailed, t.services.couldNotRemoveDoc),
+    onError: (error: unknown) =>
+      Alert.alert(
+        t.services.removeFailed,
+        getApiErrorMessage(error, t.services.couldNotRemoveDoc),
+      ),
   });
 
   const requirements = useMemo(
@@ -364,11 +330,10 @@ export const UploadProofsScreen: React.FC<Props> = ({ navigation, route }) => {
                 </Text>
                 <Pressable
                   accessibilityRole="button"
+                  disabled={!uploaded.documentId || deleteMutation.isPending}
                   onPress={() =>
-                    deleteMutation.mutate({
-                      requirementId: doc.id,
-                      documentId: uploaded.documentId,
-                    })
+                    uploaded.documentId &&
+                    deleteMutation.mutate(uploaded.documentId)
                   }>
                   <TrashIcon color="#EF4444" size={18} />
                 </Pressable>

@@ -34,6 +34,7 @@ import {
 } from '@components/icons';
 import {
   CitizenSavedDocument,
+  getApiErrorMessage,
   profileApi,
   profileQueryKeys,
 } from '@services/api';
@@ -82,8 +83,24 @@ export const SavedDocumentsScreen: React.FC<Props> = ({ navigation }) => {
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => profileApi.deleteSavedDocument(id),
+    // Drop the row straight away; the list refetch only confirms it.
+    onMutate: (id: string) => {
+      const previous = queryClient.getQueryData<CitizenSavedDocument[]>(
+        profileQueryKeys.documents(),
+      );
+      queryClient.setQueryData<CitizenSavedDocument[]>(
+        profileQueryKeys.documents(),
+        current => (current ?? []).filter(doc => doc.id !== id),
+      );
+      return { previous };
+    },
     onSuccess: invalidate,
-    onError: () => Alert.alert(t.common.error, t.common.couldNotDelete),
+    onError: (error, _id, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(profileQueryKeys.documents(), context.previous);
+      }
+      Alert.alert(t.common.error, getApiErrorMessage(error, t.common.couldNotDelete));
+    },
   });
 
   const filtered = useMemo(() => {
@@ -392,13 +409,18 @@ export const SavedDocumentsScreen: React.FC<Props> = ({ navigation }) => {
         session.uploadSessionId,
         session.storedFileId,
       );
-      await profileApi.createSavedDocument({
+      const created = await profileApi.createSavedDocument({
         name: name.trim(),
         documentType,
         storedFileId: session.storedFileId,
         mimeType: pickedFile.mimeType,
         originalFileName: pickedFile.name,
       });
+      // Show the new document immediately rather than waiting on a refetch.
+      queryClient.setQueryData<CitizenSavedDocument[]>(
+        profileQueryKeys.documents(),
+        current => [created, ...(current ?? [])],
+      );
       invalidate();
       resetModal();
     } catch (error) {
@@ -409,7 +431,7 @@ export const SavedDocumentsScreen: React.FC<Props> = ({ navigation }) => {
     } finally {
       setSaving(false);
     }
-  }, [pickedFile, name, documentType, invalidate, resetModal]);
+  }, [pickedFile, name, documentType, invalidate, resetModal, queryClient]);
 
   const renderItem: ListRenderItem<CitizenSavedDocument> = ({ item }) => (
     <View style={styles.docCard}>

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   Platform,
   Pressable,
@@ -54,7 +54,9 @@ export const CustomTabBar: React.FC<BottomTabBarProps> = ({
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
 
-  const styles = StyleSheet.create({
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
     wrapper: {
       position: 'absolute',
       left: theme.spacing.xl,
@@ -126,7 +128,9 @@ export const CustomTabBar: React.FC<BottomTabBarProps> = ({
     labelActive: {
       fontWeight: '700',
     },
-  });
+      }),
+    [theme, insets.bottom],
+  );
 
   return (
     <View style={styles.wrapper} pointerEvents="box-none">

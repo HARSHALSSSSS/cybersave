@@ -64,11 +64,25 @@ function persistBase(baseURL: string): string {
   return normalized;
 }
 
+let reachablePromise: Promise<string | null> | null = null;
+
 /**
  * Ensure the API client points at a reachable host before auth/bootstrap calls.
  * Fast-fails in dev when the backend is down instead of hanging on a bad saved URL.
+ *
+ * Concurrent callers share one probe — startup warmup and session restore both
+ * ask for this, and pinging twice just delays the first screen.
  */
-export async function ensureApiReachable(timeoutMs = 3500): Promise<string | null> {
+export function ensureApiReachable(timeoutMs = 3500): Promise<string | null> {
+  if (!reachablePromise) {
+    reachablePromise = resolveReachableBase(timeoutMs).finally(() => {
+      reachablePromise = null;
+    });
+  }
+  return reachablePromise;
+}
+
+async function resolveReachableBase(timeoutMs: number): Promise<string | null> {
   if (!shouldUseDevDiscovery()) {
     const hostedTimeout = USE_HOSTED_API ? Math.min(Math.max(timeoutMs, 2500), 5000) : timeoutMs;
     const pingAttempts = USE_HOSTED_API ? 2 : 1;
