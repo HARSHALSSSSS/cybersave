@@ -97,7 +97,6 @@ export function ServiceApplyPage() {
   const hydratedApplicationIdRef = useRef<string | null>(null);
   const prevServiceKeyRef = useRef<string | null>(null);
   const [submittedLocally, setSubmittedLocally] = useState(false);
-  const [finalizingSubmission, setFinalizingSubmission] = useState(false);
   const finalizeStartedRef = useRef(false);
   const [maxStepReached, setMaxStepReached] = useState<ApplyStep>('form');
   const [formSyncPending, setFormSyncPending] = useState(false);
@@ -564,7 +563,6 @@ export function ServiceApplyPage() {
   async function finalizeSubmissionAfterPayment() {
     if (!applicationId || finalizeStartedRef.current) return;
     finalizeStartedRef.current = true;
-    setFinalizingSubmission(true);
     try {
       await finalizeApplicationSubmission(
         queryClient,
@@ -575,7 +573,6 @@ export function ServiceApplyPage() {
         queryClient.invalidateQueries({ queryKey: paymentsQueryKeys.all }),
         queryClient.invalidateQueries({ queryKey: walletQueryKeys.summary() }),
       ]);
-      toast.success('Application submitted successfully');
     } catch (error) {
       finalizeStartedRef.current = false;
       if (isPaymentSettledError(error)) {
@@ -597,8 +594,6 @@ export function ServiceApplyPage() {
         return;
       }
       toast.error(extractErrorMessage(error, 'Could not submit application'));
-    } finally {
-      setFinalizingSubmission(false);
     }
   }
 
@@ -1070,11 +1065,6 @@ export function ServiceApplyPage() {
                   Your {displayName.toLowerCase()} application has been received and is being
                   processed.
                 </p>
-                {finalizingSubmission ? (
-                  <p className="mt-3 text-sm font-medium text-[#2563EB]">
-                    Finalizing your submission…
-                  </p>
-                ) : null}
                 <div className="mx-auto mt-6 max-w-sm rounded-xl border border-[#E5E7EB] bg-white px-6 py-4">
                   <p className="text-[10px] font-semibold uppercase tracking-wide text-[#9CA3AF]">
                     Official Application ID

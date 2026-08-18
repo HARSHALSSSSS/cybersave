@@ -239,6 +239,7 @@ export async function uploadPickedDocument(
  */
 function presignedGoesDirectToStorage(uploadUrl: string): boolean {
   if (!uploadUrl) return false;
+  if (uploadUrl.includes('/storage/local/upload/')) return false;
   try {
     const apiBase = apiClient.defaults.baseURL ?? ENV.API_BASE_URL;
     return new URL(uploadUrl).hostname !== new URL(apiBase).hostname;
@@ -249,10 +250,7 @@ function presignedGoesDirectToStorage(uploadUrl: string): boolean {
 
 /**
  * Transfer file bytes for an open upload session.
- *
- * Uploading straight to storage skips a relay through the API server, which is
- * the slowest part of attaching a document. The authenticated multipart route
- * stays as a fallback for hosts we cannot reach directly.
+ * Local / same-host URLs always use the authenticated multipart route (fastest on device).
  */
 export async function transferFileToUploadSession(
   file: PickedDocument,
@@ -275,26 +273,7 @@ export async function transferFileToUploadSession(
     }
   }
 
-  try {
-    await uploadFileViaApi(directUploadPath, file);
-  } catch (directError) {
-    try {
-      await uploadPickedDocument(
-        presigned.uploadUrl,
-        presigned.method,
-        presigned.headers,
-        file.uri,
-        file.mimeType,
-        file.name,
-      );
-    } catch {
-      const message =
-        directError instanceof Error
-          ? directError.message
-          : 'Upload failed. Check your connection and try again.';
-      throw new Error(message);
-    }
-  }
+  await uploadFileViaApi(directUploadPath, file);
 }
 
 export async function pickDocument(allowedFormats?: string[]): Promise<PickedDocument | null> {

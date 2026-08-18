@@ -1,6 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import {
-  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -40,35 +39,22 @@ export const ApplicationSuccessScreen: React.FC<Props> = ({
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const finalizeStartedRef = useRef(false);
-  const [finalizing, setFinalizing] = useState(true);
 
-  const { data: application, refetch } = useQuery({
+  const { data: application } = useQuery({
     queryKey: applicationsQueryKeys.detail(applicationId),
     queryFn: () => applicationsApi.getApplicationById(applicationId),
-    staleTime: 0,
-    refetchOnMount: 'always',
+    staleTime: 30_000,
   });
 
   useEffect(() => {
     if (finalizeStartedRef.current) return;
     finalizeStartedRef.current = true;
-
-    let cancelled = false;
-
     void finalizeApplicationSubmission(
       queryClient,
       applicationId,
       t.services.paymentReceivedSubmitFailed,
-    )
-      .catch(() => refetch())
-      .finally(() => {
-        if (!cancelled) setFinalizing(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [applicationId, queryClient, refetch, t.services.paymentReceivedSubmitFailed]);
+    );
+  }, [applicationId, queryClient, t.services.paymentReceivedSubmitFailed]);
 
   const styles = useMemo(
     () =>
@@ -104,23 +90,6 @@ export const ApplicationSuccessScreen: React.FC<Props> = ({
           textAlign: 'center',
           marginBottom: theme.spacing['2xl'],
           lineHeight: 22,
-        },
-        statusBanner: {
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: theme.spacing.sm,
-          marginBottom: theme.spacing.lg,
-          borderRadius: theme.radius.xl,
-          borderWidth: 1,
-          borderColor: 'rgba(255,255,255,0.25)',
-          backgroundColor: 'rgba(255,255,255,0.12)',
-          paddingHorizontal: theme.spacing.lg,
-          paddingVertical: theme.spacing.md,
-        },
-        statusBannerText: {
-          ...theme.typography.bodySmall,
-          color: theme.colors.textInverse,
-          flex: 1,
         },
         card: {
           backgroundColor: theme.colors.surface,
@@ -233,13 +202,6 @@ export const ApplicationSuccessScreen: React.FC<Props> = ({
         <Text style={styles.title}>{t.services.applicationSubmitted}</Text>
         <Text style={styles.subtitle}>{t.services.applicationSubmittedSubtitle}</Text>
 
-        {finalizing ? (
-          <View style={styles.statusBanner}>
-            <ActivityIndicator color={theme.colors.textInverse} size="small" />
-            <Text style={styles.statusBannerText}>{t.common.loading}</Text>
-          </View>
-        ) : null}
-
         <View style={styles.card}>
           <Text style={styles.refLabel}>{t.services.applicationReferenceNumber}</Text>
           <Text style={styles.refValue}>{displayRef}</Text>
@@ -266,7 +228,6 @@ export const ApplicationSuccessScreen: React.FC<Props> = ({
             title={t.services.trackApplication}
             variant="secondary"
             gradient={false}
-            disabled={finalizing}
             onPress={handleTrack}
           />
         </View>

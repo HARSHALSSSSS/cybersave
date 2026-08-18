@@ -28,9 +28,9 @@ import {
 } from '@features/services/utils/applyFlowPrefetch';
 import {
   pickDocument,
-  transferFileToUploadSession,
   validateDocumentForRequirement,
 } from '@features/services/utils/documentUpload';
+import { uploadApplicationDocument } from '@features/services/utils/uploadApplicationDocument';
 import { useTranslation } from '@/i18n';
 import {
   applicationsApi,
@@ -54,6 +54,7 @@ export const UploadProofsScreen: React.FC<Props> = ({ navigation, route }) => {
   const { t, format } = useTranslation();
   const queryClient = useQueryClient();
   const [uploadingId, setUploadingId] = useState<string | null>(null);
+  const [pendingNames, setPendingNames] = useState<Record<string, string>>({});
 
   const { data: config, isLoading } = useQuery({
     queryKey: servicesQueryKeys.configuration(optionId, stateCode),
@@ -127,32 +128,38 @@ export const UploadProofsScreen: React.FC<Props> = ({ navigation, route }) => {
         throw new Error(check.message);
       }
 
-      const session = await applicationsApi.requestDocumentUpload(
+      setPendingNames(prev => ({ ...prev, [requirementId]: picked.name }));
+
+      const updated = await uploadApplicationDocument(
         applicationId,
         requirementId,
-        picked.name,
-        check.mimeType,
-      );
-      await transferFileToUploadSession(
         picked,
-        `/applications/${applicationId}/uploads/${session.uploadSessionId}/file`,
-        session,
-      );
-      const updated = await applicationsApi.completeDocumentUpload(
-        applicationId,
-        session.uploadSessionId,
-        session.storedFileId,
+        check.mimeType,
       );
 
       return updated;
     },
-    onSuccess: updated => {
+    onSuccess: (updated, requirementId) => {
       setUploadingId(null);
+      if (requirementId) {
+        setPendingNames(prev => {
+          const next = { ...prev };
+          delete next[requirementId];
+          return next;
+        });
+      }
       if (!updated || !applicationId) return;
       queryClient.setQueryData(applicationsQueryKeys.detail(applicationId), updated);
     },
-    onError: (error: Error) => {
+    onError: (error: Error, requirementId) => {
       setUploadingId(null);
+      if (requirementId) {
+        setPendingNames(prev => {
+          const next = { ...prev };
+          delete next[requirementId];
+          return next;
+        });
+      }
       Alert.alert(t.services.uploadFailed, error.message || t.services.couldNotUpload);
     },
   });
@@ -335,7 +342,9 @@ export const UploadProofsScreen: React.FC<Props> = ({ navigation, route }) => {
 
       {requirements.map(doc => {
         const uploaded = uploads[doc.id];
-        const isUploading = uploadingId === doc.id;
+        const pendingName = pendingNames[doc.id];
+        const isUploading = uploadingId === doc.id || Boolean(pendingName);
+        const showUploaded = Boolean(uploaded) || Boolean(pendingName);
         const formats = (doc.allowedFormats ?? []).join(', ').toUpperCase() || 'PDF, JPG, PNG';
         return (
           <View key={doc.id}>
@@ -343,22 +352,23 @@ export const UploadProofsScreen: React.FC<Props> = ({ navigation, route }) => {
               {doc.name}
               {!doc.required ? ` ${t.services.optionalSuffix}` : ' *'}
             </Text>
-            {uploaded ? (
+            {showUploaded ? (
               <View style={styles.uploaded}>
                 <FileDocIcon color={theme.colors.primary} size={22} />
                 <Text style={styles.fileName} numberOfLines={1}>
-                  {uploaded.name}
+                  {uploaded?.name ?? pendingName}
                 </Text>
-                <Pressable
-                  accessibilityRole="button"
-                  disabled={!uploaded.documentId || deleteMutation.isPending}
-                  onPress={() =>
-                    uploaded.documentId &&
-                    deleteMutation.mutate(uploaded.documentId)
-                  }>
-                  <TrashIcon color="#EF4444" size={18} />
-                </Pressable>
-                <CheckCircleIcon color="#10B981" size={20} />
+                {uploaded?.documentId ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    disabled={deleteMutation.isPending}
+                    onPress={() => deleteMutation.mutate(uploaded.documentId!)}>
+                    <TrashIcon color="#EF4444" size={18} />
+                  </Pressable>
+                ) : (
+                  <ActivityIndicator color={theme.colors.primary} size="small" />
+                )}
+                {uploaded ? <CheckCircleIcon color="#10B981" size={20} /> : null}
               </View>
             ) : (
               <Pressable

@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import type { DocumentRequirement } from '@/services/api/services.api';
 import type { ApplicationDetail, ApplicationDocument } from '@/services/api/applications.api';
 import { applicationsApi } from '@/services/api/applications.api';
-import { transferFileToUploadSession } from '@/lib/upload';
+import { uploadApplicationDocument } from '@/features/apply/utils/uploadApplicationDocument';
 import { cn } from '@/lib/utils';
 
 type DocumentUploadGridProps = {
@@ -13,16 +13,6 @@ type DocumentUploadGridProps = {
   uploaded: ApplicationDocument[];
   onApplicationUpdated?: (application: ApplicationDetail) => void;
 };
-
-function guessMimeType(file: File) {
-  if (file.type) return file.type;
-  const ext = file.name.split('.').pop()?.toLowerCase();
-  if (ext === 'pdf') return 'application/pdf';
-  if (ext === 'png') return 'image/png';
-  if (ext === 'jpg' || ext === 'jpeg') return 'image/jpeg';
-  if (ext === 'webp') return 'image/webp';
-  return 'application/octet-stream';
-}
 
 function formatMaxSize(bytes?: number) {
   if (!bytes) return '10MB';
@@ -44,7 +34,7 @@ function UploadTile({
   onApplicationUpdated?: (application: ApplicationDetail) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [uploading, setUploading] = useState(false);
+  const [pendingName, setPendingName] = useState<string | null>(null);
 
   async function handleFile(file: File) {
     const maxBytes = requirement.maxFileSizeBytes || DEFAULT_MAX_BYTES;
@@ -55,32 +45,12 @@ function UploadTile({
       return;
     }
 
-    setUploading(true);
+    setPendingName(file.name);
     try {
-      const session = await applicationsApi.requestDocumentUpload(
+      const updated = await uploadApplicationDocument(
         applicationId,
         requirement.id,
-        file.name,
-        file.type || guessMimeType(file),
-      );
-
-      await transferFileToUploadSession(
-        session.uploadUrl,
-        session.method,
-        session.headers,
         file,
-        () =>
-          applicationsApi.uploadApplicationFile(
-            applicationId,
-            session.uploadSessionId,
-            file,
-          ),
-      );
-
-      const updated = await applicationsApi.completeDocumentUpload(
-        applicationId,
-        session.uploadSessionId,
-        session.storedFileId,
       );
       toast.success(`${requirement.name} uploaded`);
       onApplicationUpdated?.(updated);
@@ -92,7 +62,7 @@ function UploadTile({
               ?.error?.message ?? `Could not upload ${requirement.name}`;
       toast.error(message);
     } finally {
-      setUploading(false);
+      setPendingName(null);
     }
   }
 
@@ -107,13 +77,18 @@ function UploadTile({
     }
   }
 
-  const fileName = existing?.storedFile?.originalFileName ?? existing?.documentRequirement?.name;
+  const fileName =
+    existing?.storedFile?.originalFileName ??
+    pendingName ??
+    existing?.documentRequirement?.name;
+  const showAsUploaded = Boolean(existing) || Boolean(pendingName);
+  const uploading = Boolean(pendingName) && !existing;
 
   return (
     <div
       className={cn(
         'relative rounded-2xl border-2 border-dashed p-5 transition',
-        existing ? 'border-[#2563EB]/40 bg-[#EFF6FF]/40' : 'border-[#E5E7EB] bg-[#FAFBFC]',
+        showAsUploaded ? 'border-[#2563EB]/40 bg-[#EFF6FF]/40' : 'border-[#E5E7EB] bg-[#FAFBFC]',
       )}
     >
       <input
@@ -128,28 +103,38 @@ function UploadTile({
         }}
       />
 
-      {existing ? (
+      {showAsUploaded ? (
         <div className="flex items-start gap-3">
-          <FileText className="mt-0.5 h-5 w-5 shrink-0 text-[#2563EB]" />
+          {uploading ? (
+            <Loader2 className="mt-0.5 h-5 w-5 shrink-0 animate-spin text-[#2563EB]" />
+          ) : (
+            <FileText className="mt-0.5 h-5 w-5 shrink-0 text-[#2563EB]" />
+          )}
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-[#0A1629]">{requirement.name}</p>
             <p className="mt-1 truncate text-xs text-[#6B7280]">{fileName}</p>
+            {uploading ? (
+              <p className="mt-2 text-xs font-medium text-[#2563EB]">Uploading…</p>
+            ) : (
+              <button
+                type="button"
+                onClick={() => inputRef.current?.click()}
+                className="mt-2 text-xs font-medium text-[#2563EB] hover:underline"
+              >
+                Replace file
+              </button>
+            )}
+          </div>
+          {!uploading && existing ? (
             <button
               type="button"
-              onClick={() => inputRef.current?.click()}
-              className="mt-2 text-xs font-medium text-[#2563EB] hover:underline"
+              onClick={() => void handleRemove()}
+              className="rounded-lg p-1 text-[#9CA3AF] hover:bg-white hover:text-red-600"
+              aria-label="Remove"
             >
-              Replace file
+              <X className="h-4 w-4" />
             </button>
-          </div>
-          <button
-            type="button"
-            onClick={() => void handleRemove()}
-            className="rounded-lg p-1 text-[#9CA3AF] hover:bg-white hover:text-red-600"
-            aria-label="Remove"
-          >
-            <X className="h-4 w-4" />
-          </button>
+          ) : null}
         </div>
       ) : (
         <button
@@ -158,11 +143,7 @@ function UploadTile({
           onClick={() => inputRef.current?.click()}
           className="flex w-full flex-col items-center gap-3 text-center"
         >
-          {uploading ? (
-            <Loader2 className="h-8 w-8 animate-spin text-[#2563EB]" />
-          ) : (
-            <CloudUpload className="h-8 w-8 text-[#2563EB]" />
-          )}
+          <CloudUpload className="h-8 w-8 text-[#2563EB]" />
           <div>
             <p className="text-sm font-semibold text-[#0A1629]">
               {requirement.name}

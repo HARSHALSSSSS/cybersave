@@ -27,7 +27,6 @@ import {
   refreshApplicationsListQueries,
   syncSubmittedApplicationInCaches,
 } from '@features/applications/utils/applicationListCache';
-import { finalizeApplicationSubmission } from '@features/applications/utils/finalizeApplicationSubmission';
 import { dismissRazorpayHost } from '@utils/razorpayCheckoutStore';
 import {
   describeSubmitFailure,
@@ -164,43 +163,6 @@ export const ServicePaymentScreen: React.FC<Props> = ({ navigation, route }) => 
     });
   }, [application, applicationId, categoryId, navigation, optionId, queryClient]);
 
-  const runSubmitAfterPayment = useCallback(async () => {
-    if (!applicationId) return;
-    try {
-      await finalizeApplicationSubmission(
-        queryClient,
-        applicationId,
-        t.services.paymentReceivedSubmitFailed,
-      );
-    } catch (error) {
-      const recovered = await recoverSubmittedApplication();
-      if (recovered) {
-        syncSubmittedApplicationInCaches(queryClient, recovered);
-        void refreshApplicationsListQueries(queryClient);
-        return;
-      }
-      if (isPaymentSettledError(error)) {
-        const reason = describeSubmitFailure(error);
-        Alert.alert(
-          t.services.paymentReceivedTitle,
-          reason ? `${error.message}\n\n(${reason})` : error.message,
-          [
-            { text: t.common.cancel, style: 'cancel' },
-            { text: t.common.retry, onPress: () => void runSubmitAfterPayment() },
-          ],
-        );
-      }
-    }
-  }, [
-    applicationId,
-    queryClient,
-    recoverSubmittedApplication,
-    t.common.cancel,
-    t.common.retry,
-    t.services.paymentReceivedSubmitFailed,
-    t.services.paymentReceivedTitle,
-  ]);
-
   useEffect(() => {
     if (!applicationId || total <= 0) return;
     void prefetchPaymentIntent(queryClient, applicationId, idempotencyKey);
@@ -258,7 +220,6 @@ export const ServicePaymentScreen: React.FC<Props> = ({ navigation, route }) => 
         return;
       }
       goToSuccessOptimistic();
-      void runSubmitAfterPayment();
     },
     onError: async (error: unknown) => {
       dismissRazorpayHost();
@@ -279,7 +240,7 @@ export const ServicePaymentScreen: React.FC<Props> = ({ navigation, route }) => 
           reason ? `${error.message}\n\n(${reason})` : error.message,
           [
             { text: t.common.cancel, style: 'cancel' },
-            { text: t.common.retry, onPress: () => void runSubmitAfterPayment() },
+            { text: t.common.retry, onPress: () => goToSuccessOptimistic() },
           ],
         );
         return;
