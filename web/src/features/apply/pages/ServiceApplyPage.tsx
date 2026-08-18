@@ -245,32 +245,12 @@ export function ServiceApplyPage() {
     needsStateSelection,
   ]);
 
-  // Recovery: if draft never starts within 8s, surface an error instead of infinite spinner
+  // Clear a stale error if the draft id landed (e.g. after a slow create + navigation).
   useEffect(() => {
-    if (!match?.id || !config || applicationId || routeAppId || draftFailed || needsStateSelection) {
-      return;
-    }
-    if (createDraft.isPending) return;
-
-    const timer = window.setTimeout(() => {
-      if (!applicationId && !createDraft.isPending && !draftFailed) {
-        setDraftFailed(true);
-        setDraftErrorMessage(
-          'Could not connect to the server to start your application. Make sure you are signed in and the backend is running on port 8000.',
-        );
-      }
-    }, 5000);
-
-    return () => window.clearTimeout(timer);
-  }, [
-    match?.id,
-    config,
-    applicationId,
-    routeAppId,
-    draftFailed,
-    needsStateSelection,
-    createDraft.isPending,
-  ]);
+    if (!routeAppId && !applicationId) return;
+    setDraftFailed(false);
+    setDraftErrorMessage(null);
+  }, [routeAppId, applicationId]);
 
   useEffect(() => {
     const status = (appQueryError as { response?: { status?: number } })?.response?.status;
@@ -666,9 +646,13 @@ export function ServiceApplyPage() {
   const isBootstrapping =
     (!subServiceId && catalogLoading && catalog.length === 0) ||
     (Boolean(subServiceId) && configLoading && !config);
-  const isCreatingDraft =
-    createDraft.isPending ||
-    (!applicationId && !draftFailed && !needsStateSelection && !routeAppId && Boolean(match?.id));
+  const awaitingDraft =
+    Boolean(match?.id) &&
+    !routeAppId &&
+    !applicationId &&
+    !draftFailed &&
+    !needsStateSelection;
+  const isCreatingDraft = createDraft.isPending || awaitingDraft;
 
   if (isBootstrapping) {
     return (
@@ -746,7 +730,7 @@ export function ServiceApplyPage() {
           draftErrorMessage ??
           (needsState
             ? 'This service requires a state before we can create your application draft.'
-            : 'The server could not create an application draft. Check that you are signed in and try again.')
+            : 'We could not start your application draft. Check that you are signed in and try again.')
         }
         action={
           <div className="flex flex-wrap justify-center gap-3">
