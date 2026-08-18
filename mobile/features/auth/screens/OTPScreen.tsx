@@ -24,9 +24,9 @@ import { authApi, setAuthTokens } from '@services/api';
 import { maskPhoneNumber } from '@utils/format';
 import {
   clearPendingFirebaseConfirmation,
-  isFirebaseAuthEnabled,
-  sendFirebasePhoneOtp,
-  verifyFirebasePhoneOtp,
+  resendLoginOtp,
+  verifyLoginOtp,
+  type OtpAuthMode,
 } from '@utils/firebasePhoneAuth';
 import { resetToMain } from '@utils/navigation';
 import { useTranslation } from '@/i18n';
@@ -46,7 +46,8 @@ const LockIcon = ({ color }: { color: string }) => (
 );
 
 export const OTPScreen: React.FC<Props> = ({ navigation, route }) => {
-  const { phone, devCode } = route.params;
+  const { phone, devCode, authMode: initialAuthMode = 'backend' } = route.params;
+  const [authMode, setAuthMode] = useState<OtpAuthMode>(initialAuthMode);
   const { theme } = useTheme();
   const dispatch = useDispatch();
   const insets = useSafeAreaInsets();
@@ -65,12 +66,9 @@ export const OTPScreen: React.FC<Props> = ({ navigation, route }) => {
 
   const resendMutation = useMutation({
     mutationFn: async () => {
-      if (isFirebaseAuthEnabled()) {
-        clearPendingFirebaseConfirmation();
-        await sendFirebasePhoneOtp(phone);
-        return;
-      }
-      return authApi.requestOtp(phone);
+      clearPendingFirebaseConfirmation();
+      const mode = await resendLoginOtp(phone);
+      setAuthMode(mode);
     },
     onSuccess: () => {
       setTimer(OTP_RESEND_SECONDS);
@@ -83,9 +81,7 @@ export const OTPScreen: React.FC<Props> = ({ navigation, route }) => {
 
   const verifyMutation = useMutation({
     mutationFn: async (code: string) => {
-      const tokens = isFirebaseAuthEnabled()
-        ? await authApi.verifyFirebaseToken(await verifyFirebasePhoneOtp(code))
-        : await authApi.verifyOtp(phone, code);
+      const tokens = await verifyLoginOtp(phone, code, authMode);
       setAuthTokens(tokens.accessToken, tokens.refreshToken);
       const citizen = await authApi.getMe();
       return { tokens, citizen };

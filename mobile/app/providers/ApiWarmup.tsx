@@ -1,7 +1,9 @@
 import { useEffect } from 'react';
 import { USE_HOSTED_API, shouldUseDevDiscovery } from '@app/config/env';
 import {
+  homeBannersApi,
   homeBannersQueryKeys,
+  notificationsApi,
   notificationsQueryKeys,
   servicesApi,
   servicesQueryKeys,
@@ -33,16 +35,12 @@ export function ApiWarmup() {
         }),
         queryClient.prefetchQuery({
           queryKey: homeBannersQueryKeys.list('home'),
-          queryFn: async () => {
-            const { homeBannersApi } = await import('@services/api');
-            return homeBannersApi.getHomeBanners('home');
-          },
+          queryFn: () => homeBannersApi.getHomeBanners('home'),
           staleTime: 1000 * 60 * 15,
         }),
         queryClient.prefetchQuery({
           queryKey: notificationsQueryKeys.unread(),
           queryFn: async () => {
-            const { notificationsApi } = await import('@services/api');
             const result = await notificationsApi.listNotifications(1, 10);
             return result.data.filter(n => !n.readAt).length;
           },

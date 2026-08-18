@@ -15,7 +15,7 @@ const LOGO_HEIGHT = {
 const LOCKUP_ASPECT = 782 / 252;
 
 type BrandLogoProps = {
-  size?: keyof typeof LOGO_WIDTH;
+  size?: keyof typeof LOGO_HEIGHT;
   /** Center the lockup in its container (splash hero). */
   centered?: boolean;
 };

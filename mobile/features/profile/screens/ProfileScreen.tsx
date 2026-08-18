@@ -302,19 +302,29 @@ export const ProfileScreen: React.FC<Props> = ({ navigation }) => {
         },
         statCard: {
           flex: 1,
+          minWidth: 0,
           backgroundColor: theme.colors.backgroundSecondary,
           borderRadius: theme.radius.lg,
-          padding: theme.spacing.md,
+          paddingVertical: theme.spacing.md,
+          paddingHorizontal: theme.spacing.xs,
           alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: 72,
           borderWidth: 1,
           borderColor: theme.colors.border,
         },
-        statValue: { ...theme.typography.headingSmall, color: theme.colors.primary },
+        statValue: {
+          ...theme.typography.headingSmall,
+          color: theme.colors.primary,
+          fontSize: 20,
+        },
         statLabel: {
           ...theme.typography.caption,
           color: theme.colors.textSecondary,
-          marginTop: 2,
+          marginTop: 4,
           textAlign: 'center',
+          lineHeight: 14,
+          paddingHorizontal: 2,
         },
         quickActionsTitle: {
           ...theme.typography.caption,
@@ -487,19 +497,25 @@ export const ProfileScreen: React.FC<Props> = ({ navigation }) => {
               style={({ pressed }) => [styles.statCard, pressed && { opacity: 0.9 }]}
               onPress={() => navigation.getParent()?.navigate('ApplicationsTab' as never)}>
               <Text style={styles.statValue}>{applicationCount}</Text>
-              <Text style={styles.statLabel}>{t.profile.applications}</Text>
+              <Text style={styles.statLabel} numberOfLines={2}>
+                {t.profile.applications}
+              </Text>
             </Pressable>
             <Pressable
               style={({ pressed }) => [styles.statCard, pressed && { opacity: 0.9 }]}
               onPress={() => navigation.navigate('SavedDocuments')}>
               <Text style={styles.statValue}>{documents.length}</Text>
-              <Text style={styles.statLabel}>{t.profile.documents}</Text>
+              <Text style={styles.statLabel} numberOfLines={2}>
+                {t.profile.documents}
+              </Text>
             </Pressable>
             <Pressable
               style={({ pressed }) => [styles.statCard, pressed && { opacity: 0.9 }]}
               onPress={() => navigation.navigate('Addresses')}>
               <Text style={styles.statValue}>{addresses.length}</Text>
-              <Text style={styles.statLabel}>{t.profile.addresses}</Text>
+              <Text style={styles.statLabel} numberOfLines={2}>
+                {t.profile.addresses}
+              </Text>
             </Pressable>
           </View>
 
@@ -512,6 +528,7 @@ export const ProfileScreen: React.FC<Props> = ({ navigation }) => {
               <Button
                 title={t.profile.updateProfile}
                 variant="outline"
+                gradient={false}
                 onPress={openUpdateProfile}
               />
             ) : (

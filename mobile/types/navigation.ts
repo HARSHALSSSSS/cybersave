@@ -17,7 +17,7 @@ export type RootStackParamList = {
 
 export type AuthStackParamList = {
   Login: undefined;
-  OTP: { phone: string; devCode?: string };
+  OTP: { phone: string; devCode?: string; authMode?: 'firebase' | 'backend' };
   Register: undefined;
 };
 

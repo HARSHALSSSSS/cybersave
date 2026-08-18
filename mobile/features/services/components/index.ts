@@ -1,5 +1,6 @@
 export { ServiceIcon, ServiceHelpButton } from './ServiceIcon';
 export { ServiceHubHeader } from './ServiceHubHeader';
+export { DynamicFormFields } from './DynamicFormFields';
 export { FilterChips } from './FilterChips';
 export { ServiceGridCard } from './ServiceGridCard';
 export { CategoryBrowseCard } from './CategoryBrowseCard';

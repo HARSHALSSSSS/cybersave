@@ -44,7 +44,7 @@ export const Button: React.FC<ButtonProps> = ({
           overflow: 'hidden',
           opacity: isDisabled ? 0.6 : 1,
           alignSelf: fullWidth ? 'stretch' : 'flex-start',
-          ...theme.shadows.button,
+          ...(variant === 'primary' ? theme.shadows.button : null),
         },
         gradient: {
           minHeight: size === 'sm' ? 44 : size === 'md' ? 48 : 56,
