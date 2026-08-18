@@ -46,7 +46,14 @@ function SuccessTick({ amount }: { amount?: number }) {
 
 export const RazorpayCheckoutHost: React.FC = () => {
   const [, setRev] = useState(0);
-  useLayoutEffect(() => subscribeRazorpayHost(() => setRev(n => n + 1)), []);
+  useLayoutEffect(() => {
+    const unsubscribe = subscribeRazorpayHost(() => {
+      setRev(n => n + 1);
+    });
+    return () => {
+      unsubscribe();
+    };
+  }, []);
 
   const request = getCheckoutRequest();
   const success = getSuccessTick();
@@ -88,10 +95,14 @@ const CheckoutSheet: React.FC = () => {
 
   const pay = async () => {
     setPaying(true);
-    await new Promise(r => setTimeout(r, 450));
+    await new Promise<void>(resolve => {
+      setTimeout(resolve, 450);
+    });
     setPaying(false);
     setDone(true);
-    await new Promise(r => setTimeout(r, 650));
+    await new Promise<void>(resolve => {
+      setTimeout(resolve, 650);
+    });
     completeSimulatedCheckout({
       razorpay_payment_id: `pay_test_${Date.now()}`,
       razorpay_order_id: params.orderId || `order_test_${Date.now()}`,

@@ -24,6 +24,7 @@ import { authApi, setAuthTokens } from '@services/api';
 import { maskPhoneNumber } from '@utils/format';
 import {
   clearPendingFirebaseConfirmation,
+  isFirebaseAuthEnabled,
   resendLoginOtp,
   verifyLoginOtp,
   type OtpAuthMode,
@@ -48,6 +49,7 @@ const LockIcon = ({ color }: { color: string }) => (
 export const OTPScreen: React.FC<Props> = ({ navigation, route }) => {
   const { phone, devCode, authMode: initialAuthMode = 'backend' } = route.params;
   const [authMode, setAuthMode] = useState<OtpAuthMode>(initialAuthMode);
+  const [devCodeHint, setDevCodeHint] = useState<string | undefined>(devCode);
   const { theme } = useTheme();
   const dispatch = useDispatch();
   const insets = useSafeAreaInsets();
@@ -67,10 +69,11 @@ export const OTPScreen: React.FC<Props> = ({ navigation, route }) => {
   const resendMutation = useMutation({
     mutationFn: async () => {
       clearPendingFirebaseConfirmation();
-      const mode = await resendLoginOtp(phone);
-      setAuthMode(mode);
+      return resendLoginOtp(phone);
     },
-    onSuccess: () => {
+    onSuccess: result => {
+      setAuthMode(result.mode);
+      if (result.devCode) setDevCodeHint(result.devCode);
       setTimer(OTP_RESEND_SECONDS);
       setError(null);
     },
@@ -262,10 +265,10 @@ export const OTPScreen: React.FC<Props> = ({ navigation, route }) => {
           <Text style={styles.description}>
             {t.auth.otpHint}{' '}
             <Text style={styles.phoneHighlight}>{maskPhoneNumber(phone)}</Text>
-            {!isFirebaseAuthEnabled() && devCode ? (
+            {!isFirebaseAuthEnabled() && devCodeHint ? (
               <>
                 {' · '}
-                <Text style={styles.phoneHighlight}>{devCode ?? DEV_OTP_HINT}</Text>
+                <Text style={styles.phoneHighlight}>{devCodeHint ?? DEV_OTP_HINT}</Text>
               </>
             ) : null}
           </Text>

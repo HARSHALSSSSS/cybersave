@@ -1,12 +1,13 @@
 import {
   getAuth,
   signInWithPhoneNumber,
-  type FirebaseAuthTypes,
 } from '@react-native-firebase/auth';
 
 import { USE_FIREBASE_AUTH } from '@app/config/firebase';
 
-let pendingConfirmation: FirebaseAuthTypes.ConfirmationResult | null = null;
+type PhoneConfirmation = Awaited<ReturnType<typeof signInWithPhoneNumber>>;
+
+let pendingConfirmation: PhoneConfirmation | null = null;
 
 export type OtpAuthMode = 'firebase' | 'backend';
 
@@ -15,7 +16,7 @@ export function isFirebaseAuthEnabled(): boolean {
 }
 
 export function setPendingFirebaseConfirmation(
-  confirmation: FirebaseAuthTypes.ConfirmationResult | null,
+  confirmation: PhoneConfirmation | null,
 ) {
   pendingConfirmation = confirmation;
 }
@@ -75,9 +76,11 @@ export async function requestLoginOtp(phone: string): Promise<{
   return { mode: 'backend', devCode: data.devCode };
 }
 
-export async function resendLoginOtp(phone: string): Promise<OtpAuthMode> {
-  const result = await requestLoginOtp(phone);
-  return result.mode;
+export async function resendLoginOtp(phone: string): Promise<{
+  mode: OtpAuthMode;
+  devCode?: string;
+}> {
+  return requestLoginOtp(phone);
 }
 
 export async function verifyLoginOtp(

@@ -165,7 +165,7 @@ export const CompleteProfileScreen: React.FC<Props> = ({ navigation, route }) =>
           marginBottom: theme.spacing.xl,
           padding: theme.spacing.lg,
           borderRadius: theme.radius.xl,
-          backgroundColor: theme.colors.primaryMuted ?? theme.colors.backgroundSecondary,
+          backgroundColor: '#EFF6FF',
         },
         avatar: {
           width: 56,

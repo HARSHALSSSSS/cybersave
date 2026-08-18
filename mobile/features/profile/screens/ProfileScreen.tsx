@@ -390,7 +390,7 @@ export const ProfileScreen: React.FC<Props> = ({ navigation }) => {
   const handleMenuPress = useCallback(
     (item: MenuItem) => {
       if (item.screen) {
-        navigation.navigate(item.screen);
+        navigation.navigate(item.screen as never);
         return;
       }
       if (item.id === 'about') {

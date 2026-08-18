@@ -200,7 +200,7 @@ export const BillPaymentsHomeScreen: React.FC<Props> = ({ navigation }) => {
         errorBox: {
           padding: theme.spacing.lg,
           borderRadius: theme.radius.xl,
-          backgroundColor: theme.colors.errorMuted ?? '#FEE2E2',
+          backgroundColor: '#FEE2E2',
           marginBottom: theme.spacing.lg,
         },
         errorText: { ...theme.typography.bodyMedium, color: theme.colors.textPrimary },

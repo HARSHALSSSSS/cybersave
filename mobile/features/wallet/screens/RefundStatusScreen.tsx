@@ -1,4 +1,12 @@
-import React, { useMemo } from 'react';import LinearGradient from 'react-native-linear-gradient';
+import React, { useMemo } from 'react';
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { WalletStackParamList } from '@/types/navigation';
@@ -6,6 +14,7 @@ import { getRefundDetails } from '@constants/index';
 import { useTranslation } from '@/i18n';
 import { useTheme } from '@app/providers/ThemeProvider';
 import { BackIcon } from '@components/icons';
+import { Button } from '@components/Button';
 
 type Props = NativeStackScreenProps<WalletStackParamList, 'RefundStatus'>;
 
@@ -75,6 +84,7 @@ export const RefundStatusScreen: React.FC<Props> = ({ navigation, route }) => {
           color: '#D97706',
           fontWeight: '700',
           letterSpacing: 0.5,
+          textTransform: 'capitalize',
         },
         refLabel: {
           ...theme.typography.bodySmall,
@@ -132,11 +142,6 @@ export const RefundStatusScreen: React.FC<Props> = ({ navigation, route }) => {
           marginTop: theme.spacing.xxs,
           lineHeight: 20,
         },
-        stepTime: {
-          ...theme.typography.bodySmall,
-          color: theme.colors.textSecondary,
-          marginTop: theme.spacing.xs,
-        },
         destinationCard: {
           backgroundColor: theme.colors.surface,
           borderRadius: theme.radius.xl,
@@ -166,15 +171,32 @@ export const RefundStatusScreen: React.FC<Props> = ({ navigation, route }) => {
           flex: 1,
           marginLeft: theme.spacing.lg,
         },
+        emptyWrap: {
+          flex: 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: theme.spacing['2xl'],
+          gap: theme.spacing.lg,
+        },
+        emptyText: {
+          ...theme.typography.bodyMedium,
+          color: theme.colors.textSecondary,
+          textAlign: 'center',
+        },
       }),
     [theme, insets],
   );
 
-  const getStepColor = (state: string) => {
-    if (state === 'completed') return '#10B981';
-    if (state === 'current') return '#F59E0B';
-    return theme.colors.border;
-  };
+  if (!refund) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.emptyWrap}>
+          <Text style={styles.emptyText}>Refund details not found.</Text>
+          <Button title={t.common.back} onPress={() => navigation.goBack()} />
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -206,15 +228,14 @@ export const RefundStatusScreen: React.FC<Props> = ({ navigation, route }) => {
 
         <Text style={styles.sectionTitle}>{t.wallet.refundJourney}</Text>
         {refund.steps.map((step, index) => (
-          <View key={step.id} style={styles.stepRow}>
+          <View key={step.key} style={styles.stepRow}>
             <View style={styles.stepIndicator}>
               <View
                 style={[
                   styles.stepDot,
                   {
-                    backgroundColor:
-                      step.state === 'pending' ? 'transparent' : getStepColor(step.state),
-                    borderWidth: step.state === 'pending' ? 2 : 0,
+                    backgroundColor: step.completed ? '#10B981' : theme.colors.border,
+                    borderWidth: step.completed ? 0 : 2,
                     borderColor: theme.colors.border,
                   },
                 ]}
@@ -224,8 +245,7 @@ export const RefundStatusScreen: React.FC<Props> = ({ navigation, route }) => {
                   style={[
                     styles.stepLine,
                     {
-                      backgroundColor:
-                        step.state === 'completed' ? '#10B981' : theme.colors.border,
+                      backgroundColor: step.completed ? '#10B981' : theme.colors.border,
                     },
                   ]}
                 />
@@ -235,12 +255,13 @@ export const RefundStatusScreen: React.FC<Props> = ({ navigation, route }) => {
               <Text
                 style={[
                   styles.stepTitle,
-                  step.state === 'current' && styles.stepTitleActive,
+                  !step.completed && index === refund.steps.findIndex(s => !s.completed)
+                    ? styles.stepTitleActive
+                    : null,
                 ]}>
                 {step.title}
               </Text>
-              <Text style={styles.stepDesc}>{step.description}</Text>
-              <Text style={styles.stepTime}>{step.timestamp}</Text>
+              <Text style={styles.stepDesc}>{step.subtitle}</Text>
             </View>
           </View>
         ))}
@@ -249,19 +270,15 @@ export const RefundStatusScreen: React.FC<Props> = ({ navigation, route }) => {
           <Text style={styles.sectionTitle}>{t.wallet.destinationAccount}</Text>
           <View style={styles.destRow}>
             <Text style={styles.destLabel}>{t.wallet.bankNameLabel}</Text>
-            <Text style={styles.destValue}>{refund.destination.bankName}</Text>
+            <Text style={styles.destValue}>{refund.bankName}</Text>
           </View>
           <View style={styles.destRow}>
             <Text style={styles.destLabel}>{t.wallet.accountNumberLabel}</Text>
-            <Text style={styles.destValue}>
-              {refund.destination.accountNumber}
-            </Text>
+            <Text style={styles.destValue}>{refund.accountMasked}</Text>
           </View>
           <View style={[styles.destRow, styles.destRowLast]}>
             <Text style={styles.destLabel}>{t.wallet.referenceNumberLabel}</Text>
-            <Text style={styles.destValue}>
-              {refund.destination.referenceNumber}
-            </Text>
+            <Text style={styles.destValue}>{refund.referenceNumber}</Text>
           </View>
         </View>
       </ScrollView>

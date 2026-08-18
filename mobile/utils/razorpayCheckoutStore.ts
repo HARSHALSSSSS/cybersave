@@ -31,7 +31,9 @@ function emit() {
 
 export function subscribeRazorpayHost(listener: () => void) {
   store().listeners.add(listener);
-  return () => store().listeners.delete(listener);
+  return () => {
+    store().listeners.delete(listener);
+  };
 }
 
 export function getCheckoutRequest() {
