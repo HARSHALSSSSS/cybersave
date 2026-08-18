@@ -29,7 +29,7 @@ export function LoginPage() {
     try {
       await login(email.trim(), password);
       toast.success('Signed in successfully');
-      navigate('/dashboard');
+      navigate('dashboard', { replace: true });
     } catch {
       toast.error('Invalid email or password');
     } finally {

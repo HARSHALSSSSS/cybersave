@@ -2,7 +2,7 @@ import React, { Suspense, lazy } from 'react';
 import { createBrowserRouter, Navigate } from 'react-router';
 import AdminLayout from '@/app/layouts/AdminLayout';
 import { env } from '@/app/config/env';
-import { ProtectedRoute } from '@/features/authentication';
+import { LoginPage, ProtectedRoute } from '@/features/authentication';
 import ComingSoonPage from '@/features/shared/ComingSoonPage';
 
 const RouteSuspense: React.FC<{ children: React.ReactNode }> = ({ children }) => (
@@ -15,10 +15,6 @@ const RouteSuspense: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   >
     {children}
   </Suspense>
-);
-
-const LoginPageLazy = lazy(() =>
-  import('@/features/authentication').then(m => ({ default: m.LoginPage })),
 );
 
 const DashboardPageLazy = lazy(() =>
@@ -132,7 +128,7 @@ const SettingsPageLazy = lazy(() =>
 );
 
 export const router = createBrowserRouter([
-  { path: '/login', element: <RouteSuspense><LoginPageLazy /></RouteSuspense> },
+  { path: 'login', element: <LoginPage /> },
   {
     element: <ProtectedRoute />,
     children: [
@@ -140,7 +136,7 @@ export const router = createBrowserRouter([
         path: '/',
         element: <AdminLayout />,
         children: [
-      { index: true, element: <Navigate to="/dashboard" replace /> },
+      { index: true, element: <Navigate to="dashboard" replace /> },
       { path: 'dashboard', element: <RouteSuspense><DashboardPageLazy /></RouteSuspense> },
       { path: 'users', element: <RouteSuspense><UsersPageLazy /></RouteSuspense> },
       { path: 'users/:citizenId', element: <RouteSuspense><CitizenDetailPageLazy /></RouteSuspense> },
@@ -179,4 +175,5 @@ export const router = createBrowserRouter([
       },
     ],
   },
+  { path: '*', element: <Navigate to="login" replace /> },
 ], { basename: env.routerBasename });
