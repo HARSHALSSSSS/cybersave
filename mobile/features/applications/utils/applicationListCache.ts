@@ -5,6 +5,7 @@ import type {
   PaginatedApplications,
 } from '@services/api/applications.api';
 import { applicationsQueryKeys } from '@services/api/applications.api';
+import { notificationsQueryKeys } from '@services/api/notifications.api';
 
 function toListItem(
   application: ApplicationDetail | ApplicationListItem,
@@ -69,8 +70,13 @@ export function syncSubmittedApplicationInCaches(
 
 export function refreshApplicationsListQueries(queryClient: QueryClient) {
   void queryClient.invalidateQueries({ queryKey: applicationsQueryKeys.all });
-  void queryClient.refetchQueries({
+  return queryClient.refetchQueries({
     queryKey: applicationsQueryKeys.all,
     type: 'active',
   });
+}
+
+/** Notifications are created server-side on submit — refresh after a confirmed submission. */
+export function refreshNotificationsAfterSubmit(queryClient: QueryClient) {
+  void queryClient.invalidateQueries({ queryKey: notificationsQueryKeys.all });
 }

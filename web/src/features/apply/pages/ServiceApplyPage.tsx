@@ -58,8 +58,10 @@ import {
 import { useAuthStore } from '@/features/auth/store/auth.store';
 import {
   refreshApplicationsListQueries,
+  refreshNotificationsAfterSubmit,
   syncSubmittedApplicationInCaches,
 } from '@/features/applications/utils/applicationListCache';
+import { finalizeApplicationSubmission } from '@/features/applications/utils/finalizeApplicationSubmission';
 import {
   isRazorpayUserCancelled,
   processApplicationPayment,
@@ -69,7 +71,6 @@ import { isPaymentSettledError } from '@/lib/paymentResilience';
 import {
   describeSubmitFailure,
   isApplicationAlreadySubmitted,
-  submitApplicationAfterPayment,
 } from '@/features/payments/utils/applicationSubmit';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { openStorageDownloadUrl } from '@/lib/upload';
@@ -96,6 +97,8 @@ export function ServiceApplyPage() {
   const hydratedApplicationIdRef = useRef<string | null>(null);
   const prevServiceKeyRef = useRef<string | null>(null);
   const [submittedLocally, setSubmittedLocally] = useState(false);
+  const [finalizingSubmission, setFinalizingSubmission] = useState(false);
+  const finalizeStartedRef = useRef(false);
   const [maxStepReached, setMaxStepReached] = useState<ApplyStep>('form');
   const [formSyncPending, setFormSyncPending] = useState(false);
   const [formSyncError, setFormSyncError] = useState<string | null>(null);
@@ -214,6 +217,7 @@ export function ServiceApplyPage() {
     draftRequestedRef.current = false;
     setSubmittedLocally(false);
     setMaxStepReached('form');
+    finalizeStartedRef.current = false;
     hydratedApplicationIdRef.current = null;
   }, [routeAppId]);
 
@@ -552,52 +556,35 @@ export function ServiceApplyPage() {
 
   function showConfirmationOptimistic() {
     if (!applicationId) return;
-    const base =
-      application ??
-      queryClient.getQueryData<ApplicationDetail>(
-        applicationsQueryKeys.detail(applicationId),
-      );
-    if (base) {
-      const optimistic: ApplicationDetail = {
-        ...base,
-        status: 'SUBMITTED',
-        submittedAt: new Date().toISOString(),
-        payment: base.payment ? { ...base.payment, status: 'CAPTURED' } : base.payment,
-      };
-      syncSubmittedApplicationInCaches(queryClient, optimistic);
-    }
     setSubmittedLocally(true);
     goToStep('confirmation');
     clearApplyFormSession(serviceKey, applicationId);
-    void queryClient.prefetchQuery({
-      queryKey: applicationsQueryKeys.list(1),
-      queryFn: () => applicationsApi.listApplications({ page: 1, limit: 50 }),
-      staleTime: 30_000,
-    });
   }
 
   async function finalizeSubmissionAfterPayment() {
-    if (!applicationId) return;
+    if (!applicationId || finalizeStartedRef.current) return;
+    finalizeStartedRef.current = true;
+    setFinalizingSubmission(true);
     try {
-      const submitted = await submitApplicationAfterPayment(
+      await finalizeApplicationSubmission(
+        queryClient,
         applicationId,
         'Your payment went through, but we could not submit the application. Click Pay again to finish — you will not be charged twice.',
-        { fast: true },
       );
-      syncSubmittedApplicationInCaches(queryClient, submitted);
       void Promise.all([
-        refreshApplicationsListQueries(queryClient),
         queryClient.invalidateQueries({ queryKey: paymentsQueryKeys.all }),
         queryClient.invalidateQueries({ queryKey: walletQueryKeys.summary() }),
       ]);
       toast.success('Application submitted successfully');
     } catch (error) {
+      finalizeStartedRef.current = false;
       if (isPaymentSettledError(error)) {
         try {
           const latest = await applicationsApi.getApplicationById(applicationId);
           if (isApplicationAlreadySubmitted(latest.status)) {
             syncSubmittedApplicationInCaches(queryClient, latest);
             void refreshApplicationsListQueries(queryClient);
+            finalizeStartedRef.current = true;
             return;
           }
         } catch {
@@ -610,8 +597,20 @@ export function ServiceApplyPage() {
         return;
       }
       toast.error(extractErrorMessage(error, 'Could not submit application'));
+    } finally {
+      setFinalizingSubmission(false);
     }
   }
+
+  useEffect(() => {
+    if (step !== 'confirmation' || !applicationId || !submittedLocally) return;
+    if (application && isApplicationAlreadySubmitted(application.status)) {
+      syncSubmittedApplicationInCaches(queryClient, application);
+      void refreshApplicationsListQueries(queryClient);
+      return;
+    }
+    void finalizeSubmissionAfterPayment();
+  }, [step, submittedLocally, applicationId, application?.status]);
 
   async function handleSubmitApplication() {
     if (!applicationId) return;
@@ -655,6 +654,7 @@ export function ServiceApplyPage() {
         queryClient.invalidateQueries({ queryKey: paymentsQueryKeys.all }),
         queryClient.invalidateQueries({ queryKey: walletQueryKeys.summary() }),
       ]);
+      refreshNotificationsAfterSubmit(queryClient);
       goToStep('confirmation');
       clearApplyFormSession(serviceKey, applicationId);
       toast.success('Application submitted successfully');
@@ -1070,6 +1070,11 @@ export function ServiceApplyPage() {
                   Your {displayName.toLowerCase()} application has been received and is being
                   processed.
                 </p>
+                {finalizingSubmission ? (
+                  <p className="mt-3 text-sm font-medium text-[#2563EB]">
+                    Finalizing your submission…
+                  </p>
+                ) : null}
                 <div className="mx-auto mt-6 max-w-sm rounded-xl border border-[#E5E7EB] bg-white px-6 py-4">
                   <p className="text-[10px] font-semibold uppercase tracking-wide text-[#9CA3AF]">
                     Official Application ID

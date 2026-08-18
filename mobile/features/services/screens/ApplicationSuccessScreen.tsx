@@ -1,5 +1,6 @@
-import React, { useCallback, useEffect, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -20,11 +21,7 @@ import {
   applicationsApi,
   applicationsQueryKeys,
 } from '@services/api';
-import {
-  refreshApplicationsListQueries,
-  syncSubmittedApplicationInCaches,
-} from '@features/applications/utils/applicationListCache';
-import { isApplicationAlreadySubmitted } from '@features/payments/utils/applicationSubmit';
+import { finalizeApplicationSubmission } from '@features/applications/utils/finalizeApplicationSubmission';
 import { useTranslation } from '@/i18n';
 import { getScrollBottomPadding } from '@utils/layout';
 
@@ -42,26 +39,36 @@ export const ApplicationSuccessScreen: React.FC<Props> = ({
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const finalizeStartedRef = useRef(false);
+  const [finalizing, setFinalizing] = useState(true);
 
-  const { data: application } = useQuery({
+  const { data: application, refetch } = useQuery({
     queryKey: applicationsQueryKeys.detail(applicationId),
     queryFn: () => applicationsApi.getApplicationById(applicationId),
-    staleTime: 30_000,
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
   useEffect(() => {
-    void queryClient.prefetchQuery({
-      queryKey: applicationsQueryKeys.list('All'),
-      queryFn: () => applicationsApi.listApplicationsForFilter('All'),
-      staleTime: 30_000,
-    });
-  }, [queryClient]);
+    if (finalizeStartedRef.current) return;
+    finalizeStartedRef.current = true;
 
-  useEffect(() => {
-    if (!application || !isApplicationAlreadySubmitted(application.status)) return;
-    syncSubmittedApplicationInCaches(queryClient, application);
-    void refreshApplicationsListQueries(queryClient);
-  }, [application, queryClient]);
+    let cancelled = false;
+
+    void finalizeApplicationSubmission(
+      queryClient,
+      applicationId,
+      t.services.paymentReceivedSubmitFailed,
+    )
+      .catch(() => refetch())
+      .finally(() => {
+        if (!cancelled) setFinalizing(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [applicationId, queryClient, refetch, t.services.paymentReceivedSubmitFailed]);
 
   const styles = useMemo(
     () =>
@@ -97,6 +104,23 @@ export const ApplicationSuccessScreen: React.FC<Props> = ({
           textAlign: 'center',
           marginBottom: theme.spacing['2xl'],
           lineHeight: 22,
+        },
+        statusBanner: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: theme.spacing.sm,
+          marginBottom: theme.spacing.lg,
+          borderRadius: theme.radius.xl,
+          borderWidth: 1,
+          borderColor: 'rgba(255,255,255,0.25)',
+          backgroundColor: 'rgba(255,255,255,0.12)',
+          paddingHorizontal: theme.spacing.lg,
+          paddingVertical: theme.spacing.md,
+        },
+        statusBannerText: {
+          ...theme.typography.bodySmall,
+          color: theme.colors.textInverse,
+          flex: 1,
         },
         card: {
           backgroundColor: theme.colors.surface,
@@ -190,6 +214,11 @@ export const ApplicationSuccessScreen: React.FC<Props> = ({
   const processingTime =
     application?.serviceVersion.overview?.processingTime ?? t.services.defaultProcessingTime;
 
+  const displayRef =
+    application?.publicRef ??
+    ref ??
+    applicationId.slice(0, 8).toUpperCase();
+
   return (
     <LinearGradient
       colors={[theme.colors.gradientHeaderStart, theme.colors.gradientHeaderEnd]}
@@ -204,9 +233,16 @@ export const ApplicationSuccessScreen: React.FC<Props> = ({
         <Text style={styles.title}>{t.services.applicationSubmitted}</Text>
         <Text style={styles.subtitle}>{t.services.applicationSubmittedSubtitle}</Text>
 
+        {finalizing ? (
+          <View style={styles.statusBanner}>
+            <ActivityIndicator color={theme.colors.textInverse} size="small" />
+            <Text style={styles.statusBannerText}>{t.common.loading}</Text>
+          </View>
+        ) : null}
+
         <View style={styles.card}>
           <Text style={styles.refLabel}>{t.services.applicationReferenceNumber}</Text>
-          <Text style={styles.refValue}>{ref}</Text>
+          <Text style={styles.refValue}>{displayRef}</Text>
           <View style={styles.divider} />
 
           <View style={styles.row}>
@@ -230,6 +266,7 @@ export const ApplicationSuccessScreen: React.FC<Props> = ({
             title={t.services.trackApplication}
             variant="secondary"
             gradient={false}
+            disabled={finalizing}
             onPress={handleTrack}
           />
         </View>

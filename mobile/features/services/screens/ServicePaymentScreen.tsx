@@ -27,10 +27,11 @@ import {
   refreshApplicationsListQueries,
   syncSubmittedApplicationInCaches,
 } from '@features/applications/utils/applicationListCache';
+import { finalizeApplicationSubmission } from '@features/applications/utils/finalizeApplicationSubmission';
+import { dismissRazorpayHost } from '@utils/razorpayCheckoutStore';
 import {
   describeSubmitFailure,
   isApplicationAlreadySubmitted,
-  submitApplicationAfterPayment,
 } from '@features/payments/utils/applicationSubmit';
 import { isPaymentSettledError } from '@utils/paymentResilience';
 import {
@@ -108,11 +109,17 @@ export const ServicePaymentScreen: React.FC<Props> = ({ navigation, route }) => 
   const goToSuccess = useCallback(
     (
       result: ApplicationDetail,
-      options?: { navigate?: boolean; refreshList?: boolean },
+      options?: { navigate?: boolean; refreshList?: boolean; skipCacheSync?: boolean },
     ) => {
       void queryClient.invalidateQueries({ queryKey: walletQueryKeys.summary() });
-      syncSubmittedApplicationInCaches(queryClient, result);
-      if (options?.refreshList !== false && isApplicationAlreadySubmitted(result.status)) {
+      if (!options?.skipCacheSync) {
+        syncSubmittedApplicationInCaches(queryClient, result);
+      }
+      if (
+        options?.refreshList !== false &&
+        !options?.skipCacheSync &&
+        isApplicationAlreadySubmitted(result.status)
+      ) {
         void refreshApplicationsListQueries(queryClient);
       }
       if (options?.navigate === false) return;
@@ -146,31 +153,30 @@ export const ServicePaymentScreen: React.FC<Props> = ({ navigation, route }) => 
       queryClient.getQueryData<ApplicationDetail>(
         applicationsQueryKeys.detail(applicationId),
       );
-    if (!current) return;
-    const optimistic: ApplicationDetail = {
-      ...current,
-      status: 'SUBMITTED',
-      submittedAt: new Date().toISOString(),
-      payment: current.payment
-        ? { ...current.payment, status: 'CAPTURED' }
-        : current.payment,
-    };
-    goToSuccess(optimistic, { refreshList: false });
-  }, [application, applicationId, goToSuccess, queryClient]);
+    navigation.replace('ApplicationSuccess', {
+      categoryId,
+      optionId,
+      ref:
+        current?.publicRef ??
+        current?.id.slice(0, 8).toUpperCase() ??
+        applicationId.slice(0, 8).toUpperCase(),
+      applicationId,
+    });
+  }, [application, applicationId, categoryId, navigation, optionId, queryClient]);
 
   const runSubmitAfterPayment = useCallback(async () => {
     if (!applicationId) return;
     try {
-      const result = await submitApplicationAfterPayment(
+      await finalizeApplicationSubmission(
+        queryClient,
         applicationId,
         t.services.paymentReceivedSubmitFailed,
-        { fast: true },
       );
-      goToSuccess(result, { navigate: false, refreshList: true });
     } catch (error) {
       const recovered = await recoverSubmittedApplication();
       if (recovered) {
-        goToSuccess(recovered, { navigate: false, refreshList: true });
+        syncSubmittedApplicationInCaches(queryClient, recovered);
+        void refreshApplicationsListQueries(queryClient);
         return;
       }
       if (isPaymentSettledError(error)) {
@@ -183,22 +189,14 @@ export const ServicePaymentScreen: React.FC<Props> = ({ navigation, route }) => 
             { text: t.common.retry, onPress: () => void runSubmitAfterPayment() },
           ],
         );
-        return;
       }
-      Alert.alert(
-        t.common.error,
-        describeSubmitFailure(error) ?? t.services.paymentFailed,
-      );
     }
   }, [
     applicationId,
     queryClient,
     recoverSubmittedApplication,
-    goToSuccess,
     t.common.cancel,
-    t.common.error,
     t.common.retry,
-    t.services.paymentFailed,
     t.services.paymentReceivedSubmitFailed,
     t.services.paymentReceivedTitle,
   ]);
@@ -254,6 +252,7 @@ export const ServicePaymentScreen: React.FC<Props> = ({ navigation, route }) => 
       return { kind: 'paid' };
     },
     onSuccess: outcome => {
+      dismissRazorpayHost();
       if (outcome.kind === 'free') {
         goToSuccess(outcome.result);
         return;
@@ -262,6 +261,7 @@ export const ServicePaymentScreen: React.FC<Props> = ({ navigation, route }) => 
       void runSubmitAfterPayment();
     },
     onError: async (error: unknown) => {
+      dismissRazorpayHost();
       if (isRazorpayUserCancelled(error)) return;
       if (error instanceof Error && error.message === 'INSUFFICIENT_WALLET') {
         Alert.alert(t.wallet.insufficientBalance, t.wallet.addMoneyHint);
