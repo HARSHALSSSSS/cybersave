@@ -7,7 +7,7 @@
 
 const DEFAULT_CONFIRM_ATTEMPTS = 3;
 const DEFAULT_VERIFY_ATTEMPTS = 4;
-const VERIFY_DELAY_MS = 1500;
+const VERIFY_DELAY_MS = 450;
 
 /** Payment went through but a later step (e.g. submit) failed. */
 export class PaymentSettledError extends Error {

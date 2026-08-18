@@ -493,4 +493,6 @@ export const applicationsQueryKeys = {
   detail: (id: string) => [...applicationsQueryKeys.all, 'detail', id] as const,
   certificate: (id: string) =>
     [...applicationsQueryKeys.all, 'certificate', id] as const,
+  paymentIntent: (applicationId: string, idempotencyKey: string) =>
+    [...applicationsQueryKeys.all, 'payment-intent', applicationId, idempotencyKey] as const,
 };

@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -17,6 +17,7 @@ import { TabStackScreenLayout } from '@components/layout';
 import { LockSmallIcon, RadioSelectedIcon, RadioUnselectedIcon } from '@components/icons';
 import { ServiceHubHeader } from '@features/services/components';
 import { goBackInServicesStack } from '@features/services/utils/navigateToService';
+import { prefetchPaymentIntent } from '@features/services/utils/applyFlowPrefetch';
 import {
   isRazorpayUserCancelled,
   processApplicationPayment,
@@ -32,6 +33,7 @@ import {
   applicationsApi,
   applicationsQueryKeys,
   type ApplicationDetail,
+  type PaymentIntent,
   servicesApi,
   servicesQueryKeys,
   walletApi,
@@ -56,9 +58,11 @@ export const ServicePaymentScreen: React.FC<Props> = ({ navigation, route }) => 
   const { t, format } = useTranslation();
   const queryClient = useQueryClient();
   const citizen = useSelector((state: RootState) => state.auth.citizen);
-  const [idempotencyKey] = useState(randomIdempotencyKey);
+  const idempotencyKey = useMemo(
+    () => (applicationId ? `pay_${applicationId}` : randomIdempotencyKey()),
+    [applicationId],
+  );
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('razorpay');
-  const [flowPhase, setFlowPhase] = useState<'idle' | 'submitting'>('idle');
 
   const { data: application, isLoading } = useQuery({
     queryKey: applicationsQueryKeys.detail(applicationId ?? ''),
@@ -125,14 +129,35 @@ export const ServicePaymentScreen: React.FC<Props> = ({ navigation, route }) => 
     return null;
   }, [applicationId]);
 
+  const goToSuccessOptimistic = useCallback(() => {
+    if (!applicationId) return;
+    const current =
+      application ??
+      queryClient.getQueryData<ApplicationDetail>(
+        applicationsQueryKeys.detail(applicationId),
+      );
+    if (!current) return;
+    const optimistic: ApplicationDetail = {
+      ...current,
+      status: 'SUBMITTED',
+      submittedAt: new Date().toISOString(),
+      payment: current.payment
+        ? { ...current.payment, status: 'CAPTURED' }
+        : current.payment,
+    };
+    queryClient.setQueryData(applicationsQueryKeys.detail(applicationId), optimistic);
+    goToSuccess(optimistic);
+  }, [application, applicationId, goToSuccess, queryClient]);
+
   const runSubmitAfterPayment = useCallback(async () => {
     if (!applicationId) return;
-    setFlowPhase('submitting');
     try {
       const result = await submitApplicationAfterPayment(
         applicationId,
         t.services.paymentReceivedSubmitFailed,
+        { fast: true },
       );
+      queryClient.setQueryData(applicationsQueryKeys.detail(applicationId), result);
       goToSuccess(result);
     } catch (error) {
       const recovered = await recoverSubmittedApplication();
@@ -156,13 +181,12 @@ export const ServicePaymentScreen: React.FC<Props> = ({ navigation, route }) => 
         t.common.error,
         describeSubmitFailure(error) ?? t.services.paymentFailed,
       );
-    } finally {
-      setFlowPhase('idle');
     }
   }, [
     applicationId,
-    goToSuccess,
+    queryClient,
     recoverSubmittedApplication,
+    goToSuccess,
     t.common.cancel,
     t.common.error,
     t.common.retry,
@@ -171,10 +195,14 @@ export const ServicePaymentScreen: React.FC<Props> = ({ navigation, route }) => 
     t.services.paymentReceivedTitle,
   ]);
 
+  useEffect(() => {
+    if (!applicationId || total <= 0) return;
+    void prefetchPaymentIntent(queryClient, applicationId, idempotencyKey);
+  }, [applicationId, idempotencyKey, queryClient, total]);
+
   const payMutation = useMutation({
     mutationFn: async (): Promise<PayOutcome> => {
       if (!applicationId) throw new Error('Missing application');
-      await applicationsApi.validateApplication(applicationId);
 
       if (total <= 0) {
         return {
@@ -187,12 +215,17 @@ export const ServicePaymentScreen: React.FC<Props> = ({ navigation, route }) => 
         throw new Error('INSUFFICIENT_WALLET');
       }
 
+      const prefetchedIntent = queryClient.getQueryData<PaymentIntent>(
+        applicationsQueryKeys.paymentIntent(applicationId, idempotencyKey),
+      );
+
       await processApplicationPayment({
         applicationId,
         method: paymentMethod,
         idempotencyKey,
         amount: total,
         serviceName,
+        prefetchedIntent,
         prefill: {
           contact: citizen?.phone,
           email: citizen?.email ?? undefined,
@@ -211,6 +244,7 @@ export const ServicePaymentScreen: React.FC<Props> = ({ navigation, route }) => 
         goToSuccess(outcome.result);
         return;
       }
+      goToSuccessOptimistic();
       void runSubmitAfterPayment();
     },
     onError: async (error: unknown) => {
@@ -395,15 +429,11 @@ export const ServicePaymentScreen: React.FC<Props> = ({ navigation, route }) => 
   }
 
   const isFree = total <= 0;
-  const isPaying = payMutation.isPending;
-  const isSubmitting = flowPhase === 'submitting';
-  const isBusy = isPaying || isSubmitting;
+  const isBusy = payMutation.isPending;
 
-  const footerTitle = isSubmitting
-    ? t.services.submittingApplication
-    : isFree
-      ? t.services.submitApp
-      : format(t.services.payAndSubmit, { amount: total.toFixed(2) });
+  const footerTitle = isFree
+    ? t.services.submitApp
+    : format(t.services.payAndSubmit, { amount: total.toFixed(2) });
 
   return (
     <TabStackScreenLayout
@@ -420,13 +450,6 @@ export const ServicePaymentScreen: React.FC<Props> = ({ navigation, route }) => 
       footer={
         <Button title={footerTitle} loading={isBusy} onPress={handlePay} />
       }>
-      {isSubmitting ? (
-        <View style={styles.statusBanner}>
-          <ActivityIndicator color="#2563EB" size="small" />
-          <Text style={styles.statusBannerText}>{t.services.submittingApplicationHint}</Text>
-        </View>
-      ) : null}
-
       <View style={styles.billCard}>
         <View>
           <Text style={styles.billLabel}>{t.services.applicationLabel}</Text>

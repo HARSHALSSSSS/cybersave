@@ -334,4 +334,6 @@ export const applicationsQueryKeys = {
     [...applicationsQueryKeys.all, 'list', page, status ?? 'all'] as const,
   drafts: () => [...applicationsQueryKeys.all, 'drafts'] as const,
   detail: (id: string) => [...applicationsQueryKeys.all, 'detail', id] as const,
+  paymentIntent: (applicationId: string, idempotencyKey: string) =>
+    [...applicationsQueryKeys.all, 'payment-intent', applicationId, idempotencyKey] as const,
 };

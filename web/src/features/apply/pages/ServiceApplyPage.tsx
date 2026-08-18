@@ -33,6 +33,7 @@ import {
 } from '@/features/apply/utils/applyFormSession';
 import {
   prefetchApplicationDetail,
+  prefetchPaymentIntent,
   prefetchWalletForPayment,
 } from '@/features/apply/utils/applyFlowPrefetch';
 import {
@@ -53,6 +54,7 @@ import {
   walletQueryKeys,
   type ApplicationDetail,
   type BackendApplicationStatus,
+  type PaymentIntent,
 } from '@/services/api';
 import { useAuthStore } from '@/features/auth/store/auth.store';
 import {
@@ -329,6 +331,15 @@ export function ServiceApplyPage() {
     }
   }, [queryClient, requiresPayment]);
 
+  useEffect(() => {
+    if (!applicationId || !requiresPayment) return;
+    if (requestedStep !== 'payment' && requestedStep !== 'documents') return;
+    if (!paymentKeyRef.current) {
+      paymentKeyRef.current = `pay-${applicationId}`;
+    }
+    void prefetchPaymentIntent(queryClient, applicationId, paymentKeyRef.current);
+  }, [applicationId, queryClient, requiresPayment, requestedStep]);
+
   const allowedStep = useMemo((): ApplyStep => {
     if (submittedLocally) return 'confirmation';
     if (!application) return maxStepReached;
@@ -514,6 +525,62 @@ export function ServiceApplyPage() {
     }
   }
 
+  function showConfirmationOptimistic() {
+    if (!applicationId) return;
+    const base =
+      application ??
+      queryClient.getQueryData<ApplicationDetail>(
+        applicationsQueryKeys.detail(applicationId),
+      );
+    if (base) {
+      queryClient.setQueryData(applicationsQueryKeys.detail(applicationId), {
+        ...base,
+        status: 'SUBMITTED',
+        submittedAt: new Date().toISOString(),
+        payment: base.payment ? { ...base.payment, status: 'CAPTURED' } : base.payment,
+      });
+    }
+    setSubmittedLocally(true);
+    goToStep('confirmation');
+    clearApplyFormSession(serviceKey, applicationId);
+  }
+
+  async function finalizeSubmissionAfterPayment() {
+    if (!applicationId) return;
+    try {
+      const submitted = await submitApplicationAfterPayment(
+        applicationId,
+        'Your payment went through, but we could not submit the application. Click Pay again to finish — you will not be charged twice.',
+        { fast: true },
+      );
+      queryClient.setQueryData(applicationsQueryKeys.detail(applicationId), submitted);
+      void Promise.all([
+        queryClient.invalidateQueries({ queryKey: applicationsQueryKeys.all }),
+        queryClient.invalidateQueries({ queryKey: paymentsQueryKeys.all }),
+        queryClient.invalidateQueries({ queryKey: walletQueryKeys.summary() }),
+      ]);
+      toast.success('Application submitted successfully');
+    } catch (error) {
+      if (isPaymentSettledError(error)) {
+        try {
+          const latest = await applicationsApi.getApplicationById(applicationId);
+          if (isApplicationAlreadySubmitted(latest.status)) {
+            queryClient.setQueryData(applicationsQueryKeys.detail(applicationId), latest);
+            return;
+          }
+        } catch {
+          // Fall through to the error toast below.
+        }
+        const reason = describeSubmitFailure(error);
+        toast.error(reason ? `${error.message} (${reason})` : error.message, {
+          duration: 10000,
+        });
+        return;
+      }
+      toast.error(extractErrorMessage(error, 'Could not submit application'));
+    }
+  }
+
   async function handleSubmitApplication() {
     if (!applicationId) return;
     if (requiresPayment && paymentMethod === 'wallet' && !walletCovers) {
@@ -522,33 +589,33 @@ export function ServiceApplyPage() {
     }
     setBusy(true);
     try {
-      const validation = await applicationsApi.validateApplication(applicationId);
-      if (!validation.valid) {
-        toast.error('Application validation failed. Review form and documents.');
-        goToStep('form');
-        return;
-      }
       if (requiresPayment) {
         if (!paymentKeyRef.current) {
-          paymentKeyRef.current = randomIdempotencyKey(`pay-${applicationId}`);
+          paymentKeyRef.current = `pay-${applicationId}`;
         }
+        const prefetchedIntent = queryClient.getQueryData<PaymentIntent>(
+          applicationsQueryKeys.paymentIntent(applicationId, paymentKeyRef.current),
+        );
         await processApplicationPayment({
           applicationId,
           method: paymentMethod,
           idempotencyKey: paymentKeyRef.current,
           amount: totalAmount,
           serviceName: displayName,
+          prefetchedIntent,
           prefill: {
             contact: citizen?.phone,
             email: citizen?.email ?? undefined,
             name: [citizen?.firstName, citizen?.lastName].filter(Boolean).join(' ') || undefined,
           },
         });
+        showConfirmationOptimistic();
+        setBusy(false);
+        void finalizeSubmissionAfterPayment();
+        return;
       }
-      const submitted = await submitApplicationAfterPayment(
-        applicationId,
-        'Your payment went through, but we could not submit the application. Click Pay again to finish — you will not be charged twice.',
-      );
+
+      const submitted = await applicationsApi.submitApplication(applicationId);
       queryClient.setQueryData(applicationsQueryKeys.detail(applicationId), submitted);
       setSubmittedLocally(true);
       void Promise.all([

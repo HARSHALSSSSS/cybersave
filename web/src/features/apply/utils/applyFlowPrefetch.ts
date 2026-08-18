@@ -40,3 +40,16 @@ export function prefetchWalletForPayment(queryClient: QueryClient) {
     staleTime: APPLY_QUERY_STALE_MS,
   });
 }
+
+/** Warm the Razorpay order before the user taps Pay so checkout opens immediately. */
+export function prefetchPaymentIntent(
+  queryClient: QueryClient,
+  applicationId: string,
+  idempotencyKey: string,
+) {
+  return queryClient.prefetchQuery({
+    queryKey: applicationsQueryKeys.paymentIntent(applicationId, idempotencyKey),
+    queryFn: () => applicationsApi.createPaymentIntent(applicationId, idempotencyKey),
+    staleTime: 1000 * 60 * 5,
+  });
+}

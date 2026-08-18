@@ -62,7 +62,6 @@ function CheckoutSheet() {
   const [method, setMethod] = useState<PayMethod>('upi');
   const [upi, setUpi] = useState('success@razorpay');
   const [paying, setPaying] = useState(false);
-  const [done, setDone] = useState(false);
 
   const params = request?.params;
   const amount = params?.amount ?? 0;
@@ -79,30 +78,12 @@ function CheckoutSheet() {
   async function pay() {
     if (!params) return;
     setPaying(true);
-    await new Promise(r => setTimeout(r, 450));
-    setPaying(false);
-    setDone(true);
-    await new Promise(r => setTimeout(r, 650));
+    await new Promise(r => setTimeout(r, 80));
     completeSimulatedCheckout({
       razorpay_payment_id: `pay_test_${Date.now()}`,
       razorpay_order_id: params.orderId || `order_test_${Date.now()}`,
       razorpay_signature: `sig_test_${Date.now()}`,
     });
-  }
-
-  if (done) {
-    return (
-      <div className="fixed inset-0 z-[10050] flex items-center justify-center bg-slate-950/55 p-4">
-        <div className="flex w-full max-w-sm flex-col items-center rounded-3xl bg-white px-8 py-12 shadow-2xl">
-          <div className="flex h-24 w-24 items-center justify-center rounded-full bg-emerald-500 shadow-[0_0_0_12px_rgba(16,185,129,0.18)]">
-            <Check className="h-12 w-12 text-white" strokeWidth={3} />
-          </div>
-          <p className="mt-6 text-xl font-bold text-slate-900">Payment Successful</p>
-          <p className="mt-1 text-sm font-medium text-slate-500">{formatAmount(amount)}</p>
-          <p className="mt-4 text-xs uppercase tracking-wider text-slate-400">Secured by Razorpay</p>
-        </div>
-      </div>
-    );
   }
 
   return (

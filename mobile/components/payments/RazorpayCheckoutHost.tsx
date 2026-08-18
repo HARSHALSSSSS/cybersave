@@ -79,7 +79,6 @@ const CheckoutSheet: React.FC = () => {
   const [method, setMethod] = useState<PayMethod>('upi');
   const [upi, setUpi] = useState('success@razorpay');
   const [paying, setPaying] = useState(false);
-  const [done, setDone] = useState(false);
 
   const params = request?.params;
   const amount = params?.amount ?? 0;
@@ -96,12 +95,7 @@ const CheckoutSheet: React.FC = () => {
   const pay = async () => {
     setPaying(true);
     await new Promise<void>(resolve => {
-      setTimeout(resolve, 450);
-    });
-    setPaying(false);
-    setDone(true);
-    await new Promise<void>(resolve => {
-      setTimeout(resolve, 650);
+      setTimeout(resolve, 80);
     });
     completeSimulatedCheckout({
       razorpay_payment_id: `pay_test_${Date.now()}`,
@@ -109,14 +103,6 @@ const CheckoutSheet: React.FC = () => {
       razorpay_signature: `sig_test_${Date.now()}`,
     });
   };
-
-  if (done) {
-    return (
-      <View style={styles.overlay}>
-        <SuccessTick amount={amount} />
-      </View>
-    );
-  }
 
   return (
     <View style={styles.overlay}>

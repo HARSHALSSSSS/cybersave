@@ -14,6 +14,7 @@ import { Button } from '@components/Button';
 import { TabStackScreenLayout } from '@components/layout';
 import { FileDocIcon } from '@components/icons';
 import { ServiceHubHeader } from '@features/services/components';
+import { prefetchPaymentIntent } from '@features/services/utils/applyFlowPrefetch';
 import { goBackInServicesStack } from '@features/services/utils/navigateToService';
 import { applicationsApi, applicationsQueryKeys, servicesApi, servicesQueryKeys, walletApi, walletQueryKeys } from '@services/api';
 import { useTranslation } from '@/i18n';
@@ -137,6 +138,11 @@ export const ReviewApplicationScreen: React.FC<Props> = ({
       }),
     [theme],
   );
+
+  useEffect(() => {
+    if (!applicationId || totalAmount <= 0) return;
+    void prefetchPaymentIntent(queryClient, applicationId, `pay_${applicationId}`);
+  }, [applicationId, queryClient, totalAmount]);
 
   useEffect(() => {
     if (totalAmount <= 0) return;

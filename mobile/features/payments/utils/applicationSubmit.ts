@@ -20,6 +20,7 @@ const POST_SUBMIT_STATUSES: BackendApplicationStatus[] = [
 
 const SUBMIT_RETRY_ATTEMPTS = 12;
 const SUBMIT_WAIT_MS = 1000;
+const SUBMIT_WAIT_MS_FAST = 350;
 const SUBMIT_MAX_WALL_MS = 120_000;
 
 function delay(ms: number): Promise<void> {
@@ -108,11 +109,26 @@ export { assertConfirmSucceeded };
 export async function submitApplicationAfterPayment(
   applicationId: string,
   settledMessage: string,
+  options?: { fast?: boolean },
 ): Promise<ApplicationDetail> {
   let lastError: unknown;
   const startedAt = Date.now();
+  const fast = options?.fast === true;
+  const waitMs = fast ? SUBMIT_WAIT_MS_FAST : SUBMIT_WAIT_MS;
+  const maxAttempts = fast ? 10 : SUBMIT_RETRY_ATTEMPTS;
 
-  for (let attempt = 0; attempt < SUBMIT_RETRY_ATTEMPTS; attempt += 1) {
+  if (fast) {
+    try {
+      return await applicationsApi.submitApplication(applicationId);
+    } catch (error) {
+      if (!isRetriableSubmitError(error)) {
+        throw new PaymentSettledError(settledMessage, error);
+      }
+      lastError = error;
+    }
+  }
+
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
     if (Date.now() - startedAt > SUBMIT_MAX_WALL_MS) {
       lastError = new Error('Submit timed out while waiting for the server.');
       break;
@@ -130,16 +146,16 @@ export async function submitApplicationAfterPayment(
       app.status !== 'PAYMENT_PENDING'
     ) {
       await nudgeApplicationToPaymentPending(applicationId);
-      if (attempt < SUBMIT_RETRY_ATTEMPTS - 1) {
-        await delay(SUBMIT_WAIT_MS);
+      if (attempt < maxAttempts - 1) {
+        await delay(waitMs);
         continue;
       }
     }
 
     // On the last attempt fall through to submit anyway, so the citizen sees the
     // real server reason instead of a generic "still being recorded" message.
-    if (!isApplicationReadyToSubmit(app) && attempt < SUBMIT_RETRY_ATTEMPTS - 1) {
-      await delay(SUBMIT_WAIT_MS);
+    if (!isApplicationReadyToSubmit(app) && attempt < maxAttempts - 1) {
+      await delay(waitMs);
       continue;
     }
 
@@ -147,8 +163,8 @@ export async function submitApplicationAfterPayment(
       return await applicationsApi.submitApplication(applicationId);
     } catch (error) {
       lastError = error;
-      if (isRetriableSubmitError(error) && attempt < SUBMIT_RETRY_ATTEMPTS - 1) {
-        await delay(Math.min(SUBMIT_WAIT_MS * (attempt + 1), 4000));
+      if (isRetriableSubmitError(error) && attempt < maxAttempts - 1) {
+        await delay(Math.min(waitMs * (attempt + 1), fast ? 2000 : 4000));
         continue;
       }
       break;

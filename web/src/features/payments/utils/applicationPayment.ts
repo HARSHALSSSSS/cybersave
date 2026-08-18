@@ -6,7 +6,7 @@ import { isRazorpayUserCancelled } from '@/lib/razorpay';
 import { showPaymentSuccessTick } from '@/lib/razorpayCheckoutStore';
 import { assertConfirmSucceeded } from '@/features/payments/utils/applicationSubmit';
 import { settlePayment } from '@/lib/paymentResilience';
-import { applicationsApi } from '@/services/api/applications.api';
+import { applicationsApi, type PaymentIntent } from '@/services/api/applications.api';
 
 export type PaymentMethod = 'razorpay' | 'wallet';
 
@@ -22,8 +22,17 @@ export async function processApplicationPayment(params: {
   amount: number;
   serviceName: string;
   prefill?: { contact?: string; email?: string; name?: string };
+  prefetchedIntent?: PaymentIntent | null;
 }): Promise<void> {
-  const { applicationId, method, idempotencyKey, amount, serviceName, prefill } = params;
+  const {
+    applicationId,
+    method,
+    idempotencyKey,
+    amount,
+    serviceName,
+    prefill,
+    prefetchedIntent,
+  } = params;
 
   if (method === 'wallet') {
     await settlePayment({
@@ -37,9 +46,11 @@ export async function processApplicationPayment(params: {
     return;
   }
 
-  const intent = await applicationsApi.createPaymentIntent(applicationId, idempotencyKey);
+  const intent =
+    prefetchedIntent ??
+    (await applicationsApi.createPaymentIntent(applicationId, idempotencyKey));
   if (intent.status === 'CAPTURED') {
-    await showPaymentSuccessTick();
+    void showPaymentSuccessTick();
     return;
   }
 
