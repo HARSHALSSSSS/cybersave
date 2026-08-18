@@ -473,7 +473,7 @@ export function ServiceApplyPage() {
   }
 
   if (configError || !config) {
-    const needsState = match.requiresStateSelection && !stateCode;
+    const needsState = match?.requiresStateSelection && !stateCode;
     return (
       <EmptyState
         title="Service configuration unavailable"

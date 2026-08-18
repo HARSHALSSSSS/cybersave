@@ -13,7 +13,7 @@ export function PortalLayout() {
   const { pathname } = useLocation();
   const isHome = pathname === '/';
   const hydrate = useAuthStore(s => s.hydrate);
-  const isAuthenticated = useAuthStore(s => Boolean(s.token));
+  const isAuthenticated = useAuthStore(s => s.isAuthenticated);
   const queryClient = useQueryClient();
 
   useEffect(() => {
