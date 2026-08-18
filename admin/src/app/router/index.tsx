@@ -136,7 +136,7 @@ export const router = createBrowserRouter([
         path: '/',
         element: <AdminLayout />,
         children: [
-      { index: true, element: <Navigate to="dashboard" replace /> },
+      { index: true, element: <Navigate to="/dashboard" replace /> },
       { path: 'dashboard', element: <RouteSuspense><DashboardPageLazy /></RouteSuspense> },
       { path: 'users', element: <RouteSuspense><UsersPageLazy /></RouteSuspense> },
       { path: 'users/:citizenId', element: <RouteSuspense><CitizenDetailPageLazy /></RouteSuspense> },
@@ -175,5 +175,5 @@ export const router = createBrowserRouter([
       },
     ],
   },
-  { path: '*', element: <Navigate to="login" replace /> },
+  { path: '*', element: <Navigate to="/login" replace /> },
 ], { basename: env.routerBasename });
