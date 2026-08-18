@@ -20,6 +20,8 @@ export const env = {
   loginPath: loginPath(basename),
   isDev: import.meta.env.DEV,
   isProd: import.meta.env.PROD,
+  /** Demo login hint on the sign-in page; set VITE_SHOW_DEMO_CREDENTIALS=false to hide. */
+  showDemoCredentials: import.meta.env.VITE_SHOW_DEMO_CREDENTIALS !== 'false',
 } as const;
 
 export type Env = typeof env;

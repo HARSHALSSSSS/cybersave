@@ -17,6 +17,7 @@ Build generates the correct `.htaccess` and `_redirects` for the chosen base.
 VITE_API_BASE_URL=https://api.cybersaveonline.com/api/v1
 VITE_ADMIN_BASE=/
 VITE_APP_ENV=production
+VITE_SHOW_DEMO_CREDENTIALS=true
 ```
 
 **Path under main site (`/admin/`):** copy `.env.milesweb.example` → `.env`:
