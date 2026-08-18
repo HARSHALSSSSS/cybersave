@@ -4,10 +4,6 @@ import { Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button, Input, Label } from '@/components/ui';
 import { useAuthStore } from '../store/auth.store';
-import { env } from '@/app/config/env';
-
-const DEMO_EMAIL = 'admin@cybersave.local';
-const DEMO_PASSWORD = 'Admin@123456';
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -18,11 +14,6 @@ export function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   const year = useMemo(() => new Date().getFullYear(), []);
-
-  const fillDemoCredentials = () => {
-    setEmail(DEMO_EMAIL);
-    setPassword(DEMO_PASSWORD);
-  };
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,7 +65,7 @@ export function LoginPage() {
                   id="email"
                   type="email"
                   autoComplete="username"
-                  placeholder={DEMO_EMAIL}
+                  placeholder="Enter your email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
@@ -116,21 +107,6 @@ export function LoginPage() {
                 {loading ? 'Signing in…' : 'Sign in'}
               </Button>
             </form>
-
-            {env.showDemoCredentials ? (
-              <div className="mt-4 rounded-xl border border-[#E5E7EB] bg-[#F8FAFC] px-4 py-3 text-xs leading-5 text-[#7C8691]">
-                <p className="font-semibold text-[#0A1629]">Demo credentials</p>
-                <p className="mt-1.5 font-mono text-[#1A3066]">{DEMO_EMAIL}</p>
-                <p className="font-mono text-[#1A3066]">{DEMO_PASSWORD}</p>
-                <button
-                  type="button"
-                  onClick={fillDemoCredentials}
-                  className="mt-2 text-xs font-semibold text-[#2563EB] hover:text-[#1E4BB5]"
-                >
-                  Use demo login
-                </button>
-              </div>
-            ) : null}
           </div>
 
           <p className="mt-4 text-center text-xs text-[#9CA3AF]">
