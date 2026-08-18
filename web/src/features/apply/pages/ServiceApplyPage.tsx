@@ -97,6 +97,8 @@ export function ServiceApplyPage() {
   const prevServiceKeyRef = useRef<string | null>(null);
   const [submittedLocally, setSubmittedLocally] = useState(false);
   const [maxStepReached, setMaxStepReached] = useState<ApplyStep>('form');
+  const [formSyncPending, setFormSyncPending] = useState(false);
+  const [formSyncError, setFormSyncError] = useState<string | null>(null);
 
   const citizen = useAuthStore(s => s.citizen);
 
@@ -316,7 +318,7 @@ export function ServiceApplyPage() {
 
   useEffect(() => {
     if (!applicationId || !requiresPayment) return;
-    if (requestedStep !== 'payment' && requestedStep !== 'documents') return;
+    if (requestedStep !== 'payment') return;
     if (!paymentKeyRef.current) {
       paymentKeyRef.current = `pay-${applicationId}`;
     }
@@ -412,10 +414,10 @@ export function ServiceApplyPage() {
       toast.error('Please fill all required fields');
       return;
     }
-    // Move immediately; the save and server validation run behind the documents
-    // step so the button never sits there spinning on a round trip.
     writeApplyFormSession(serviceKey, applicationId, formValues);
     goToStep('documents');
+    setFormSyncPending(true);
+    setFormSyncError(null);
     try {
       const updated = await applicationsApi.saveApplicationFormValues(applicationId, formValues);
       queryClient.setQueryData(applicationsQueryKeys.detail(applicationId), updated);
@@ -430,12 +432,13 @@ export function ServiceApplyPage() {
         goToStep('form');
         return;
       }
+      setFormSyncError(null);
     } catch (error) {
-      goToStep('form');
       const issues = extractValidationIssues(error);
       if (issues.length > 0) {
         setFieldErrors(issuesToFieldErrors(issues));
         toast.error(issues[0]?.message ?? 'Please fix the highlighted fields');
+        goToStep('form');
         return;
       }
       const status = (error as { response?: { status?: number } })?.response?.status;
@@ -447,14 +450,53 @@ export function ServiceApplyPage() {
         navigate(`/services/${mainSlug}/${subSlug}/apply?${params.toString()}`, { replace: true });
         return;
       }
-      toast.error(
-        extractErrorMessage(error, 'Could not save form. Try again after signing in.'),
+      const message = extractErrorMessage(
+        error,
+        'Could not save your form right now. Stay on this page and retry, or go back to edit fields.',
       );
+      setFormSyncError(message);
+      toast.error(message);
+    } finally {
+      setFormSyncPending(false);
+    }
+  }
+
+  async function retryFormSync() {
+    if (!applicationId || formFields.length === 0) return;
+    setFormSyncPending(true);
+    setFormSyncError(null);
+    try {
+      const updated = await applicationsApi.saveApplicationFormValues(applicationId, formValues);
+      queryClient.setQueryData(applicationsQueryKeys.detail(applicationId), updated);
+      const validation = await applicationsApi.validateApplication(applicationId, 'form');
+      queryClient.setQueryData(applicationsQueryKeys.detail(applicationId), validation.application);
+      if (!validation.valid) {
+        const apiErrors = issuesToFieldErrors(validation.errors);
+        setFieldErrors(apiErrors);
+        toast.error(validation.errors[0]?.message ?? 'Please fix the highlighted fields');
+        goToStep('form');
+        return;
+      }
+      toast.success('Form saved');
+    } catch (error) {
+      const message = extractErrorMessage(error, 'Could not save your form. Try again.');
+      setFormSyncError(message);
+      toast.error(message);
+    } finally {
+      setFormSyncPending(false);
     }
   }
 
   async function handleDocumentsNext() {
     if (!applicationId) return;
+    if (formSyncPending) {
+      toast.message('Still saving your form. Please wait a moment.');
+      return;
+    }
+    if (formSyncError) {
+      toast.error('Save your form before continuing.');
+      return;
+    }
     const missing = requiredDocs.filter(
       req => !uploadedDocs.some(d => documentRequirementMatches(d, req.id)),
     );
@@ -869,6 +911,26 @@ export function ServiceApplyPage() {
                 Required Support Certificates / Identity Proofs
               </h2>
             </div>
+            {formSyncPending ? (
+              <div className="mb-4 flex items-center gap-2 rounded-xl border border-[#BFDBFE] bg-[#EFF6FF] px-4 py-3 text-sm text-[#1D4ED8]">
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-[#BFDBFE] border-t-[#2563EB]" />
+                Saving your form details…
+              </div>
+            ) : null}
+            {formSyncError ? (
+              <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                <p>{formSyncError}</p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="mt-3"
+                  onClick={() => void retryFormSync()}
+                >
+                  Retry save
+                </Button>
+              </div>
+            ) : null}
             {applicationId ? (
               <DocumentUploadGrid
                 applicationId={applicationId}
@@ -882,7 +944,7 @@ export function ServiceApplyPage() {
               onPrevious={() => goToStep('form')}
               onSaveDraft={() => void handleSaveDraft()}
               onNext={() => void handleDocumentsNext()}
-              loading={busy}
+              loading={busy || formSyncPending}
             />
           </>
         ) : null}

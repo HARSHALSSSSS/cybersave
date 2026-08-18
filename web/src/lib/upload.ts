@@ -16,9 +16,18 @@ export function rewriteStorageUrl(url: string): string {
   }
 }
 
+/** Local-storage presigned URLs must use the authenticated multipart relay (PUT routes 404 in browser). */
+export function isLocalStorageUploadUrl(uploadUrl: string): boolean {
+  try {
+    return new URL(uploadUrl).pathname.includes('/storage/local/upload/');
+  } catch {
+    return false;
+  }
+}
+
 /** True when the presigned URL targets external object storage (S3, etc.). */
 export function presignedGoesDirectToStorage(uploadUrl: string): boolean {
-  if (!uploadUrl) return false;
+  if (!uploadUrl || isLocalStorageUploadUrl(uploadUrl)) return false;
   try {
     const api = new URL(env.apiBaseUrl);
     const target = new URL(uploadUrl);

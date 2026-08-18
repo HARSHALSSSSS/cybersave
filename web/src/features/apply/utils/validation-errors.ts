@@ -1,4 +1,22 @@
+import { env } from '@/app/config/env';
+
 export type ValidationIssue = { field: string; message: string };
+
+function apiHostIsLocal(): boolean {
+  try {
+    const host = new URL(env.apiBaseUrl).hostname;
+    return host === 'localhost' || host === '127.0.0.1';
+  } catch {
+    return false;
+  }
+}
+
+function networkFailureMessage(): string {
+  if (apiHostIsLocal()) {
+    return 'Cannot reach the server. Make sure the backend is running (npm start in backend).';
+  }
+  return 'Connection problem. Check your internet and try again.';
+}
 
 /** Pull field-level validation issues from a Nest/axios error response. */
 export function extractValidationIssues(error: unknown): ValidationIssue[] {
@@ -33,16 +51,25 @@ export function extractValidationIssues(error: unknown): ValidationIssue[] {
 export function extractErrorMessage(error: unknown, fallback: string): string {
   if (!error || typeof error !== 'object') return fallback;
 
+  const axiosLike = error as {
+    code?: string;
+    response?: { status?: number; data?: { error?: { message?: string | string[] }; message?: string | string[] } };
+  };
+
   if (!('response' in error)) {
-    return 'Cannot reach the server. Make sure the backend is running (npm start in backend).';
+    return networkFailureMessage();
   }
 
-  const response = (error as {
-    response?: { status?: number; data?: { error?: { message?: string | string[] }; message?: string | string[] } };
-  }).response;
+  const response = axiosLike.response;
 
   if (!response) {
-    return 'Cannot reach the server. Make sure the backend is running (npm start in backend).';
+    if (axiosLike.code === 'ECONNABORTED') {
+      return 'Request timed out. Please try again.';
+    }
+    if (axiosLike.code === 'ERR_NETWORK') {
+      return networkFailureMessage();
+    }
+    return fallback;
   }
 
   if (response.status === 401) return 'Please sign in again to continue.';

@@ -147,7 +147,11 @@ export async function saveApplicationFormValues(
   applicationId: string,
   values: Record<string, unknown>,
 ) {
-  const response = await apiClient.patch(`/applications/${applicationId}/form`, { values });
+  const response = await apiClient.patch(
+    `/applications/${applicationId}/form`,
+    { values },
+    { timeout: APPLY_WRITE_TIMEOUT_MS },
+  );
   return unwrapApiResponse<ApplicationDetail>(response);
 }
 
@@ -157,6 +161,7 @@ export async function validateApplication(
 ) {
   const response = await apiClient.post(`/applications/${applicationId}/validate`, {}, {
     params: scope === 'all' ? undefined : { scope },
+    timeout: APPLY_WRITE_TIMEOUT_MS,
   });
   return unwrapApiResponse<{
     valid: boolean;
@@ -168,6 +173,7 @@ export async function validateApplication(
 
 /** Submit runs validation, snapshots and workflow setup, so it needs longer than the default. */
 const SUBMIT_TIMEOUT_MS = 60000;
+const APPLY_WRITE_TIMEOUT_MS = 45000;
 
 export async function submitApplication(applicationId: string) {
   const response = await apiClient.post(
