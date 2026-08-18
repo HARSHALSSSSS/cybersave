@@ -16,18 +16,18 @@ const FOOTER_COLUMNS = [
     title: 'Applications',
     links: [
       { label: 'Track Status', to: '/applications' },
-      { label: 'Required Documents', to: '/documents' },
+      { label: 'Browse Services', to: '/services' },
       { label: 'Fee Structure', to: '/services' },
       { label: 'State Grievance Link', to: '/help' },
     ],
   },
   {
-    title: 'Documents',
+    title: 'Support',
     links: [
-      { label: 'Locker Vault', to: '/documents' },
-      { label: 'Uploaded Items', to: '/documents' },
-      { label: 'Encrypted Files', to: '/documents' },
-      { label: 'Verification Status', to: '/documents' },
+      { label: 'Help Centre', to: '/help' },
+      { label: 'Raise a Ticket', to: '/help/tickets' },
+      { label: 'Find Centre', to: '/help' },
+      { label: 'Notifications', to: '/notifications' },
     ],
   },
   {

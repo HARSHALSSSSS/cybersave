@@ -37,7 +37,6 @@ export function CompleteProfileModal() {
   const defaultAddress = addresses.find(a => a.isDefault) ?? addresses[0];
   const completion = getProfileCompletion(citizen, {
     addressCount: addresses.length,
-    documentCount: 0,
   });
 
   return (
@@ -60,7 +59,7 @@ export function CompleteProfileModal() {
               <p className="text-xs font-semibold uppercase tracking-widest text-blue-100">Account setup</p>
               <h2 className="font-display text-xl font-bold">Complete your citizen profile</h2>
               <p className="mt-1 text-sm text-blue-100">
-                {completion.percent}% complete — required for applications and secure document storage.
+                {completion.percent}% complete — required before you can submit applications.
               </p>
             </div>
           </div>

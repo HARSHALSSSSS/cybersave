@@ -5,9 +5,6 @@ import {
   CheckCircle2,
   ChevronRight,
   Circle,
-  Download,
-  FileText,
-  FolderOpen,
   HelpCircle,
   Search,
   User,
@@ -35,7 +32,6 @@ import {
   getProfileDisplayName,
   getProfileInitials,
 } from '@/lib/profile';
-import { openStorageDownloadUrl } from '@/lib/upload';
 import { cn, formatDate } from '@/lib/utils';
 
 function appStatusTone(status: string): 'green' | 'amber' | 'blue' | 'slate' {
@@ -47,7 +43,6 @@ function appStatusTone(status: string): 'green' | 'amber' | 'blue' | 'slate' {
 
 const QUICK_ACTIONS = [
   { label: 'Applications', subtitle: 'Track status', icon: Search, to: '/applications' },
-  { label: 'Documents', subtitle: 'Secure vault', icon: FolderOpen, to: '/documents' },
   { label: 'Support', subtitle: 'Get help', icon: HelpCircle, to: '/help/tickets' },
   { label: 'Alerts', subtitle: 'Preferences', icon: Bell, to: '/notifications' },
 ] as const;
@@ -65,20 +60,6 @@ export function ProfilePage() {
     queryFn: () => profileApi.listAddresses(),
   });
 
-  const { data: savedDocs = [], isLoading: docsLoading } = useQuery({
-    queryKey: profileQueryKeys.documents(),
-    queryFn: () => profileApi.listSavedDocuments(),
-  });
-
-  async function handleDownloadDoc(docId: string) {
-    try {
-      const { downloadUrl } = await profileApi.getSavedDocumentDownload(docId);
-      openStorageDownloadUrl(downloadUrl);
-    } catch {
-      toast.error('Could not download document');
-    }
-  }
-
   if (!citizen) {
     return (
       <div className="py-20">
@@ -94,7 +75,6 @@ export function ProfilePage() {
   const recentApps = applicationsData?.data ?? [];
   const completion = getProfileCompletion(citizen, {
     addressCount: addresses.length,
-    documentCount: savedDocs.length,
   });
 
   return (
@@ -143,10 +123,9 @@ export function ProfilePage() {
             </div>
           </div>
 
-          <div className="mt-8 grid grid-cols-3 gap-3 sm:max-w-lg">
+          <div className="mt-8 grid grid-cols-2 gap-3 sm:max-w-md">
             {[
               { label: 'Applications', value: recentApps.length || '0' },
-              { label: 'Documents', value: savedDocs.length },
               { label: 'Profile', value: `${completion.percent}%` },
             ].map(stat => (
               <div
@@ -164,7 +143,7 @@ export function ProfilePage() {
       </div>
 
       {/* Quick actions */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {QUICK_ACTIONS.map(item => {
           const Icon = item.icon;
           return (
@@ -295,56 +274,6 @@ export function ProfilePage() {
                     </li>
                   );
                 })}
-              </ul>
-            )}
-          </PortalCard>
-
-          <PortalCard padding="md">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="font-display text-base font-bold text-[#0A1629]">Document Vault</h2>
-              <Link to="/documents" className="text-sm font-semibold text-[#2563EB] hover:underline">
-                Manage
-              </Link>
-            </div>
-            {docsLoading ? (
-              <LoadingBlock className="h-24" />
-            ) : savedDocs.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-[#E2E8F0] px-4 py-8 text-center">
-                <FileText className="mx-auto h-8 w-8 text-[#CBD5E1]" />
-                <p className="mt-2 text-sm text-[#64748B]">Your secure vault is empty.</p>
-                <Link
-                  to="/documents"
-                  className="mt-3 inline-block text-sm font-semibold text-[#2563EB] hover:underline"
-                >
-                  Upload documents
-                </Link>
-              </div>
-            ) : (
-              <ul className="space-y-2">
-                {savedDocs.slice(0, 4).map(doc => (
-                  <li
-                    key={doc.id}
-                    className="flex items-center justify-between gap-3 rounded-xl border border-[#F1F5F9] px-3 py-2.5 transition hover:bg-[#F8FAFC]"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-[#0A1629]">{doc.name}</p>
-                      <p className="text-xs text-[#94A3B8]">
-                        {formatDate(doc.createdAt)}
-                        {doc.storedFile?.sizeBytes
-                          ? ` · ${Math.round(doc.storedFile.sizeBytes / 1024)} KB`
-                          : ''}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      className="shrink-0 rounded-lg p-2 text-[#2563EB] transition hover:bg-[#EFF6FF]"
-                      onClick={() => void handleDownloadDoc(doc.id)}
-                      aria-label="Download"
-                    >
-                      <Download className="h-4 w-4" />
-                    </button>
-                  </li>
-                ))}
               </ul>
             )}
           </PortalCard>

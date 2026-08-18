@@ -1,7 +1,6 @@
 import { NavLink } from 'react-router';
 import {
   FileText,
-  FolderOpen,
   HelpCircle,
   Home,
   Layers,
@@ -17,7 +16,6 @@ const NAV_ITEMS = [
   { to: '/services', label: 'Services', icon: Layers },
   { to: '/applications', label: 'Applications', icon: FileText },
   { to: '/wallet', label: 'Wallet', icon: Wallet },
-  { to: '/documents', label: 'Documents', icon: FolderOpen },
   { to: '/profile', label: 'Profile', icon: User },
   { to: '/help', label: 'Help & Support', icon: HelpCircle },
 ];

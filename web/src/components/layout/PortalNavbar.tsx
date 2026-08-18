@@ -23,7 +23,6 @@ const NAV_LINKS = [
   { to: '/', label: 'Home', end: true, public: true },
   { to: '/services', label: 'Services', public: true },
   { to: '/applications', label: 'Applications' },
-  { to: '/documents', label: 'Documents' },
   { to: '/wallet', label: 'Wallet' },
   { to: '/schemes', label: 'Schemes', public: true },
 ] as const;

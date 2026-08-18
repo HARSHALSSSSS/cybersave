@@ -7,8 +7,8 @@ import {
   Check,
   ChevronRight,
   FileText,
-  FolderOpen,
   Grid3X3,
+  Layers,
   Wallet,
   Zap,
 } from 'lucide-react';
@@ -19,8 +19,6 @@ import {
   billPaymentsQueryKeys,
   paymentsApi,
   paymentsQueryKeys,
-  profileApi,
-  profileQueryKeys,
   servicesApi,
   servicesQueryKeys,
   schemesApi,
@@ -222,12 +220,6 @@ export function HomePage() {
     enabled: isAuthenticated,
   });
 
-  const { data: documents = [] } = useQuery({
-    queryKey: profileQueryKeys.documents(),
-    queryFn: () => profileApi.listSavedDocuments(),
-    enabled: isAuthenticated,
-  });
-
   const { data: billHistory } = useQuery({
     queryKey: billPaymentsQueryKeys.history('all', 1),
     queryFn: () => billPaymentsApi.getBillPaymentHistory({ page: 1, limit: 10 }),
@@ -341,8 +333,8 @@ export function HomePage() {
             </h1>
 
             <p className="mt-5 max-w-xl text-base leading-7 text-[#64748B] sm:text-[17px]">
-              Access all your digital Indian services, certificates, and government locker documents
-              in one secure portal. Apply, track, and pay — all from one dashboard.
+              Access digital Indian services and certificates in one secure portal. Apply, track,
+              and pay — all from one dashboard.
             </p>
 
             <div className="mt-8 flex flex-wrap gap-3">
@@ -398,11 +390,11 @@ export function HomePage() {
               to: '/applications',
             },
             {
-              label: 'Stored Documents',
-              value: isAuthenticated ? String(documents.length).padStart(2, '0') : '—',
-              icon: FolderOpen,
+              label: 'Government Schemes',
+              value: isAuthenticated ? String(homeSchemes.length).padStart(2, '0') : '—',
+              icon: Layers,
               tone: 'bg-[#E0F2FE] text-[#0EA5E9]',
-              to: '/documents',
+              to: '/schemes',
             },
             {
               label: 'Payments This Month',
@@ -420,7 +412,7 @@ export function HomePage() {
             },
           ].map(stat => {
             const Icon = stat.icon;
-            const isPublic = stat.to === '/services';
+            const isPublic = stat.to === '/services' || stat.to === '/schemes';
             const inner = (
               <>
                 <span className={cn('flex h-12 w-12 shrink-0 items-center justify-center rounded-xl', stat.tone)}>
@@ -863,7 +855,7 @@ export function HomePage() {
           <div className="flex items-center gap-3">
             <BadgeCheck className="h-6 w-6 shrink-0 text-emerald-600" />
             <p className="text-sm font-medium text-[#0A1629] sm:text-base">
-              Your documents are encrypted and protected using government locker standards.
+              Your account data is encrypted and protected using industry security standards.
             </p>
           </div>
           <Link to="/help">

@@ -28,7 +28,7 @@ export function getProfileDisplayName(
 }
 
 export type ProfileCompletionStep = {
-  id: 'phone' | 'name' | 'email' | 'address' | 'document';
+  id: 'phone' | 'name' | 'email' | 'address';
   label: string;
   done: boolean;
 };
@@ -42,14 +42,13 @@ export type ProfileCompletion = {
 
 export function getProfileCompletion(
   citizen: Pick<CitizenProfile, 'firstName' | 'lastName' | 'phone' | 'email'> | null | undefined,
-  context?: { addressCount?: number; documentCount?: number },
+  context?: { addressCount?: number },
 ): ProfileCompletion {
   const steps: ProfileCompletionStep[] = [
     { id: 'phone', label: 'Mobile number verified', done: Boolean(citizen?.phone?.trim()) },
     { id: 'name', label: 'Legal name saved', done: isProfileComplete(citizen) },
     { id: 'email', label: 'Email address added', done: Boolean(citizen?.email?.trim()) },
     { id: 'address', label: 'Address on file', done: (context?.addressCount ?? 0) > 0 },
-    { id: 'document', label: 'Document in vault', done: (context?.documentCount ?? 0) > 0 },
   ];
   const completedCount = steps.filter(step => step.done).length;
   return {

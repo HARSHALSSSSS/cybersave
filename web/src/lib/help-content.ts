@@ -63,12 +63,6 @@ export const HELP_TOPICS = [
     icon: 'wallet',
   },
   {
-    id: 'documents',
-    title: 'Documents Locker',
-    description: 'Upload, store, and reuse verified digital certificates.',
-    icon: 'shield',
-  },
-  {
     id: 'technical',
     title: 'Technical Issues',
     description: 'Resolve loading failures, OTP issues, or upload errors.',

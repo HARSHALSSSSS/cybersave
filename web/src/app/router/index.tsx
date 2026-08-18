@@ -18,7 +18,6 @@ const ServiceApplyPage = lazy(() => import('@/features/apply/pages/ServiceApplyP
 const ApplicationsPage = lazy(() => import('@/features/applications/pages/ApplicationsPage').then(m => ({ default: m.ApplicationsPage })));
 const ApplicationDetailPage = lazy(() => import('@/features/applications/pages/ApplicationDetailPage').then(m => ({ default: m.ApplicationDetailPage })));
 const WalletPage = lazy(() => import('@/features/wallet/pages/WalletPage').then(m => ({ default: m.WalletPage })));
-const DocumentsPage = lazy(() => import('@/features/documents/pages/DocumentsPage').then(m => ({ default: m.DocumentsPage })));
 const ProfilePage = lazy(() => import('@/features/profile/pages/ProfilePage').then(m => ({ default: m.ProfilePage })));
 const NotificationsPage = lazy(() =>
   import('@/features/notifications/pages/NotificationsPage').then(m => ({ default: m.NotificationsPage })),
@@ -79,7 +78,6 @@ export const router = createBrowserRouter([
           { path: 'applications', element: <Page><ApplicationsPage /></Page> },
           { path: 'applications/:id', element: <Page><ApplicationDetailPage /></Page> },
           { path: 'wallet', element: <Page><WalletPage /></Page> },
-          { path: 'documents', element: <Page><DocumentsPage /></Page> },
           { path: 'profile', element: <Page><ProfilePage /></Page> },
           { path: 'notifications', element: <Page><NotificationsPage /></Page> },
           { path: 'help/tickets', element: <Page><HelpTicketsPage /></Page> },
