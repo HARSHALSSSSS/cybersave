@@ -18,8 +18,8 @@ const SPLASH_SOURCE = path.join(
   'assets/source/cybersave-brand-logo.png',
 );
 
-const ICON_BG = { r: 15, g: 31, b: 77, alpha: 255 }; // #0F1F4D
-const SPLASH_BG = ICON_BG;
+const ICON_BG = { r: 238, g: 242, b: 248, alpha: 255 }; // #EEF2F8 — light so the mark reads on home screen
+const SPLASH_BG = { r: 15, g: 31, b: 77, alpha: 255 }; // #0F1F4D
 
 const androidLegacy = {
   'mipmap-mdpi': 48,
