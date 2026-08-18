@@ -13,6 +13,10 @@ import {
 import { buildApplyPath } from '@/features/services/utils/service-navigation';
 import { Button } from '@/components/ui/button';
 import { LoadingBlock, EmptyState } from '@/components/ui/primitives';
+import {
+  prefetchApplyConfiguration,
+  prefetchWalletForPayment,
+} from '@/features/apply/utils/applyFlowPrefetch';
 import { getServiceDisplayName } from '@/features/apply/utils/service-helpers';
 import { useRequireAuth, useRequireAuthNavigate } from '@/features/auth/hooks/useRequireAuth';
 import { openManualApplyPortal } from '@/lib/manual-apply';
@@ -204,10 +208,10 @@ export function ServiceDetailPage() {
 
   function prefetchApplyAssets() {
     if (!match?.id) return;
-    void queryClient.prefetchQuery({
-      queryKey: servicesQueryKeys.configuration(match.id, stateCode),
-      queryFn: () => servicesApi.getSubServiceConfiguration(match.id, stateCode),
-    });
+    void prefetchApplyConfiguration(queryClient, match.id, stateCode);
+    if (Number(config?.pricing?.totalAmount ?? 0) > 0) {
+      void prefetchWalletForPayment(queryClient);
+    }
     void import('@/features/apply/pages/ServiceApplyPage');
   }
 

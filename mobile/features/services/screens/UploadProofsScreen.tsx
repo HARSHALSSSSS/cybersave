@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -21,6 +21,10 @@ import {
 } from '@components/icons';
 import { ServiceHubHeader } from '@features/services/components';
 import { goBackInServicesStack } from '@features/services/utils/navigateToService';
+import {
+  prefetchApplicationDetail,
+  prefetchWalletForPayment,
+} from '@features/services/utils/applyFlowPrefetch';
 import {
   pickDocument,
   transferFileToUploadSession,
@@ -53,6 +57,7 @@ export const UploadProofsScreen: React.FC<Props> = ({ navigation, route }) => {
   const { data: config, isLoading } = useQuery({
     queryKey: servicesQueryKeys.configuration(optionId, stateCode),
     queryFn: () => servicesApi.getSubServiceConfiguration(optionId, stateCode),
+    staleTime: 1000 * 60 * 15,
   });
 
   const { data: application } = useQuery({
@@ -61,7 +66,20 @@ export const UploadProofsScreen: React.FC<Props> = ({ navigation, route }) => {
       : ['applications', 'missing'],
     queryFn: () => applicationsApi.getApplicationById(applicationId!),
     enabled: Boolean(applicationId),
+    staleTime: 1000 * 60 * 15,
   });
+
+  useEffect(() => {
+    if (!applicationId) return;
+    void prefetchApplicationDetail(queryClient, applicationId);
+  }, [applicationId, queryClient]);
+
+  useEffect(() => {
+    const total = Number(config?.pricing?.totalAmount ?? 0);
+    if (total > 0) {
+      void prefetchWalletForPayment(queryClient);
+    }
+  }, [config?.pricing?.totalAmount, queryClient]);
 
   // Derived from the application rather than mirrored into local state: a local
   // copy used to survive a delete and make the removed document reappear.

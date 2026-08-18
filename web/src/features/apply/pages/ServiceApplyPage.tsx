@@ -26,6 +26,10 @@ import {
   randomIdempotencyKey,
 } from '@/features/apply/utils/apply-flow';
 import {
+  prefetchApplicationDetail,
+  prefetchWalletForPayment,
+} from '@/features/apply/utils/applyFlowPrefetch';
+import {
   extractErrorMessage,
   extractValidationIssues,
   issuesToFieldErrors,
@@ -50,7 +54,11 @@ import {
   processApplicationPayment,
   type PaymentMethod,
 } from '@/features/payments/utils/applicationPayment';
-import { isPaymentSettledError, runAfterPayment } from '@/lib/paymentResilience';
+import { isPaymentSettledError } from '@/lib/paymentResilience';
+import {
+  isApplicationAlreadySubmitted,
+  submitApplicationAfterPayment,
+} from '@/features/payments/utils/applicationSubmit';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { openStorageDownloadUrl } from '@/lib/upload';
 import { cn } from '@/lib/utils';
@@ -80,7 +88,10 @@ export function ServiceApplyPage() {
   const { data: wallet } = useQuery({
     queryKey: walletQueryKeys.summary(),
     queryFn: () => walletApi.getWalletSummary(),
-    enabled: requestedStep === 'payment' || requestedStep === 'documents',
+    enabled:
+      requestedStep === 'payment' ||
+      requestedStep === 'documents' ||
+      requestedStep === 'form',
   });
 
   const { data: catalog = [], isLoading: catalogLoading } = useQuery({
@@ -267,6 +278,17 @@ export function ServiceApplyPage() {
   const walletBalance = wallet?.balance ?? 0;
   const walletCovers = walletBalance >= totalAmount && totalAmount > 0;
 
+  useEffect(() => {
+    if (!applicationId) return;
+    void prefetchApplicationDetail(queryClient, applicationId);
+  }, [applicationId, queryClient]);
+
+  useEffect(() => {
+    if (requiresPayment) {
+      void prefetchWalletForPayment(queryClient);
+    }
+  }, [queryClient, requiresPayment]);
+
   const allowedStep = useMemo((): ApplyStep => {
     if (submittedLocally) return 'confirmation';
     if (!application) return 'form';
@@ -336,16 +358,23 @@ export function ServiceApplyPage() {
     }
     setBusy(true);
     try {
-      await applicationsApi.saveApplicationFormValues(applicationId, formValues);
-      const validation = await applicationsApi.validateApplication(applicationId, 'form');
-      if (!validation.valid) {
-        const apiErrors = issuesToFieldErrors(validation.errors);
-        setFieldErrors(apiErrors);
-        const first = validation.errors[0]?.message ?? 'Please fix the highlighted fields';
-        toast.error(first);
-        return;
-      }
+      const updated = await applicationsApi.saveApplicationFormValues(applicationId, formValues);
+      queryClient.setQueryData(applicationsQueryKeys.detail(applicationId), updated);
       goToStep('documents');
+      void applicationsApi
+        .validateApplication(applicationId, 'form')
+        .then(validation => {
+          if (!validation.valid) {
+            const apiErrors = issuesToFieldErrors(validation.errors);
+            setFieldErrors(apiErrors);
+            const first = validation.errors[0]?.message ?? 'Please fix the highlighted fields';
+            toast.error(first);
+            goToStep('form');
+          }
+        })
+        .catch(() => {
+          // Full validation still runs before payment/submit.
+        });
     } catch (error) {
       const issues = extractValidationIssues(error);
       if (issues.length > 0) {
@@ -416,8 +445,8 @@ export function ServiceApplyPage() {
           },
         });
       }
-      const submitted = await runAfterPayment(
-        () => applicationsApi.submitApplication(applicationId),
+      const submitted = await submitApplicationAfterPayment(
+        applicationId,
         'Your payment went through, but we could not submit the application. Click Pay again to finish — you will not be charged twice.',
       );
       queryClient.setQueryData(applicationsQueryKeys.detail(applicationId), submitted);
@@ -431,8 +460,20 @@ export function ServiceApplyPage() {
       toast.success('Application submitted successfully');
     } catch (error) {
       if (isRazorpayUserCancelled(error)) return;
-      if (isPaymentSettledError(error)) {
-        toast.error(error.message, { duration: 8000 });
+      if (isPaymentSettledError(error) && applicationId) {
+        try {
+          const latest = await applicationsApi.getApplicationById(applicationId);
+          if (isApplicationAlreadySubmitted(latest.status)) {
+            queryClient.setQueryData(applicationsQueryKeys.detail(applicationId), latest);
+            setSubmittedLocally(true);
+            goToStep('confirmation');
+            toast.success('Application submitted successfully');
+            return;
+          }
+        } catch {
+          // Fall through to the error toast below.
+        }
+        toast.error(error.message, { duration: 10000 });
         return;
       }
       toast.error(extractErrorMessage(error, 'Could not submit application'));

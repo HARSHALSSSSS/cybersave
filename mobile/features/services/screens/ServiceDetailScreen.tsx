@@ -21,7 +21,8 @@ import { goBackInServicesStack } from '@features/services/utils/navigateToServic
 import { openManualApplyPortal } from '@features/services/utils/openManualApplyPortal';
 import { useRequireProfile } from '@features/profile/hooks/useRequireProfile';
 import { extractRequestError } from '@utils/apiDiscovery';
-import { servicesApi, servicesQueryKeys, walletApi, walletQueryKeys } from '@services/api';
+import { prefetchWalletForPayment } from '@features/services/utils/applyFlowPrefetch';
+import { servicesApi, servicesQueryKeys } from '@services/api';
 import { useTranslation } from '@/i18n';
 import { getScrollBottomPadding } from '@utils/layout';
 
@@ -48,11 +49,7 @@ export const ServiceDetailScreen: React.FC<Props> = ({ navigation, route }) => {
 
   useEffect(() => {
     if (!config) return;
-    void queryClient.prefetchQuery({
-      queryKey: walletQueryKeys.summary(),
-      queryFn: () => walletApi.getWalletSummary(),
-      staleTime: 1000 * 60 * 15,
-    });
+    void prefetchWalletForPayment(queryClient);
   }, [config, queryClient]);
 
   useEffect(() => {

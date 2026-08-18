@@ -22,10 +22,15 @@ import {
   processApplicationPayment,
   type PaymentMethod,
 } from '@features/payments/utils/applicationPayment';
-import { isPaymentSettledError, runAfterPayment } from '@utils/paymentResilience';
+import {
+  isApplicationAlreadySubmitted,
+  submitApplicationAfterPayment,
+} from '@features/payments/utils/applicationSubmit';
+import { isPaymentSettledError } from '@utils/paymentResilience';
 import {
   applicationsApi,
   applicationsQueryKeys,
+  type ApplicationDetail,
   servicesApi,
   servicesQueryKeys,
   walletApi,
@@ -53,16 +58,19 @@ export const ServicePaymentScreen: React.FC<Props> = ({ navigation, route }) => 
     queryKey: applicationsQueryKeys.detail(applicationId ?? ''),
     queryFn: () => applicationsApi.getApplicationById(applicationId!),
     enabled: Boolean(applicationId),
+    staleTime: 1000 * 60 * 15,
   });
 
   const { data: config } = useQuery({
     queryKey: servicesQueryKeys.configuration(optionId, stateCode),
     queryFn: () => servicesApi.getSubServiceConfiguration(optionId, stateCode),
+    staleTime: 1000 * 60 * 15,
   });
 
   const { data: wallet } = useQuery({
     queryKey: walletQueryKeys.summary(),
     queryFn: () => walletApi.getWalletSummary(),
+    staleTime: 1000 * 60 * 15,
   });
 
   const total = useMemo(() => {
@@ -82,6 +90,37 @@ export const ServicePaymentScreen: React.FC<Props> = ({ navigation, route }) => 
     application?.serviceVersion.overview?.displayName ??
     application?.serviceVersion.subService.name ??
     t.services.defaultService;
+
+  const goToSuccess = useCallback(
+    (result: ApplicationDetail) => {
+      void queryClient.invalidateQueries({ queryKey: walletQueryKeys.summary() });
+      void queryClient.invalidateQueries({ queryKey: applicationsQueryKeys.all });
+      queryClient.setQueryData(applicationsQueryKeys.detail(result.id), result);
+      navigation.replace('ApplicationSuccess', {
+        categoryId,
+        optionId,
+        ref: result.publicRef ?? result.id.slice(0, 8).toUpperCase(),
+        applicationId: result.id,
+      });
+    },
+    [categoryId, navigation, optionId, queryClient],
+  );
+
+  const finishSubmitMutation = useMutation({
+    mutationFn: () =>
+      submitApplicationAfterPayment(applicationId!, t.services.paymentReceivedSubmitFailed),
+    onSuccess: goToSuccess,
+    onError: (error: unknown) => {
+      if (isPaymentSettledError(error)) {
+        Alert.alert(t.services.paymentReceivedTitle, error.message, [
+          { text: t.common.cancel, style: 'cancel' },
+          { text: t.common.retry, onPress: () => finishSubmitMutation.mutate() },
+        ]);
+        return;
+      }
+      Alert.alert(t.common.error, t.services.paymentFailed);
+    },
+  });
 
   const payMutation = useMutation({
     mutationFn: async () => {
@@ -109,30 +148,32 @@ export const ServicePaymentScreen: React.FC<Props> = ({ navigation, route }) => 
         },
       });
 
-      return runAfterPayment(
-        () => applicationsApi.submitApplication(applicationId),
+      return submitApplicationAfterPayment(
+        applicationId,
         t.services.paymentReceivedSubmitFailed,
       );
     },
-    onSuccess: result => {
-      void queryClient.invalidateQueries({ queryKey: walletQueryKeys.summary() });
-      void queryClient.invalidateQueries({ queryKey: applicationsQueryKeys.all });
-      queryClient.setQueryData(applicationsQueryKeys.detail(result.id), result);
-      navigation.replace('ApplicationSuccess', {
-        categoryId,
-        optionId,
-        ref: result.publicRef ?? result.id.slice(0, 8).toUpperCase(),
-        applicationId: result.id,
-      });
-    },
-    onError: (error: unknown) => {
+    onSuccess: goToSuccess,
+    onError: async (error: unknown) => {
       if (isRazorpayUserCancelled(error)) return;
       if (error instanceof Error && error.message === 'INSUFFICIENT_WALLET') {
         Alert.alert(t.wallet.insufficientBalance, t.wallet.addMoneyHint);
         return;
       }
-      if (isPaymentSettledError(error)) {
-        Alert.alert(t.services.paymentReceivedTitle, error.message);
+      if (isPaymentSettledError(error) && applicationId) {
+        try {
+          const latest = await applicationsApi.getApplicationById(applicationId);
+          if (isApplicationAlreadySubmitted(latest.status)) {
+            goToSuccess(latest);
+            return;
+          }
+        } catch {
+          // Fall through to the retry prompt below.
+        }
+        Alert.alert(t.services.paymentReceivedTitle, error.message, [
+          { text: t.common.cancel, style: 'cancel' },
+          { text: t.common.retry, onPress: () => finishSubmitMutation.mutate() },
+        ]);
         return;
       }
       Alert.alert(t.common.error, t.services.paymentFailed);
@@ -294,7 +335,7 @@ export const ServicePaymentScreen: React.FC<Props> = ({ navigation, route }) => 
               ? t.services.submitApp
               : format(t.services.payAndSubmit, { amount: total.toFixed(2) })
           }
-          loading={payMutation.isPending}
+          loading={payMutation.isPending || finishSubmitMutation.isPending}
           onPress={handlePay}
         />
       }>

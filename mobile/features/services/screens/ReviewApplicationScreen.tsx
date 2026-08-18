@@ -37,11 +37,13 @@ export const ReviewApplicationScreen: React.FC<Props> = ({
     queryKey: applicationsQueryKeys.detail(applicationId ?? ''),
     queryFn: () => applicationsApi.getApplicationById(applicationId!),
     enabled: Boolean(applicationId),
+    staleTime: 1000 * 60 * 15,
   });
 
   const { data: config } = useQuery({
     queryKey: servicesQueryKeys.configuration(optionId, stateCode),
     queryFn: () => servicesApi.getSubServiceConfiguration(optionId, stateCode),
+    staleTime: 1000 * 60 * 15,
   });
 
   const totalAmount = useMemo(() => {

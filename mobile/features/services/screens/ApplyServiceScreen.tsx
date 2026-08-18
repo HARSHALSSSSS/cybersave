@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -29,6 +29,10 @@ import {
 } from '@services/api';
 import { useTranslation } from '@/i18n';
 import { getScrollBottomPadding } from '@utils/layout';
+import {
+  prefetchApplicationDetail,
+  prefetchWalletForPayment,
+} from '@features/services/utils/applyFlowPrefetch';
 import { validateFormFields } from '@features/services/utils/formValidation';
 
 type Props = NativeStackScreenProps<ServicesStackParamList, 'ApplyService'>;
@@ -46,6 +50,7 @@ export const ApplyServiceScreen: React.FC<Props> = ({ navigation, route }) => {
     existingApplicationId,
   );
   const [hydrated, setHydrated] = useState(!existingApplicationId);
+  const draftRequestedRef = useRef(false);
 
   const { data: config, isLoading } = useQuery({
     queryKey: servicesQueryKeys.configuration(optionId, stateCode),
@@ -99,7 +104,46 @@ export const ApplyServiceScreen: React.FC<Props> = ({ navigation, route }) => {
   const saveFormMutation = useMutation({
     mutationFn: (params: { id: string; values: Record<string, unknown> }) =>
       applicationsApi.saveApplicationFormValues(params.id, params.values),
+    onSuccess: (updated, params) => {
+      queryClient.setQueryData(applicationsQueryKeys.detail(params.id), updated);
+    },
   });
+
+  useEffect(() => {
+    if (
+      existingApplicationId ||
+      applicationId ||
+      !config?.form?.fields?.length ||
+      createDraftMutation.isPending
+    ) {
+      return;
+    }
+    if (draftRequestedRef.current) return;
+
+    draftRequestedRef.current = true;
+    createDraftMutation.mutate(undefined, {
+      onSettled: () => {
+        draftRequestedRef.current = false;
+      },
+    });
+  }, [
+    applicationId,
+    config?.form?.fields?.length,
+    createDraftMutation,
+    existingApplicationId,
+  ]);
+
+  useEffect(() => {
+    if (!applicationId) return;
+    void prefetchApplicationDetail(queryClient, applicationId);
+  }, [applicationId, queryClient]);
+
+  useEffect(() => {
+    const total = Number(config?.pricing?.totalAmount ?? 0);
+    if (total > 0) {
+      void prefetchWalletForPayment(queryClient);
+    }
+  }, [config?.pricing?.totalAmount, queryClient]);
 
   const styles = useMemo(
     () =>
@@ -176,7 +220,6 @@ export const ApplyServiceScreen: React.FC<Props> = ({ navigation, route }) => {
     if (!validateRequiredFields()) return;
     try {
       const id = await ensureDraft();
-      await saveFormMutation.mutateAsync({ id, values: formValues });
       navigation.navigate('UploadProofs', {
         categoryId,
         optionId,
@@ -184,6 +227,11 @@ export const ApplyServiceScreen: React.FC<Props> = ({ navigation, route }) => {
         stateCode,
         stateName,
       });
+      void saveFormMutation
+        .mutateAsync({ id, values: formValues })
+        .catch(() => {
+          Alert.alert(t.common.error, t.services.couldNotSaveApplication);
+        });
     } catch {
       Alert.alert(t.common.error, t.services.couldNotSaveApplication);
     }
@@ -194,6 +242,8 @@ export const ApplyServiceScreen: React.FC<Props> = ({ navigation, route }) => {
     navigation,
     optionId,
     saveFormMutation,
+    t.common.error,
+    t.services.couldNotSaveApplication,
     validateRequiredFields,
   ]);
 
@@ -209,8 +259,7 @@ export const ApplyServiceScreen: React.FC<Props> = ({ navigation, route }) => {
 
   const displayName =
     config?.overview?.displayName ?? config?.subService.name ?? t.services.defaultService;
-  const isBusy =
-    createDraftMutation.isPending || saveFormMutation.isPending;
+  const isBusy = !applicationId && createDraftMutation.isPending;
   const waitingOnExisting =
     Boolean(existingApplicationId) && (isLoadingExisting || !hydrated);
 
