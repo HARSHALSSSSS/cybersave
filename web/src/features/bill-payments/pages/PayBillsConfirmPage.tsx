@@ -9,7 +9,7 @@ import { LoadingBlock, EmptyState } from '@/components/ui/primitives';
 import { useAuthStore } from '@/features/auth/store/auth.store';
 import { extractErrorMessage } from '@/features/apply/utils/validation-errors';
 import { isRazorpayUserCancelled } from '@/lib/razorpay';
-import { collectRazorpayPayment, canUseLiveRazorpay } from '@/lib/razorpayExperience';
+import { collectRazorpayPayment, isSimulatedRazorpayCheckout } from '@/lib/razorpayExperience';
 import { billPaymentsApi, billPaymentsQueryKeys } from '@/services/api';
 import { formatCurrency } from '@/lib/utils';
 import { getProfileDisplayName } from '@/lib/profile';
@@ -56,7 +56,7 @@ export function PayBillsConfirmPage() {
       );
 
       return billPaymentsApi.confirmPayment(intent.id, {
-        mockCapture: !canUseLiveRazorpay(intent),
+        mockCapture: isSimulatedRazorpayCheckout(checkout),
         razorpayPaymentId: checkout.razorpay_payment_id,
         razorpayOrderId: checkout.razorpay_order_id,
         razorpaySignature: checkout.razorpay_signature,

@@ -1,4 +1,7 @@
-import { collectRazorpayPayment, canUseLiveRazorpay } from '@/lib/razorpayExperience';
+import {
+  collectRazorpayPayment,
+  isSimulatedRazorpayCheckout,
+} from '@/lib/razorpayExperience';
 import { isRazorpayUserCancelled } from '@/lib/razorpay';
 import { showPaymentSuccessTick } from '@/lib/razorpayCheckoutStore';
 import { applicationsApi } from '@/services/api/applications.api';
@@ -40,7 +43,7 @@ export async function processApplicationPayment(params: {
 
   await applicationsApi.confirmApplicationPayment(applicationId, {
     paymentId: intent.paymentId,
-    mockCapture: !canUseLiveRazorpay(intent),
+    mockCapture: isSimulatedRazorpayCheckout(checkout),
     razorpayPaymentId: checkout.razorpay_payment_id,
     razorpayOrderId: checkout.razorpay_order_id,
     razorpaySignature: checkout.razorpay_signature,

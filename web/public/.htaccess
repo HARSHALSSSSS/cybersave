@@ -6,3 +6,7 @@
   RewriteCond %{REQUEST_FILENAME} !-d
   RewriteRule . /index.html [L]
 </IfModule>
+
+<IfModule mod_headers.c>
+  Header set Permissions-Policy "accelerometer=(self https://checkout.razorpay.com https://api.razorpay.com https://api.sardine.ai), gyroscope=(self https://checkout.razorpay.com https://api.razorpay.com https://api.sardine.ai)"
+</IfModule>

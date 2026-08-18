@@ -1,22 +1,26 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { UserCheck, X } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { ShieldCheck, X } from 'lucide-react';
 import { toast } from 'sonner';
-import { Button, Input, Label } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
+import { ProfileDetailsForm } from '@/features/profile/components/ProfileDetailsForm';
 import { useAuthStore } from '@/features/auth/store/auth.store';
-import { isProfileComplete } from '@/lib/profile';
+import { getProfileCompletion, isProfileComplete } from '@/lib/profile';
+import { profileApi, profileQueryKeys } from '@/services/api';
 
 const DISMISS_KEY = 'cybersave_profile_prompt_dismissed';
 
 export function CompleteProfileModal() {
   const navigate = useNavigate();
   const citizen = useAuthStore(s => s.citizen);
-  const updateProfile = useAuthStore(s => s.updateProfile);
   const [open, setOpen] = useState(false);
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [email, setEmail] = useState('');
-  const [loading, setLoading] = useState(false);
+
+  const { data: addresses = [] } = useQuery({
+    queryKey: profileQueryKeys.addresses(),
+    queryFn: () => profileApi.listAddresses(),
+    enabled: Boolean(citizen && open),
+  });
 
   useEffect(() => {
     if (!citizen) return;
@@ -26,79 +30,73 @@ export function CompleteProfileModal() {
     }
     const dismissed = sessionStorage.getItem(DISMISS_KEY) === '1';
     if (!dismissed) setOpen(true);
-    setFirstName(citizen.firstName ?? '');
-    setLastName(citizen.lastName ?? '');
-    setEmail(citizen.email ?? '');
   }, [citizen]);
 
-  if (!open) return null;
+  if (!open || !citizen) return null;
 
-  async function handleSave(e: React.FormEvent) {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      await updateProfile({
-        firstName: firstName.trim(),
-        lastName: lastName.trim() || undefined,
-        email: email.trim() || undefined,
-      });
-      toast.success('Profile updated');
-      setOpen(false);
-    } catch {
-      toast.error('Could not save profile');
-    } finally {
-      setLoading(false);
-    }
-  }
+  const defaultAddress = addresses.find(a => a.isDefault) ?? addresses[0];
+  const completion = getProfileCompletion(citizen, {
+    addressCount: addresses.length,
+    documentCount: 0,
+  });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="relative w-full max-w-lg rounded-[28px] bg-white px-8 py-10 shadow-2xl">
-        <button
-          type="button"
-          className="absolute top-4 right-4 rounded-full p-2 text-[#6B7280] hover:bg-gray-100"
-          onClick={() => setOpen(false)}
-        >
-          <X className="h-4 w-4" />
-        </button>
-
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#EFF6FF] text-[#2563EB]">
-          <UserCheck className="h-8 w-8" />
-        </div>
-        <h2 className="mt-5 text-center text-2xl font-bold text-[#0A1629]">Complete Your Profile</h2>
-        <p className="mt-3 text-center text-sm leading-6 text-[#6B7280]">
-          Please fill in your account details to access all government services, track applications,
-          and manage documents securely.
-        </p>
-
-        <form onSubmit={handleSave} className="mt-6 space-y-4">
-          <div>
-            <Label htmlFor="firstName">First name</Label>
-            <Input id="firstName" value={firstName} onChange={e => setFirstName(e.target.value)} required className="mt-1.5" />
-          </div>
-          <div>
-            <Label htmlFor="lastName">Last name</Label>
-            <Input id="lastName" value={lastName} onChange={e => setLastName(e.target.value)} className="mt-1.5" />
-          </div>
-          <div>
-            <Label htmlFor="email">Email (optional)</Label>
-            <Input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)} className="mt-1.5" />
-          </div>
-          <Button type="submit" size="lg" className="w-full" disabled={loading}>
-            {loading ? 'Saving…' : 'Fill Account Details'}
-          </Button>
-          <Button
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4">
+      <div className="relative flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-[28px] bg-white shadow-2xl sm:rounded-[28px]">
+        <div className="shrink-0 border-b border-[#F1F5F9] bg-gradient-to-r from-[#1A3B8B] to-[#2563EB] px-6 py-6 text-white sm:px-8">
+          <button
             type="button"
-            variant="ghost"
-            className="w-full"
-            onClick={() => {
-              sessionStorage.setItem(DISMISS_KEY, '1');
+            className="absolute top-4 right-4 rounded-full p-2 text-white/80 hover:bg-white/10"
+            onClick={() => setOpen(false)}
+            aria-label="Close"
+          >
+            <X className="h-4 w-4" />
+          </button>
+          <div className="flex items-center gap-4 pr-10">
+            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15">
+              <ShieldCheck className="h-6 w-6" />
+            </span>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-widest text-blue-100">Account setup</p>
+              <h2 className="font-display text-xl font-bold">Complete your citizen profile</h2>
+              <p className="mt-1 text-sm text-blue-100">
+                {completion.percent}% complete — required for applications and secure document storage.
+              </p>
+            </div>
+          </div>
+          <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/20">
+            <div
+              className="h-full rounded-full bg-white transition-all duration-500"
+              style={{ width: `${completion.percent}%` }}
+            />
+          </div>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6 sm:px-8">
+          <ProfileDetailsForm
+            variant="modal"
+            citizen={citizen}
+            defaultAddress={defaultAddress}
+            submitLabel="Save & continue"
+            onSaved={() => {
+              toast.success('Profile saved successfully');
               setOpen(false);
             }}
-          >
-            Remind Me Later
-          </Button>
-        </form>
+            footer={
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-full"
+                onClick={() => {
+                  sessionStorage.setItem(DISMISS_KEY, '1');
+                  setOpen(false);
+                }}
+              >
+                Remind me later
+              </Button>
+            }
+          />
+        </div>
 
         <button type="button" className="sr-only" onClick={() => navigate('/profile')}>
           profile

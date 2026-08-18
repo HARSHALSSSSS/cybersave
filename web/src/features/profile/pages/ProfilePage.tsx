@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -11,14 +10,13 @@ import {
   FolderOpen,
   HelpCircle,
   Link2,
-  MapPin,
   Search,
   Shield,
   User,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Breadcrumbs } from '@/components/layout/Breadcrumbs';
-import { Button, Input, Label } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import {
   PortalCard,
   ProgressBar,
@@ -26,6 +24,7 @@ import {
   StatusPill,
 } from '@/components/ui/portal-primitives';
 import { LoadingBlock } from '@/components/ui/primitives';
+import { ProfileDetailsForm } from '@/features/profile/components/ProfileDetailsForm';
 import { useAuthStore } from '@/features/auth/store/auth.store';
 import {
   applicationsApi,
@@ -63,19 +62,13 @@ const IDENTITY_ITEMS = [
 
 export function ProfilePage() {
   const citizen = useAuthStore(s => s.citizen);
-  const updateProfile = useAuthStore(s => s.updateProfile);
-
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [email, setEmail] = useState('');
-  const [loading, setLoading] = useState(false);
 
   const { data: applicationsData, isLoading: appsLoading } = useQuery({
     queryKey: applicationsQueryKeys.list(1),
     queryFn: () => applicationsApi.listApplications({ page: 1, limit: 5 }),
   });
 
-  const { data: addresses = [], isLoading: addressesLoading } = useQuery({
+  const { data: addresses = [] } = useQuery({
     queryKey: profileQueryKeys.addresses(),
     queryFn: () => profileApi.listAddresses(),
   });
@@ -85,30 +78,6 @@ export function ProfilePage() {
     queryFn: () => profileApi.listSavedDocuments(),
   });
 
-  useEffect(() => {
-    if (!citizen) return;
-    setFirstName(citizen.firstName ?? '');
-    setLastName(citizen.lastName ?? '');
-    setEmail(citizen.email ?? '');
-  }, [citizen]);
-
-  async function handleSave(e: React.FormEvent) {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      await updateProfile({
-        firstName: firstName.trim(),
-        lastName: lastName.trim() || undefined,
-        email: email.trim() || undefined,
-      });
-      toast.success('Profile saved');
-    } catch {
-      toast.error('Could not save profile');
-    } finally {
-      setLoading(false);
-    }
-  }
-
   async function handleDownloadDoc(docId: string) {
     try {
       const { downloadUrl } = await profileApi.getSavedDocumentDownload(docId);
@@ -116,6 +85,14 @@ export function ProfilePage() {
     } catch {
       toast.error('Could not download document');
     }
+  }
+
+  if (!citizen) {
+    return (
+      <div className="py-20">
+        <LoadingBlock className="mx-auto h-12 max-w-md" />
+      </div>
+    );
   }
 
   const fullName = getProfileDisplayName(citizen);
@@ -259,82 +236,18 @@ export function ProfilePage() {
 
           {/* Personal details form */}
           <PortalCard padding="lg" className="scroll-mt-24">
-            <form id="profile-form" onSubmit={handleSave}>
-              <SectionHeading
-                title="Personal Details"
-                subtitle="Keep your legal name and contact information up to date for government records."
-                action={<StatusPill tone="green">Verified</StatusPill>}
-              />
-
-              <div className="grid gap-5 sm:grid-cols-2">
-                <div className="sm:col-span-2">
-                  <Label>Full Legal Name</Label>
-                  <div className="mt-1.5 grid gap-3 sm:grid-cols-2">
-                    <Input
-                      value={firstName}
-                      onChange={e => setFirstName(e.target.value)}
-                      placeholder="First name"
-                      required
-                    />
-                    <Input
-                      value={lastName}
-                      onChange={e => setLastName(e.target.value)}
-                      placeholder="Last name"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="phone">Phone Number</Label>
-                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
-                      <CheckCircle2 className="h-3 w-3" /> Verified
-                    </span>
-                  </div>
-                  <Input
-                    id="phone"
-                    value={phone}
-                    readOnly
-                    className="mt-1.5 bg-[#F9FAFB] text-[#64748B]"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="email">Email Address</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={e => setEmail(e.target.value)}
-                    placeholder="name@example.com"
-                    className="mt-1.5"
-                  />
-                </div>
-                <div className="sm:col-span-2">
-                  <div className="flex items-center gap-2">
-                    <MapPin className="h-4 w-4 text-[#64748B]" />
-                    <Label>Permanent Address</Label>
-                  </div>
-                  {addressesLoading ? (
-                    <LoadingBlock className="mt-2 h-12" />
-                  ) : defaultAddress ? (
-                    <p className="mt-1.5 rounded-xl border border-[#E2E8F0] bg-gradient-to-br from-[#F8FAFC] to-white px-4 py-3 text-sm leading-relaxed text-[#0A1629]">
-                      {[defaultAddress.line1, defaultAddress.line2, defaultAddress.city, defaultAddress.state, defaultAddress.pincode]
-                        .filter(Boolean)
-                        .join(', ')}
-                    </p>
-                  ) : (
-                    <p className="mt-1.5 rounded-xl border border-dashed border-[#CBD5E1] bg-[#F8FAFC] px-4 py-3 text-sm text-[#64748B]">
-                      No address saved yet. Add one when applying for a service or from the mobile app.
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <div className="mt-8 flex justify-end border-t border-[#F1F5F9] pt-6">
-                <Button type="submit" disabled={loading}>
-                  {loading ? 'Saving…' : 'Save Changes'}
-                </Button>
-              </div>
-            </form>
+            <SectionHeading
+              title="Personal Details"
+              subtitle="Keep your legal name, contact, and address up to date for government records."
+              action={<StatusPill tone="green">Verified</StatusPill>}
+            />
+            <ProfileDetailsForm
+              variant="page"
+              citizen={citizen}
+              defaultAddress={defaultAddress}
+              submitLabel="Save changes"
+              onSaved={() => toast.success('Profile saved')}
+            />
           </PortalCard>
 
           {/* Linked identities */}

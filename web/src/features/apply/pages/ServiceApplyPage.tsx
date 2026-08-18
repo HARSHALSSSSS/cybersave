@@ -22,6 +22,7 @@ import {
 } from '@/features/apply/components/SecurityNotice';
 import {
   clampApplyStep,
+  defaultApplyStepForStatus,
   randomIdempotencyKey,
 } from '@/features/apply/utils/apply-flow';
 import {
@@ -70,12 +71,14 @@ export function ServiceApplyPage() {
   const [draftErrorMessage, setDraftErrorMessage] = useState<string | null>(null);
   const draftRequestedRef = useRef(false);
   const paymentKeyRef = useRef<string | null>(null);
+  const [submittedLocally, setSubmittedLocally] = useState(false);
 
   const citizen = useAuthStore(s => s.citizen);
 
   const { data: wallet } = useQuery({
     queryKey: walletQueryKeys.summary(),
     queryFn: () => walletApi.getWalletSummary(),
+    enabled: requestedStep === 'payment',
   });
 
   const { data: catalog = [], isLoading: catalogLoading } = useQuery({
@@ -167,6 +170,7 @@ export function ServiceApplyPage() {
     setFormValues({});
     setFieldErrors({});
     draftRequestedRef.current = false;
+    setSubmittedLocally(false);
   }, [serviceKey, routeAppId]);
 
   useEffect(() => {
@@ -256,13 +260,11 @@ export function ServiceApplyPage() {
   const walletCovers = walletBalance >= totalAmount && totalAmount > 0;
 
   const allowedStep = useMemo((): ApplyStep => {
-    if (!application) return 'payment';
+    if (submittedLocally) return 'confirmation';
+    if (!application) return 'form';
     const status = application.status as BackendApplicationStatus;
-    if (['SUBMITTED', 'UNDER_REVIEW', 'PROCESSING', 'APPROVED', 'COMPLETED'].includes(status)) {
-      return 'confirmation';
-    }
-    return 'payment';
-  }, [application]);
+    return defaultApplyStepForStatus(status);
+  }, [application, submittedLocally]);
 
   const step = clampApplyStep(requestedStep, allowedStep);
 
@@ -395,8 +397,10 @@ export function ServiceApplyPage() {
           },
         });
       }
-      await applicationsApi.submitApplication(applicationId);
-      await Promise.all([
+      const submitted = await applicationsApi.submitApplication(applicationId);
+      queryClient.setQueryData(applicationsQueryKeys.detail(applicationId), submitted);
+      setSubmittedLocally(true);
+      void Promise.all([
         queryClient.invalidateQueries({ queryKey: applicationsQueryKeys.all }),
         queryClient.invalidateQueries({ queryKey: paymentsQueryKeys.all }),
         queryClient.invalidateQueries({ queryKey: walletQueryKeys.summary() }),

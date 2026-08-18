@@ -18,6 +18,15 @@ export function canUseLiveRazorpay(intent: {
   return key.startsWith('rzp_') && isLiveRazorpayOrderId(intent.orderId);
 }
 
+/** True when checkout used the in-app simulated sheet (not live Razorpay.js). */
+export function isSimulatedRazorpayCheckout(result: RazorpaySuccess): boolean {
+  return (
+    result.razorpay_payment_id.startsWith('pay_test_') ||
+    result.razorpay_order_id.includes('order_test') ||
+    result.razorpay_signature.startsWith('sig_test_')
+  );
+}
+
 export async function collectRazorpayPayment(
   params: RazorpayCheckoutParams,
   intent?: {

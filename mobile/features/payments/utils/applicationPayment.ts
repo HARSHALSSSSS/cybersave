@@ -1,6 +1,9 @@
 import { applicationsApi } from '@services/api/applications.api';
 import { isRazorpayUserCancelled } from '@utils/razorpayCheckout';
-import { canUseLiveRazorpay, collectRazorpayPayment } from '@utils/razorpayExperience';
+import {
+  collectRazorpayPayment,
+  isSimulatedRazorpayCheckout,
+} from '@utils/razorpayExperience';
 import { showPaymentSuccessTick } from '@utils/razorpayCheckoutStore';
 
 export type PaymentMethod = 'razorpay' | 'wallet';
@@ -40,7 +43,7 @@ export async function processApplicationPayment(params: {
 
   await applicationsApi.confirmApplicationPayment(applicationId, {
     paymentId: intent.paymentId,
-    mockCapture: !canUseLiveRazorpay(intent),
+    mockCapture: isSimulatedRazorpayCheckout(checkout),
     razorpayPaymentId: checkout.razorpay_payment_id,
     razorpayOrderId: checkout.razorpay_order_id,
     razorpaySignature: checkout.razorpay_signature,

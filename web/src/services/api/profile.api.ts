@@ -48,6 +48,35 @@ export async function listAddresses() {
   return unwrapApiResponse<CitizenAddress[]>(response);
 }
 
+export async function createAddress(payload: {
+  label: string;
+  line1: string;
+  line2?: string;
+  city: string;
+  state: string;
+  pincode: string;
+  isDefault?: boolean;
+}) {
+  const response = await apiClient.post('/profile/addresses', payload);
+  return unwrapApiResponse<CitizenAddress>(response);
+}
+
+export async function updateAddress(
+  id: string,
+  payload: Partial<{
+    label: string;
+    line1: string;
+    line2: string | null;
+    city: string;
+    state: string;
+    pincode: string;
+    isDefault: boolean;
+  }>,
+) {
+  const response = await apiClient.patch(`/profile/addresses/${id}`, payload);
+  return unwrapApiResponse<CitizenAddress>(response);
+}
+
 export async function listSavedDocuments() {
   const response = await apiClient.get('/profile/documents');
   return unwrapApiResponse<CitizenSavedDocument[]>(response);
@@ -97,6 +126,8 @@ export async function getSavedDocumentDownload(id: string) {
 
 export const profileApi = {
   listAddresses,
+  createAddress,
+  updateAddress,
   listSavedDocuments,
   createSavedDocument,
   deleteSavedDocument,

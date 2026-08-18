@@ -88,10 +88,10 @@ const CheckoutSheet: React.FC = () => {
 
   const pay = async () => {
     setPaying(true);
-    await new Promise(r => setTimeout(r, 700));
+    await new Promise(r => setTimeout(r, 450));
     setPaying(false);
     setDone(true);
-    await new Promise(r => setTimeout(r, 1100));
+    await new Promise(r => setTimeout(r, 650));
     completeSimulatedCheckout({
       razorpay_payment_id: `pay_test_${Date.now()}`,
       razorpay_order_id: params.orderId || `order_test_${Date.now()}`,

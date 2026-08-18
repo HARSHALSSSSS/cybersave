@@ -1,14 +1,17 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
+import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Fingerprint, X } from 'lucide-react';
-import { Button, Input, Label } from '@/components/ui/button';
+import { Button, Input } from '@/components/ui/button';
 import { BrandLockup } from '@/components/brand/BrandLockup';
+import { ProfileDetailsForm } from '@/features/profile/components/ProfileDetailsForm';
 import { useAuthStore } from '@/features/auth/store/auth.store';
 import { useAuthModalStore } from '@/features/auth/store/auth-modal.store';
 import { isProfileComplete } from '@/lib/profile';
 import { firebaseAuthErrorMessage, firebasePhoneAuthHostHint, isFirebaseAuthEnabled } from '@/lib/firebasePhoneAuth';
-import { normalizePhone } from '@/lib/utils';
+import { normalizePhone, cn } from '@/lib/utils';
+import { profileApi, profileQueryKeys } from '@/services/api';
 
 function IndiaFlag() {
   return (
@@ -39,16 +42,18 @@ export function AuthModal() {
 
   const requestOtp = useAuthStore(s => s.requestOtp);
   const verifyOtp = useAuthStore(s => s.verifyOtp);
-  const updateProfile = useAuthStore(s => s.updateProfile);
   const citizen = useAuthStore(s => s.citizen);
   const isAuthenticated = useAuthStore(s => s.isAuthenticated);
 
   const [loginPhone, setLoginPhone] = useState('');
   const [otp, setOtp] = useState('');
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const { data: profileAddresses = [] } = useQuery({
+    queryKey: profileQueryKeys.addresses(),
+    queryFn: () => profileApi.listAddresses(),
+    enabled: open && step === 'profile' && Boolean(citizen),
+  });
 
   useEffect(() => {
     if (!open || !isFirebaseAuthEnabled()) return;
@@ -67,15 +72,6 @@ export function AuthModal() {
       navigate(location.pathname, { replace: true, state: {} });
     }
   }, [location, navigate]);
-
-  useEffect(() => {
-    if (!open) return;
-    if (step === 'profile' && citizen) {
-      setFirstName(citizen.firstName ?? '');
-      setLastName(citizen.lastName ?? '');
-      setEmail(citizen.email ?? '');
-    }
-  }, [open, step, citizen]);
 
   if (!open) return null;
 
@@ -140,24 +136,6 @@ export function AuthModal() {
     }
   }
 
-  async function handleSaveProfile(e: React.FormEvent) {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      await updateProfile({
-        firstName: firstName.trim(),
-        lastName: lastName.trim() || undefined,
-        email: email.trim() || undefined,
-      });
-      toast.success('Profile saved');
-      await finishAuthFlow();
-    } catch {
-      toast.error('Could not save profile');
-    } finally {
-      setLoading(false);
-    }
-  }
-
   function handleClose() {
     if (profileMandatory && step === 'profile') return;
     close();
@@ -166,7 +144,10 @@ export function AuthModal() {
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
       <div
-        className="relative w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl"
+        className={cn(
+          'relative w-full overflow-hidden rounded-3xl bg-white shadow-2xl',
+          step === 'profile' ? 'max-h-[90vh] max-w-2xl overflow-y-auto' : 'max-w-md',
+        )}
         role="dialog"
         aria-modal="true"
       >
@@ -282,55 +263,33 @@ export function AuthModal() {
           ) : null}
         </div>
 
-        {step === 'profile' ? (
-          <div className="px-8 py-8">
-            <h2 className="font-display text-center text-2xl font-bold text-[#0A1629]">
-              Complete Your Profile
-            </h2>
-            <p className="mt-2 text-center text-sm text-[#64748B]">
-              {profileMandatory
-                ? 'Please add your name to continue with this action.'
-                : 'Help us personalise your portal experience.'}
-            </p>
-            <form onSubmit={handleSaveProfile} className="mt-6 space-y-4">
-              <div>
-                <Label htmlFor="auth-first">First name *</Label>
-                <Input
-                  id="auth-first"
-                  value={firstName}
-                  onChange={e => setFirstName(e.target.value)}
-                  required
-                  className="mt-1.5"
-                />
-              </div>
-              <div>
-                <Label htmlFor="auth-last">Last name</Label>
-                <Input
-                  id="auth-last"
-                  value={lastName}
-                  onChange={e => setLastName(e.target.value)}
-                  className="mt-1.5"
-                />
-              </div>
-              <div>
-                <Label htmlFor="auth-email">Email (optional)</Label>
-                <Input
-                  id="auth-email"
-                  type="email"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  className="mt-1.5"
-                />
-              </div>
-              <Button type="submit" size="lg" className="w-full" disabled={loading}>
-                {loading ? 'Saving…' : 'Continue'}
-              </Button>
-              {!profileMandatory ? (
-                <Button type="button" variant="ghost" className="w-full" onClick={finishAuthFlow}>
-                  Skip for now
-                </Button>
-              ) : null}
-            </form>
+        {step === 'profile' && citizen ? (
+          <div className="px-6 py-6 sm:px-8">
+            <div className="mb-6 text-center">
+              <h2 className="font-display text-2xl font-bold text-[#0A1629]">Complete your profile</h2>
+              <p className="mt-2 text-sm text-[#64748B]">
+                {profileMandatory
+                  ? 'Add your details to continue with this service.'
+                  : 'A complete profile speeds up applications and document verification.'}
+              </p>
+            </div>
+            <ProfileDetailsForm
+              variant="modal"
+              citizen={citizen}
+              defaultAddress={profileAddresses.find(a => a.isDefault) ?? profileAddresses[0]}
+              submitLabel="Continue"
+              onSaved={async () => {
+                toast.success('Profile saved');
+                await finishAuthFlow();
+              }}
+              footer={
+                !profileMandatory ? (
+                  <Button type="button" variant="ghost" className="w-full" onClick={() => void finishAuthFlow()}>
+                    Skip for now
+                  </Button>
+                ) : null
+              }
+            />
           </div>
         ) : null}
 

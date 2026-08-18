@@ -63,7 +63,7 @@ export function cancelSimulatedCheckout() {
   emit();
 }
 
-export function showPaymentSuccessTick(durationMs = 1100): Promise<void> {
+export function showPaymentSuccessTick(durationMs = 800): Promise<void> {
   return new Promise(resolve => {
     store().successTick = {
       resolve: () => {

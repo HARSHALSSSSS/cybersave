@@ -232,14 +232,12 @@ export function HomePage() {
     queryKey: billPaymentsQueryKeys.history('all', 1),
     queryFn: () => billPaymentsApi.getBillPaymentHistory({ page: 1, limit: 10 }),
     enabled: isAuthenticated,
-    staleTime: 0,
   });
 
   const { data: servicePayments = [] } = useQuery({
     queryKey: paymentsQueryKeys.list(),
     queryFn: () => paymentsApi.listCitizenPayments(),
     enabled: isAuthenticated,
-    staleTime: 0,
   });
 
   const apps = appsData?.data ?? [];

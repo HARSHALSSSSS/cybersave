@@ -16,6 +16,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useQuery } from '@tanstack/react-query';
 import { ProfileStackParamList } from '@/types/navigation';
 import { GENDER_OPTIONS } from '@constants/index';
+import { INDIAN_STATE_NAMES } from '@constants/indianStates';
 import { useTranslation } from '@/i18n';
 import { useTheme } from '@app/providers/ThemeProvider';
 import { Button } from '@components/Button';
@@ -23,11 +24,9 @@ import { ScrollScreenAction } from '@components/layout';
 import { GradientScreenHeader } from '@features/profile/components/GradientScreenHeader';
 import { StatusBadge } from '@features/profile/components/StatusBadge';
 import { useCitizenProfile } from '@features/profile/hooks/useCitizenProfile';
-import {
-  parseFullName,
-  validateProfileName,
-} from '@features/profile/utils/profileSync';
-import { authApi } from '@services/api';
+import { saveProfileDetails } from '@features/profile/utils/saveProfileDetails';
+import { authApi, profileApi, profileQueryKeys } from '@services/api';
+import { getProfileExtras } from '@utils/profileExtras';
 import { getScrollBottomPadding } from '@utils/layout';
 import Svg, { Path } from 'react-native-svg';
 
@@ -63,19 +62,44 @@ export const PersonalInformationScreen: React.FC<Props> = ({ navigation, route }
 
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
+  const [fatherName, setFatherName] = useState('');
+  const [dateOfBirth, setDateOfBirth] = useState('');
+  const [line1, setLine1] = useState('');
+  const [line2, setLine2] = useState('');
+  const [city, setCity] = useState('');
+  const [stateName, setStateName] = useState('');
+  const [pincode, setPincode] = useState('');
   const [gender, setGender] = useState<string>(GENDER_OPTIONS[0]);
   const [showGenderPicker, setShowGenderPicker] = useState(false);
+  const [showStatePicker, setShowStatePicker] = useState(false);
   const [nameError, setNameError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
+  const { data: addresses = [] } = useQuery({
+    queryKey: profileQueryKeys.addresses(),
+    queryFn: () => profileApi.listAddresses(),
+    enabled: Boolean(profile?.id),
+  });
+
+  const defaultAddress = addresses.find(a => a.isDefault) ?? addresses[0];
+
   useEffect(() => {
     if (profile) {
+      const extras = getProfileExtras(profile.id);
       setFullName(
         [profile.firstName, profile.lastName].filter(Boolean).join(' ') || '',
       );
       setEmail(profile.email ?? '');
+      setFatherName(extras.fatherOrGuardianName ?? '');
+      setGender(extras.gender ?? GENDER_OPTIONS[0]);
+      setDateOfBirth(extras.dateOfBirth ?? '');
+      setLine1(defaultAddress?.line1 ?? '');
+      setLine2(defaultAddress?.line2 ?? '');
+      setCity(defaultAddress?.city ?? '');
+      setStateName(defaultAddress?.state ?? '');
+      setPincode(defaultAddress?.pincode ?? '');
     }
-  }, [profile]);
+  }, [profile, defaultAddress]);
 
   const initials = useMemo(() => {
     const parts = fullName.trim().split(/\s+/);
@@ -208,19 +232,27 @@ export const PersonalInformationScreen: React.FC<Props> = ({ navigation, route }
   );
 
   const handleSave = async () => {
-    const validationError = validateProfileName(fullName);
-    if (validationError) {
-      setNameError(validationError);
-      return;
-    }
+    if (!profile) return;
     setNameError(null);
     setSaving(true);
     try {
-      const payload = parseFullName(fullName);
-      const { justCompleted } = await saveProfile({
-        ...payload,
-        email: email.trim() || undefined,
-      });
+      const { justCompleted } = await saveProfileDetails(
+        {
+          fullName,
+          email,
+          fatherOrGuardianName: fatherName,
+          gender,
+          dateOfBirth,
+          address: line1.trim()
+            ? { line1, line2, city, state: stateName, pincode }
+            : undefined,
+        },
+        {
+          citizenId: profile.id,
+          existingAddress: defaultAddress,
+          saveProfile,
+        },
+      );
 
       if (justCompleted) {
         Alert.alert(
@@ -233,8 +265,10 @@ export const PersonalInformationScreen: React.FC<Props> = ({ navigation, route }
           { text: t.common.ok, onPress: () => navigation.goBack() },
         ]);
       }
-    } catch {
-      Alert.alert(t.common.couldNotSave, t.profile.checkDetails);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : t.profile.checkDetails;
+      if (message.toLowerCase().includes('name')) setNameError(message);
+      Alert.alert(t.common.couldNotSave, message);
     } finally {
       setSaving(false);
     }
@@ -302,6 +336,27 @@ export const PersonalInformationScreen: React.FC<Props> = ({ navigation, route }
             </View>
 
             <View style={styles.field}>
+              <Text style={styles.label}>Father / guardian name</Text>
+              <TextInput
+                style={styles.input}
+                value={fatherName}
+                onChangeText={setFatherName}
+                placeholder="As on official records"
+                autoCapitalize="words"
+              />
+            </View>
+
+            <View style={styles.field}>
+              <Text style={styles.label}>Date of birth</Text>
+              <TextInput
+                style={styles.input}
+                value={dateOfBirth}
+                onChangeText={setDateOfBirth}
+                placeholder="YYYY-MM-DD"
+              />
+            </View>
+
+            <View style={styles.field}>
               <View style={styles.labelRow}>
                 <Text style={styles.label}>{t.profile.phone}</Text>
                 <StatusBadge label={t.common.verified} />
@@ -348,6 +403,72 @@ export const PersonalInformationScreen: React.FC<Props> = ({ navigation, route }
                   ))}
                 </View>
               ) : null}
+            </View>
+
+            <View style={[styles.field, { marginTop: theme.spacing.md }]}>
+              <Text style={[styles.label, { fontSize: 13, color: theme.colors.textSecondary }]}>
+                RESIDENTIAL ADDRESS
+              </Text>
+            </View>
+
+            <View style={styles.field}>
+              <Text style={styles.label}>House / flat / street</Text>
+              <TextInput
+                style={styles.input}
+                value={line1}
+                onChangeText={setLine1}
+                placeholder="Flat 402, Green Valley Apartments"
+              />
+            </View>
+
+            <View style={styles.field}>
+              <Text style={styles.label}>Landmark (optional)</Text>
+              <TextInput
+                style={styles.input}
+                value={line2}
+                onChangeText={setLine2}
+                placeholder="Near City Mall"
+              />
+            </View>
+
+            <View style={styles.field}>
+              <Text style={styles.label}>City / town</Text>
+              <TextInput style={styles.input} value={city} onChangeText={setCity} placeholder="Pune" />
+            </View>
+
+            <View style={styles.field}>
+              <Text style={styles.label}>State</Text>
+              <Pressable style={styles.pickerRow} onPress={() => setShowStatePicker(v => !v)}>
+                <Text style={styles.pickerText}>{stateName || 'Select state'}</Text>
+                <ChevronDown color={theme.colors.textSecondary} />
+              </Pressable>
+              {showStatePicker ? (
+                <View style={styles.dropdown}>
+                  {INDIAN_STATE_NAMES.map(name => (
+                    <Pressable
+                      key={name}
+                      style={styles.dropdownItem}
+                      onPress={() => {
+                        setStateName(name);
+                        setShowStatePicker(false);
+                      }}>
+                      <Text style={styles.pickerText}>{name}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              ) : null}
+            </View>
+
+            <View style={styles.field}>
+              <Text style={styles.label}>PIN code</Text>
+              <TextInput
+                style={styles.input}
+                value={pincode}
+                onChangeText={text => setPincode(text.replace(/\D/g, '').slice(0, 6))}
+                placeholder="411001"
+                keyboardType="number-pad"
+                maxLength={6}
+              />
             </View>
 
             <Text style={styles.lastUpdated}>

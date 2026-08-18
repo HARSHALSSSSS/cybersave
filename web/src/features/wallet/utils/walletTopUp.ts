@@ -1,4 +1,4 @@
-import { collectRazorpayPayment, canUseLiveRazorpay } from '@/lib/razorpayExperience';
+import { collectRazorpayPayment, isSimulatedRazorpayCheckout } from '@/lib/razorpayExperience';
 import { isRazorpayUserCancelled } from '@/lib/razorpay';
 import { walletApi } from '@/services/api/wallet.api';
 
@@ -22,7 +22,7 @@ export async function processWalletTopUp(params: {
   );
 
   await walletApi.confirmWalletTopUp(intent.id, {
-    mockCapture: !canUseLiveRazorpay(intent),
+    mockCapture: isSimulatedRazorpayCheckout(checkout),
     razorpayPaymentId: checkout.razorpay_payment_id,
     razorpayOrderId: checkout.razorpay_order_id,
     razorpaySignature: checkout.razorpay_signature,

@@ -12,7 +12,7 @@ import { LockSmallIcon } from '@components/icons';
 import { formatRupee } from '@features/bill-payments/components';
 import { BillPaymentScreenLayout } from '@features/bill-payments/components/BillPaymentScreenLayout';
 import { isRazorpayUserCancelled } from '@utils/razorpayCheckout';
-import { canUseLiveRazorpay, collectRazorpayPayment } from '@utils/razorpayExperience';
+import { collectRazorpayPayment, isSimulatedRazorpayCheckout } from '@utils/razorpayExperience';
 import { BillPaymentsStackParamList } from '@/types/navigation';
 import { billPaymentsApi, billPaymentsQueryKeys, getBillPaymentsErrorMessage } from '@services/api/billPayments.api';
 
@@ -58,7 +58,7 @@ export const ConfirmPaymentScreen: React.FC<Props> = ({ navigation, route }) => 
       );
 
       return billPaymentsApi.confirmPayment(intent.id, {
-        mockCapture: !canUseLiveRazorpay(intent),
+        mockCapture: isSimulatedRazorpayCheckout(checkout),
         razorpayPaymentId: checkout.razorpay_payment_id,
         razorpayOrderId: checkout.razorpay_order_id,
         razorpaySignature: checkout.razorpay_signature,
