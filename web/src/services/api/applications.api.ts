@@ -166,8 +166,15 @@ export async function validateApplication(
   }>(response);
 }
 
+/** Submit runs validation, snapshots and workflow setup, so it needs longer than the default. */
+const SUBMIT_TIMEOUT_MS = 60000;
+
 export async function submitApplication(applicationId: string) {
-  const response = await apiClient.post(`/applications/${applicationId}/submit`);
+  const response = await apiClient.post(
+    `/applications/${applicationId}/submit`,
+    undefined,
+    { timeout: SUBMIT_TIMEOUT_MS },
+  );
   return unwrapApiResponse<ApplicationDetail>(response);
 }
 

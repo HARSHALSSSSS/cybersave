@@ -55,24 +55,31 @@ export class ApplicationSnapshotService {
       stateCode,
     );
 
+    const configData = {
+      payload: payload as unknown as Prisma.InputJsonValue,
+    };
+    const pricingData = {
+      baseFee: new Prisma.Decimal(baseFee),
+      taxAmount: new Prisma.Decimal(taxAmount),
+      taxRate: new Prisma.Decimal(taxRate),
+      currency: pricing?.currency ?? 'INR',
+      additionalCharges: additionalCharges as Prisma.InputJsonValue,
+      discountAmount: new Prisma.Decimal(0),
+      totalAmount: new Prisma.Decimal(totalAmount),
+    };
+
+    // Upsert so a retried submit (timeout, dropped response) cannot fail on the
+    // unique applicationId constraint and permanently block the application.
     await this.prisma.$transaction([
-      this.prisma.applicationConfigSnapshot.create({
-        data: {
-          applicationId,
-          payload: payload as unknown as Prisma.InputJsonValue,
-        },
+      this.prisma.applicationConfigSnapshot.upsert({
+        where: { applicationId },
+        create: { applicationId, ...configData },
+        update: configData,
       }),
-      this.prisma.applicationPricingSnapshot.create({
-        data: {
-          applicationId,
-          baseFee: new Prisma.Decimal(baseFee),
-          taxAmount: new Prisma.Decimal(taxAmount),
-          taxRate: new Prisma.Decimal(taxRate),
-          currency: pricing?.currency ?? 'INR',
-          additionalCharges: additionalCharges as Prisma.InputJsonValue,
-          discountAmount: new Prisma.Decimal(0),
-          totalAmount: new Prisma.Decimal(totalAmount),
-        },
+      this.prisma.applicationPricingSnapshot.upsert({
+        where: { applicationId },
+        create: { applicationId, ...pricingData },
+        update: pricingData,
       }),
     ]);
 

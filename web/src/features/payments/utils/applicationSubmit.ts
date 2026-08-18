@@ -17,7 +17,7 @@ const POST_SUBMIT_STATUSES: BackendApplicationStatus[] = [
 
 const SUBMIT_RETRY_ATTEMPTS = 12;
 const SUBMIT_WAIT_MS = 1000;
-const SUBMIT_MAX_WALL_MS = 45_000;
+const SUBMIT_MAX_WALL_MS = 120_000;
 
 function delay(ms: number): Promise<void> {
   return new Promise(resolve => {
@@ -72,6 +72,22 @@ function isRetriableSubmitError(error: unknown): boolean {
   );
 }
 
+/** Human-readable server reason, so a stuck submit is diagnosable instead of a generic error. */
+export function describeSubmitFailure(error: unknown): string | null {
+  if (!error) return null;
+  const cause = (error as { cause?: unknown }).cause ?? error;
+  const data = (
+    cause as {
+      response?: { data?: { error?: { message?: unknown }; message?: unknown } };
+    }
+  )?.response?.data;
+  const raw = data?.error?.message ?? data?.message;
+  if (typeof raw === 'string' && raw.trim()) return raw;
+  if (Array.isArray(raw) && typeof raw[0] === 'string') return raw[0];
+  if (cause instanceof Error && cause.message) return cause.message;
+  return null;
+}
+
 function assertConfirmSucceeded(result: { success?: boolean } | null | undefined): void {
   if (result && result.success === false) {
     throw new Error('Payment could not be confirmed on the server');
@@ -111,13 +127,11 @@ export async function submitApplicationAfterPayment(
       }
     }
 
-    if (!isApplicationReadyToSubmit(app)) {
-      if (attempt < SUBMIT_RETRY_ATTEMPTS - 1) {
-        await delay(SUBMIT_WAIT_MS);
-        continue;
-      }
-      lastError = new Error('Payment is still being recorded. Please try again in a moment.');
-      break;
+    // On the last attempt fall through to submit anyway, so the citizen sees the
+    // real server reason instead of a generic "still being recorded" message.
+    if (!isApplicationReadyToSubmit(app) && attempt < SUBMIT_RETRY_ATTEMPTS - 1) {
+      await delay(SUBMIT_WAIT_MS);
+      continue;
     }
 
     try {

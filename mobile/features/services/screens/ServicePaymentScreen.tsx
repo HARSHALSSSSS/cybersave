@@ -23,6 +23,7 @@ import {
   type PaymentMethod,
 } from '@features/payments/utils/applicationPayment';
 import {
+  describeSubmitFailure,
   isApplicationAlreadySubmitted,
   submitApplicationAfterPayment,
 } from '@features/payments/utils/applicationSubmit';
@@ -140,13 +141,21 @@ export const ServicePaymentScreen: React.FC<Props> = ({ navigation, route }) => 
         return;
       }
       if (isPaymentSettledError(error)) {
-        Alert.alert(t.services.paymentReceivedTitle, error.message, [
-          { text: t.common.cancel, style: 'cancel' },
-          { text: t.common.retry, onPress: () => void runSubmitAfterPayment() },
-        ]);
+        const reason = describeSubmitFailure(error);
+        Alert.alert(
+          t.services.paymentReceivedTitle,
+          reason ? `${error.message}\n\n(${reason})` : error.message,
+          [
+            { text: t.common.cancel, style: 'cancel' },
+            { text: t.common.retry, onPress: () => void runSubmitAfterPayment() },
+          ],
+        );
         return;
       }
-      Alert.alert(t.common.error, t.services.paymentFailed);
+      Alert.alert(
+        t.common.error,
+        describeSubmitFailure(error) ?? t.services.paymentFailed,
+      );
     } finally {
       setFlowPhase('idle');
     }
@@ -216,13 +225,21 @@ export const ServicePaymentScreen: React.FC<Props> = ({ navigation, route }) => 
           goToSuccess(recovered);
           return;
         }
-        Alert.alert(t.services.paymentReceivedTitle, error.message, [
-          { text: t.common.cancel, style: 'cancel' },
-          { text: t.common.retry, onPress: () => void runSubmitAfterPayment() },
-        ]);
+        const reason = describeSubmitFailure(error);
+        Alert.alert(
+          t.services.paymentReceivedTitle,
+          reason ? `${error.message}\n\n(${reason})` : error.message,
+          [
+            { text: t.common.cancel, style: 'cancel' },
+            { text: t.common.retry, onPress: () => void runSubmitAfterPayment() },
+          ],
+        );
         return;
       }
-      Alert.alert(t.common.error, t.services.paymentFailed);
+      Alert.alert(
+        t.common.error,
+        describeSubmitFailure(error) ?? t.services.paymentFailed,
+      );
     },
   });
 

@@ -1,5 +1,5 @@
 import { Inject, Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
-import { PaymentStatus, Prisma } from '@prisma/client';
+import { ApplicationStatus, PaymentStatus, Prisma } from '@prisma/client';
 
 import { PrismaService } from '@/database/database.module';
 import { AuditLogService } from '@/modules/audit-logs/audit-log.service';
@@ -190,9 +190,20 @@ export class PaymentsService {
           providerRef: payment.providerRef,
         },
       }),
-      this.prisma.application.update({
-        where: { id: payment.applicationId },
-        data: { status: 'PAYMENT_PENDING' },
+      // Scoped to pre-submit statuses so a replayed capture cannot pull an
+      // already submitted application back into PAYMENT_PENDING.
+      this.prisma.application.updateMany({
+        where: {
+          id: payment.applicationId,
+          status: {
+            in: [
+              ApplicationStatus.DRAFT,
+              ApplicationStatus.FORM_IN_PROGRESS,
+              ApplicationStatus.DOCUMENTS_PENDING,
+            ],
+          },
+        },
+        data: { status: ApplicationStatus.PAYMENT_PENDING },
       }),
     ]);
 

@@ -17,6 +17,7 @@ import { randomUUID } from 'crypto';
 
 import type { UploadedFilePayload } from '@/common/types/uploaded-file.type';
 import { getStateName } from '@/common/constants/indian-states.constants';
+import { isPostSubmitStatus } from '@/common/constants/application-state-machine';
 import {
   mimeMatchesRequirement,
   normalizeMimeType,
@@ -793,6 +794,15 @@ export class ApplicationsCitizenService {
       citizenId,
     );
 
+    // Idempotent: a retried submit (client timeout, dropped response) must return
+    // the submitted application instead of failing the citizen after payment.
+    if (
+      isPostSubmitStatus(application.status) &&
+      application.status !== ApplicationStatus.CANCELLED
+    ) {
+      return application;
+    }
+
     const version = await this.prisma.serviceVersion.findUnique({
       where: { id: application.serviceVersionId },
     });
@@ -870,7 +880,9 @@ export class ApplicationsCitizenService {
       });
     });
 
-    await this.notifyApplicationSubmitted(updated);
+    // Fan-out to citizen + every admin is slow; keep it off the submit response
+    // so the client never times out on an application that already succeeded.
+    void this.notifyApplicationSubmitted(updated);
 
     return updated;
   }

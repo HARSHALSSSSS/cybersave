@@ -61,6 +61,7 @@ import {
 } from '@/features/payments/utils/applicationPayment';
 import { isPaymentSettledError } from '@/lib/paymentResilience';
 import {
+  describeSubmitFailure,
   isApplicationAlreadySubmitted,
   submitApplicationAfterPayment,
 } from '@/features/payments/utils/applicationSubmit';
@@ -543,7 +544,10 @@ export function ServiceApplyPage() {
         } catch {
           // Fall through to the error toast below.
         }
-        toast.error(error.message, { duration: 10000 });
+        const reason = describeSubmitFailure(error);
+        toast.error(reason ? `${error.message} (${reason})` : error.message, {
+          duration: 10000,
+        });
         return;
       }
       toast.error(extractErrorMessage(error, 'Could not submit application'));
