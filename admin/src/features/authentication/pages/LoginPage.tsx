@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Eye, EyeOff, Lock, ShieldCheck } from 'lucide-react';
+import { Eye, EyeOff, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button, Input, Label } from '@/components/ui';
 import { useAuthStore } from '../store/auth.store';
@@ -31,102 +31,34 @@ export function LoginPage() {
 
   return (
     <div className="flex h-full min-h-0 w-full overflow-y-auto bg-[#EEF2F8]">
-      {/* Brand panel — large screens */}
-      <aside className="relative hidden min-h-full w-[min(520px,44%)] shrink-0 overflow-hidden lg:flex lg:flex-col lg:justify-between lg:p-12 xl:p-14">
-        <div
-          aria-hidden
-          className="absolute inset-0 bg-[linear-gradient(145deg,#0A1629_0%,#1A3B8B_42%,#2563EB_100%)]"
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -right-24 -top-24 h-80 w-80 rounded-full bg-[#60A5FA]/20 blur-3xl"
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -bottom-32 -left-16 h-72 w-72 rounded-full bg-[#1E40AF]/30 blur-3xl"
-        />
-
-        <div className="relative z-10">
-          <img
-            src={`${import.meta.env.BASE_URL}admin-login-logo.png`}
-            alt="Cybersave"
-            className="h-14 w-auto max-w-[180px] object-contain brightness-0 invert"
-            draggable={false}
-          />
-        </div>
-
-        <div className="relative z-10 max-w-md space-y-6">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-200/90">
-              Admin Console
-            </p>
-            <h1
-              className="mt-3 text-3xl font-bold leading-tight tracking-tight text-white xl:text-4xl"
-              style={{ fontFamily: 'var(--font-login-display)' }}
-            >
-              Secure operations dashboard
-            </h1>
-            <p className="mt-4 text-sm leading-7 text-blue-100/85">
-              Manage applications, services, operators, and citizen support from one
-              centralized control panel.
-            </p>
-          </div>
-
-          <ul className="space-y-3 text-sm text-blue-100/90">
-            <li className="flex items-center gap-3">
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 ring-1 ring-white/15">
-                <ShieldCheck className="h-4 w-4 text-blue-100" />
-              </span>
-              Role-based access for authorized personnel
-            </li>
-            <li className="flex items-center gap-3">
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 ring-1 ring-white/15">
-                <Lock className="h-4 w-4 text-blue-100" />
-              </span>
-              Encrypted sign-in and session protection
-            </li>
-          </ul>
-        </div>
-
-        <p className="relative z-10 text-xs text-blue-200/70">
-          © {year} Cybersave. Internal use only.
-        </p>
-      </aside>
-
-      {/* Sign-in panel */}
-      <main className="relative flex flex-1 items-center justify-center px-5 py-10 sm:px-8 sm:py-12">
+      <div className="relative flex w-full flex-1 items-center justify-center px-5 py-10 sm:px-8">
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0 bg-[radial-gradient(900px_420px_at_50%_0%,rgba(37,99,235,0.08),transparent_60%)]"
         />
 
-        <div className="relative z-10 w-full max-w-[520px]">
-          {/* Mobile / tablet brand */}
-          <div className="mb-8 flex flex-col items-center text-center lg:hidden">
-            <img
-              src={`${import.meta.env.BASE_URL}admin-login-logo.png`}
-              alt="Cybersave"
-              className="h-[72px] w-auto max-w-[220px] object-contain"
-              draggable={false}
-            />
-          </div>
-
+        <div className="relative z-10 w-full max-w-[480px] shrink-0">
           <div className="overflow-hidden rounded-3xl border border-[#E2E8F0] bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_24px_64px_rgba(15,23,42,0.08)]">
-            <div className="border-b border-[#EEF2F7] bg-[linear-gradient(180deg,#F8FAFF_0%,#FFFFFF_100%)] px-8 pb-7 pt-8 sm:px-10 sm:pt-9">
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#2563EB]">
-                Admin Console
-              </p>
-              <h2
-                className="mt-2 text-2xl font-bold tracking-tight text-[#0A1629] sm:text-[1.75rem]"
+            {/* Brand */}
+            <div className="flex flex-col items-center border-b border-[#EEF2F7] bg-[linear-gradient(180deg,#F8FAFF_0%,#FFFFFF_100%)] px-8 pb-8 pt-10 sm:px-10 sm:pt-11">
+              <img
+                src={`${import.meta.env.BASE_URL}admin-login-logo.png`}
+                alt="Cybersave — Digital Services, Trusted Always"
+                className="h-[88px] w-auto max-w-[240px] object-contain"
+                draggable={false}
+              />
+              <h1
+                className="mt-5 text-2xl font-bold tracking-tight text-[#0A1629]"
                 style={{ fontFamily: 'var(--font-login-display)' }}
               >
-                Welcome back
-              </h2>
-              <p className="mt-2 text-sm leading-6 text-[#64748B]">
-                Sign in with your administrator email and password to continue.
+                Admin Console
+              </h1>
+              <p className="mt-2 text-center text-sm leading-6 text-[#64748B]">
+                Sign in with your administrator credentials
               </p>
             </div>
 
+            {/* Form */}
             <form onSubmit={onSubmit} className="space-y-6 px-8 py-8 sm:px-10 sm:py-9">
               <div className="space-y-2">
                 <Label htmlFor="email" className="text-sm font-medium text-[#0A1629]">
@@ -175,21 +107,21 @@ export function LoginPage() {
                 className="h-12 w-full rounded-xl bg-[#2563EB] text-[15px] font-semibold text-white shadow-[0_8px_24px_rgba(37,99,235,0.28)] hover:bg-[#1D4ED8]"
                 disabled={loading}
               >
-                {loading ? 'Signing in…' : 'Sign in to dashboard'}
+                {loading ? 'Signing in…' : 'Sign in'}
               </Button>
             </form>
 
             <div className="flex items-center justify-center gap-2 border-t border-[#EEF2F7] bg-[#F8FAFC] px-8 py-4 text-xs text-[#64748B] sm:px-10">
               <Lock className="h-3.5 w-3.5 shrink-0 text-[#2563EB]" />
-              Authorized personnel only. All access is monitored.
+              Authorized personnel only
             </div>
           </div>
 
-          <p className="mt-6 text-center text-xs text-[#94A3B8] lg:hidden">
-            © {year} Cybersave. Authorized personnel only.
+          <p className="mt-6 text-center text-xs text-[#94A3B8]">
+            © {year} Cybersave. All rights reserved.
           </p>
         </div>
-      </main>
+      </div>
     </div>
   );
 }
