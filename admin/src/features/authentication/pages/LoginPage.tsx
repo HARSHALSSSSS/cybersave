@@ -37,27 +37,27 @@ export function LoginPage() {
           className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-[#E8F0FE] to-transparent"
         />
 
-        <div className="relative z-10 w-full max-w-[400px] shrink-0">
-          <div className="rounded-2xl border border-[#EEF1F6] bg-white px-6 py-7 shadow-[0_8px_24px_rgba(37,99,235,0.08)] sm:px-8 sm:py-8">
-            <div className="mb-5 flex flex-col items-center text-center">
+        <div className="relative z-10 w-full max-w-[440px] shrink-0">
+          <div className="rounded-[24px] border border-[#EEF1F6] bg-white px-8 py-9 shadow-[0_8px_16px_rgba(15,23,42,0.04),0_20px_40px_rgba(37,99,235,0.10)] sm:px-10 sm:py-10">
+            <div className="mb-6 flex flex-col items-center text-center">
               <img
                 src={`${import.meta.env.BASE_URL}admin-login-logo.png`}
                 alt="Cybersave — Digital Services, Trusted Always"
-                className="mx-auto h-16 w-auto max-w-[168px] object-contain"
-                width={168}
-                height={64}
+                className="mx-auto h-20 w-auto max-w-[200px] object-contain"
+                width={200}
+                height={80}
                 draggable={false}
               />
-              <h1 className="mt-3 text-lg font-semibold tracking-tight text-[#0A1629] sm:text-xl">
+              <h1 className="mt-4 text-xl font-semibold tracking-tight text-[#0A1629]">
                 Admin Console
               </h1>
-              <p className="mt-1 text-sm text-[#7C8691]">
+              <p className="mt-1.5 text-sm text-[#7C8691]">
                 Sign in with your admin credentials
               </p>
             </div>
 
-            <form onSubmit={onSubmit} className="space-y-4">
-              <div className="space-y-1.5">
+            <form onSubmit={onSubmit} className="space-y-5">
+              <div className="space-y-2">
                 <Label htmlFor="email" className="text-[#0A1629]">
                   Email
                 </Label>
@@ -69,11 +69,11 @@ export function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="h-10 border-[#E5E7EB] bg-white"
+                  className="h-11 border-[#E5E7EB] bg-white"
                 />
               </div>
 
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <Label htmlFor="password" className="text-[#0A1629]">
                   Password
                 </Label>
@@ -86,7 +86,7 @@ export function LoginPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    className="h-10 border-[#E5E7EB] bg-white pr-10"
+                    className="h-11 border-[#E5E7EB] bg-white pr-10"
                   />
                   <button
                     type="button"
@@ -101,7 +101,7 @@ export function LoginPage() {
 
               <Button
                 type="submit"
-                className="h-10 w-full bg-[#2563EB] text-sm font-semibold text-white hover:bg-[#1E4BB5]"
+                className="h-11 w-full bg-[#2563EB] text-base font-semibold text-white hover:bg-[#1E4BB5]"
                 disabled={loading}
               >
                 {loading ? 'Signing in…' : 'Sign in'}
@@ -109,7 +109,7 @@ export function LoginPage() {
             </form>
           </div>
 
-          <p className="mt-4 text-center text-xs text-[#9CA3AF]">
+          <p className="mt-5 text-center text-xs text-[#9CA3AF]">
             © {year} Cybersave. Authorized personnel only.
           </p>
         </div>
