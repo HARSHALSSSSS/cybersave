@@ -457,6 +457,9 @@ export const en: TranslationTree = {
     securedRazorpay: 'Secured by Razorpay',
     sslSecured: '256-Bit SSL Secured Encryption Connection',
     payAndSubmit: 'Pay ₹{{amount}} & Submit',
+    submittingApplication: 'Submitting application…',
+    submittingApplicationHint:
+      'Payment received. We are submitting your application — this usually takes a few seconds.',
     manualApplySubtitle:
       'Apply directly on the official government website. Cybersave does not charge a platform fee for manual apply.',
     manualNoPaymentBanner:

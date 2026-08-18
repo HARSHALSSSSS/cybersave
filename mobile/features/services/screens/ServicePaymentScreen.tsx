@@ -41,6 +41,10 @@ import { useTranslation } from '@/i18n';
 
 type Props = NativeStackScreenProps<ServicesStackParamList, 'ServicePayment'>;
 
+type PayOutcome =
+  | { kind: 'free'; result: ApplicationDetail }
+  | { kind: 'paid' };
+
 function randomIdempotencyKey(): string {
   return `pay_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 }
@@ -53,6 +57,7 @@ export const ServicePaymentScreen: React.FC<Props> = ({ navigation, route }) => 
   const citizen = useSelector((state: RootState) => state.auth.citizen);
   const [idempotencyKey] = useState(randomIdempotencyKey);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('razorpay');
+  const [flowPhase, setFlowPhase] = useState<'idle' | 'submitting'>('idle');
 
   const { data: application, isLoading } = useQuery({
     queryKey: applicationsQueryKeys.detail(applicationId ?? ''),
@@ -106,29 +111,67 @@ export const ServicePaymentScreen: React.FC<Props> = ({ navigation, route }) => 
     [categoryId, navigation, optionId, queryClient],
   );
 
-  const finishSubmitMutation = useMutation({
-    mutationFn: () =>
-      submitApplicationAfterPayment(applicationId!, t.services.paymentReceivedSubmitFailed),
-    onSuccess: goToSuccess,
-    onError: (error: unknown) => {
+  const recoverSubmittedApplication = useCallback(async (): Promise<ApplicationDetail | null> => {
+    if (!applicationId) return null;
+    try {
+      const latest = await applicationsApi.getApplicationById(applicationId);
+      if (isApplicationAlreadySubmitted(latest.status)) {
+        return latest;
+      }
+    } catch {
+      // Ignore and let the caller show retry UI.
+    }
+    return null;
+  }, [applicationId]);
+
+  const runSubmitAfterPayment = useCallback(async () => {
+    if (!applicationId) return;
+    setFlowPhase('submitting');
+    try {
+      const result = await submitApplicationAfterPayment(
+        applicationId,
+        t.services.paymentReceivedSubmitFailed,
+      );
+      goToSuccess(result);
+    } catch (error) {
+      const recovered = await recoverSubmittedApplication();
+      if (recovered) {
+        goToSuccess(recovered);
+        return;
+      }
       if (isPaymentSettledError(error)) {
         Alert.alert(t.services.paymentReceivedTitle, error.message, [
           { text: t.common.cancel, style: 'cancel' },
-          { text: t.common.retry, onPress: () => finishSubmitMutation.mutate() },
+          { text: t.common.retry, onPress: () => void runSubmitAfterPayment() },
         ]);
         return;
       }
       Alert.alert(t.common.error, t.services.paymentFailed);
-    },
-  });
+    } finally {
+      setFlowPhase('idle');
+    }
+  }, [
+    applicationId,
+    goToSuccess,
+    recoverSubmittedApplication,
+    t.common.cancel,
+    t.common.error,
+    t.common.retry,
+    t.services.paymentFailed,
+    t.services.paymentReceivedSubmitFailed,
+    t.services.paymentReceivedTitle,
+  ]);
 
   const payMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (): Promise<PayOutcome> => {
       if (!applicationId) throw new Error('Missing application');
       await applicationsApi.validateApplication(applicationId);
 
       if (total <= 0) {
-        return applicationsApi.submitApplication(applicationId);
+        return {
+          kind: 'free',
+          result: await applicationsApi.submitApplication(applicationId),
+        };
       }
 
       if (paymentMethod === 'wallet' && !walletCovers) {
@@ -148,12 +191,19 @@ export const ServicePaymentScreen: React.FC<Props> = ({ navigation, route }) => 
         },
       });
 
-      return submitApplicationAfterPayment(
-        applicationId,
-        t.services.paymentReceivedSubmitFailed,
-      );
+      void queryClient.invalidateQueries({
+        queryKey: applicationsQueryKeys.detail(applicationId),
+      });
+
+      return { kind: 'paid' };
     },
-    onSuccess: goToSuccess,
+    onSuccess: outcome => {
+      if (outcome.kind === 'free') {
+        goToSuccess(outcome.result);
+        return;
+      }
+      void runSubmitAfterPayment();
+    },
     onError: async (error: unknown) => {
       if (isRazorpayUserCancelled(error)) return;
       if (error instanceof Error && error.message === 'INSUFFICIENT_WALLET') {
@@ -161,18 +211,14 @@ export const ServicePaymentScreen: React.FC<Props> = ({ navigation, route }) => 
         return;
       }
       if (isPaymentSettledError(error) && applicationId) {
-        try {
-          const latest = await applicationsApi.getApplicationById(applicationId);
-          if (isApplicationAlreadySubmitted(latest.status)) {
-            goToSuccess(latest);
-            return;
-          }
-        } catch {
-          // Fall through to the retry prompt below.
+        const recovered = await recoverSubmittedApplication();
+        if (recovered) {
+          goToSuccess(recovered);
+          return;
         }
         Alert.alert(t.services.paymentReceivedTitle, error.message, [
           { text: t.common.cancel, style: 'cancel' },
-          { text: t.common.retry, onPress: () => finishSubmitMutation.mutate() },
+          { text: t.common.retry, onPress: () => void runSubmitAfterPayment() },
         ]);
         return;
       }
@@ -274,6 +320,23 @@ export const ServicePaymentScreen: React.FC<Props> = ({ navigation, route }) => 
           justifyContent: 'center',
           backgroundColor: theme.colors.backgroundSecondary,
         },
+        statusBanner: {
+          marginBottom: theme.spacing.md,
+          borderRadius: theme.radius.xl,
+          borderWidth: 1,
+          borderColor: '#BFDBFE',
+          backgroundColor: '#EFF6FF',
+          paddingHorizontal: theme.spacing.lg,
+          paddingVertical: theme.spacing.md,
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: theme.spacing.sm,
+        },
+        statusBannerText: {
+          ...theme.typography.bodySmall,
+          color: '#1D4ED8',
+          flex: 1,
+        },
       }),
     [theme],
   );
@@ -315,6 +378,15 @@ export const ServicePaymentScreen: React.FC<Props> = ({ navigation, route }) => 
   }
 
   const isFree = total <= 0;
+  const isPaying = payMutation.isPending;
+  const isSubmitting = flowPhase === 'submitting';
+  const isBusy = isPaying || isSubmitting;
+
+  const footerTitle = isSubmitting
+    ? t.services.submittingApplication
+    : isFree
+      ? t.services.submitApp
+      : format(t.services.payAndSubmit, { amount: total.toFixed(2) });
 
   return (
     <TabStackScreenLayout
@@ -329,16 +401,15 @@ export const ServicePaymentScreen: React.FC<Props> = ({ navigation, route }) => 
         />
       }
       footer={
-        <Button
-          title={
-            isFree
-              ? t.services.submitApp
-              : format(t.services.payAndSubmit, { amount: total.toFixed(2) })
-          }
-          loading={payMutation.isPending || finishSubmitMutation.isPending}
-          onPress={handlePay}
-        />
+        <Button title={footerTitle} loading={isBusy} onPress={handlePay} />
       }>
+      {isSubmitting ? (
+        <View style={styles.statusBanner}>
+          <ActivityIndicator color="#2563EB" size="small" />
+          <Text style={styles.statusBannerText}>{t.services.submittingApplicationHint}</Text>
+        </View>
+      ) : null}
+
       <View style={styles.billCard}>
         <View>
           <Text style={styles.billLabel}>{t.services.applicationLabel}</Text>

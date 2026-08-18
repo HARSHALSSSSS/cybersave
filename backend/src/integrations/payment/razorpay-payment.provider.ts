@@ -137,22 +137,34 @@ export class RazorpayPaymentProvider implements PaymentProvider {
     }
 
     const auth = Buffer.from(`${keyId}:${keySecret}`).toString('base64');
-    const response = await fetch(`https://api.razorpay.com/v1${path}`, {
-      method,
-      headers: {
-        Authorization: `Basic ${auth}`,
-        'Content-Type': 'application/json',
-      },
-      body: body ? JSON.stringify(body) : undefined,
-    });
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 15_000);
+    try {
+      const response = await fetch(`https://api.razorpay.com/v1${path}`, {
+        method,
+        headers: {
+          Authorization: `Basic ${auth}`,
+          'Content-Type': 'application/json',
+        },
+        body: body ? JSON.stringify(body) : undefined,
+        signal: controller.signal,
+      });
 
-    const payload = (await response.json()) as T & { error?: { description?: string } };
-    if (!response.ok) {
-      const message = payload.error?.description ?? `Razorpay API error (${response.status})`;
-      this.logger.error(`Razorpay ${method} ${path} failed: ${message}`);
-      throw new BadRequestException(message);
+      const payload = (await response.json()) as T & { error?: { description?: string } };
+      if (!response.ok) {
+        const message = payload.error?.description ?? `Razorpay API error (${response.status})`;
+        this.logger.error(`Razorpay ${method} ${path} failed: ${message}`);
+        throw new BadRequestException(message);
+      }
+
+      return payload;
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new ServiceUnavailableException('Razorpay request timed out. Please try again.');
+      }
+      throw error;
+    } finally {
+      clearTimeout(timer);
     }
-
-    return payload;
   }
 }

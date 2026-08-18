@@ -39,7 +39,7 @@ export async function processApplicationPayment(params: {
 
   const intent = await applicationsApi.createPaymentIntent(applicationId, idempotencyKey);
   if (intent.status === 'CAPTURED') {
-    await showPaymentSuccessTick();
+    void showPaymentSuccessTick();
     return;
   }
 

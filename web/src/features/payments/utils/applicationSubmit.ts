@@ -15,8 +15,9 @@ const POST_SUBMIT_STATUSES: BackendApplicationStatus[] = [
   'REJECTED',
 ];
 
-const SUBMIT_RETRY_ATTEMPTS = 10;
-const SUBMIT_WAIT_MS = 1500;
+const SUBMIT_RETRY_ATTEMPTS = 12;
+const SUBMIT_WAIT_MS = 1000;
+const SUBMIT_MAX_WALL_MS = 45_000;
 
 function delay(ms: number): Promise<void> {
   return new Promise(resolve => {
@@ -39,6 +40,14 @@ function isApplicationReadyToSubmit(app: ApplicationDetail): boolean {
   const total = applicationTotal(app);
   if (total <= 0) return true;
   return app.status === 'PAYMENT_PENDING' && app.payment?.status === 'CAPTURED';
+}
+
+async function nudgeApplicationToPaymentPending(applicationId: string): Promise<void> {
+  try {
+    await applicationsApi.validateApplication(applicationId);
+  } catch {
+    // Validation may fail while the server is still settling payment; keep polling.
+  }
 }
 
 function submitErrorMessage(error: unknown): string {
@@ -76,12 +85,30 @@ export async function submitApplicationAfterPayment(
   settledMessage: string,
 ): Promise<ApplicationDetail> {
   let lastError: unknown;
+  const startedAt = Date.now();
 
   for (let attempt = 0; attempt < SUBMIT_RETRY_ATTEMPTS; attempt += 1) {
+    if (Date.now() - startedAt > SUBMIT_MAX_WALL_MS) {
+      lastError = new Error('Submit timed out while waiting for the server.');
+      break;
+    }
+
     const app = await applicationsApi.getApplicationById(applicationId);
 
     if (isApplicationAlreadySubmitted(app.status)) {
       return app;
+    }
+
+    if (
+      applicationTotal(app) > 0 &&
+      app.payment?.status === 'CAPTURED' &&
+      app.status !== 'PAYMENT_PENDING'
+    ) {
+      await nudgeApplicationToPaymentPending(applicationId);
+      if (attempt < SUBMIT_RETRY_ATTEMPTS - 1) {
+        await delay(SUBMIT_WAIT_MS);
+        continue;
+      }
     }
 
     if (!isApplicationReadyToSubmit(app)) {

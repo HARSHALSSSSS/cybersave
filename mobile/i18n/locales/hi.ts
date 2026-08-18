@@ -435,6 +435,9 @@ export const hi: TranslationTree = {
       'विकास के लिए मॉक भुगतान गेटवे सक्षम है। भुगतान स्वतः सत्यापित होगा।',
     sslSecured: '256-बिट SSL सुरक्षित कनेक्शन',
     payAndSubmit: '₹{{amount}} भुगतान करें और जमा करें',
+    submittingApplication: 'आवेदन जमा हो रहा है…',
+    submittingApplicationHint:
+      'भुगतान हो गया है। हम आपका आवेदन जमा कर रहे हैं — आमतौर पर कुछ सेकंड लगते हैं।',
     manualApplySubtitle:
       'सीधे आधिकारिक सरकारी वेबसाइट पर आवेदन करें। मैन्युअल आवेदन पर Cybersave कोई शुल्क नहीं लेता।',
     manualNoPaymentBanner:

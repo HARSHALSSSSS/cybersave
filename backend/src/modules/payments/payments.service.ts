@@ -139,20 +139,25 @@ export class PaymentsService {
       }
     }
 
-    return this.capturePaymentRecord(payment);
+    return this.capturePaymentRecord(payment, {
+      skipProviderVerify: !useMock && Boolean(options?.razorpaySignature),
+    });
   }
 
   getCheckoutKeyId(): string {
     return publicRazorpayKeyId(this.configService);
   }
 
-  private async capturePaymentRecord(payment: {
-    id: string;
-    providerRef: string | null;
-    applicationId: string;
-    citizenId: string;
-    status: PaymentStatus;
-  }) {
+  private async capturePaymentRecord(
+    payment: {
+      id: string;
+      providerRef: string | null;
+      applicationId: string;
+      citizenId: string;
+      status: PaymentStatus;
+    },
+    options?: { skipProviderVerify?: boolean },
+  ) {
     if (payment.status === PaymentStatus.CAPTURED) {
       return { success: true, paymentId: payment.id };
     }
@@ -161,14 +166,16 @@ export class PaymentsService {
       throw new Error('Missing provider reference');
     }
 
-    const result = await this.provider.verifyPayment(payment.providerRef);
+    if (!options?.skipProviderVerify) {
+      const result = await this.provider.verifyPayment(payment.providerRef);
 
-    if (!result.success) {
-      await this.prisma.payment.update({
-        where: { id: payment.id },
-        data: { status: PaymentStatus.FAILED },
-      });
-      return { success: false };
+      if (!result.success) {
+        await this.prisma.payment.update({
+          where: { id: payment.id },
+          data: { status: PaymentStatus.FAILED },
+        });
+        return { success: false };
+      }
     }
 
     await this.prisma.$transaction([

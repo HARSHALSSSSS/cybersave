@@ -46,7 +46,7 @@ export async function collectRazorpayPayment(
         keyId: intent.keyId!,
         orderId: intent.orderId!,
       });
-      await showPaymentSuccessTick();
+      void showPaymentSuccessTick();
       return result;
     } catch (error) {
       if (isRazorpayUserCancelled(error)) throw error;
