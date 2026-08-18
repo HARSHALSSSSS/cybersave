@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -85,10 +85,20 @@ export function ApplicationsPage() {
   const [tab, setTab] = useState<FilterTab>('all');
   const [search, setSearch] = useState('');
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: applicationsQueryKeys.list(1),
     queryFn: () => applicationsApi.listApplications({ page: 1, limit: 50 }),
+    staleTime: 30_000,
+    refetchOnMount: 'always',
   });
+
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void refetch();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [refetch]);
 
   const apps = data?.data ?? [];
 

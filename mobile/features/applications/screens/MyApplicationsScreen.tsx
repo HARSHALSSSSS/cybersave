@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useQuery } from '@tanstack/react-query';
@@ -60,7 +61,15 @@ export const MyApplicationsScreen: React.FC<Props> = ({ navigation }) => {
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: applicationsQueryKeys.list(activeFilter),
     queryFn: () => applicationsApi.listApplicationsForFilter(activeFilter),
+    staleTime: 30_000,
+    refetchOnMount: 'always',
   });
+
+  useFocusEffect(
+    useCallback(() => {
+      void refetch();
+    }, [refetch]),
+  );
 
   const applications = useMemo(() => {
     const items = clientFilterApplications(

@@ -53,6 +53,8 @@ export function ProfilePage() {
   const { data: applicationsData, isLoading: appsLoading } = useQuery({
     queryKey: applicationsQueryKeys.list(1),
     queryFn: () => applicationsApi.listApplications({ page: 1, limit: 5 }),
+    staleTime: 30_000,
+    refetchOnMount: 'always',
   });
 
   const { data: addresses = [] } = useQuery({

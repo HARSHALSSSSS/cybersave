@@ -218,6 +218,8 @@ export function HomePage() {
     queryKey: applicationsQueryKeys.list(1),
     queryFn: () => applicationsApi.listApplications({ page: 1, limit: 20 }),
     enabled: isAuthenticated,
+    staleTime: 30_000,
+    refetchOnMount: 'always',
   });
 
   const { data: billHistory } = useQuery({

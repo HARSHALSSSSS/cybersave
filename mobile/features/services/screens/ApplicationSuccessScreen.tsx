@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -11,12 +11,20 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { CommonActions } from '@react-navigation/native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { MainTabParamList, ServicesStackParamList } from '@/types/navigation';
 import { useTheme } from '@app/providers/ThemeProvider';
 import { Button } from '@components/Button';
 import { CheckCircleIcon } from '@components/icons';
-import { applicationsApi, applicationsQueryKeys } from '@services/api';
+import {
+  applicationsApi,
+  applicationsQueryKeys,
+} from '@services/api';
+import {
+  refreshApplicationsListQueries,
+  syncSubmittedApplicationInCaches,
+} from '@features/applications/utils/applicationListCache';
+import { isApplicationAlreadySubmitted } from '@features/payments/utils/applicationSubmit';
 import { useTranslation } from '@/i18n';
 import { getScrollBottomPadding } from '@utils/layout';
 
@@ -33,11 +41,27 @@ export const ApplicationSuccessScreen: React.FC<Props> = ({
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
 
   const { data: application } = useQuery({
     queryKey: applicationsQueryKeys.detail(applicationId),
     queryFn: () => applicationsApi.getApplicationById(applicationId),
+    staleTime: 30_000,
   });
+
+  useEffect(() => {
+    void queryClient.prefetchQuery({
+      queryKey: applicationsQueryKeys.list('All'),
+      queryFn: () => applicationsApi.listApplicationsForFilter('All'),
+      staleTime: 30_000,
+    });
+  }, [queryClient]);
+
+  useEffect(() => {
+    if (!application || !isApplicationAlreadySubmitted(application.status)) return;
+    syncSubmittedApplicationInCaches(queryClient, application);
+    void refreshApplicationsListQueries(queryClient);
+  }, [application, queryClient]);
 
   const styles = useMemo(
     () =>

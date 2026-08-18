@@ -24,6 +24,10 @@ import {
   type PaymentMethod,
 } from '@features/payments/utils/applicationPayment';
 import {
+  refreshApplicationsListQueries,
+  syncSubmittedApplicationInCaches,
+} from '@features/applications/utils/applicationListCache';
+import {
   describeSubmitFailure,
   isApplicationAlreadySubmitted,
   submitApplicationAfterPayment,
@@ -102,10 +106,16 @@ export const ServicePaymentScreen: React.FC<Props> = ({ navigation, route }) => 
     t.services.defaultService;
 
   const goToSuccess = useCallback(
-    (result: ApplicationDetail) => {
+    (
+      result: ApplicationDetail,
+      options?: { navigate?: boolean; refreshList?: boolean },
+    ) => {
       void queryClient.invalidateQueries({ queryKey: walletQueryKeys.summary() });
-      void queryClient.invalidateQueries({ queryKey: applicationsQueryKeys.all });
-      queryClient.setQueryData(applicationsQueryKeys.detail(result.id), result);
+      syncSubmittedApplicationInCaches(queryClient, result);
+      if (options?.refreshList !== false && isApplicationAlreadySubmitted(result.status)) {
+        void refreshApplicationsListQueries(queryClient);
+      }
+      if (options?.navigate === false) return;
       navigation.replace('ApplicationSuccess', {
         categoryId,
         optionId,
@@ -145,8 +155,7 @@ export const ServicePaymentScreen: React.FC<Props> = ({ navigation, route }) => 
         ? { ...current.payment, status: 'CAPTURED' }
         : current.payment,
     };
-    queryClient.setQueryData(applicationsQueryKeys.detail(applicationId), optimistic);
-    goToSuccess(optimistic);
+    goToSuccess(optimistic, { refreshList: false });
   }, [application, applicationId, goToSuccess, queryClient]);
 
   const runSubmitAfterPayment = useCallback(async () => {
@@ -157,12 +166,11 @@ export const ServicePaymentScreen: React.FC<Props> = ({ navigation, route }) => 
         t.services.paymentReceivedSubmitFailed,
         { fast: true },
       );
-      queryClient.setQueryData(applicationsQueryKeys.detail(applicationId), result);
-      goToSuccess(result);
+      goToSuccess(result, { navigate: false, refreshList: true });
     } catch (error) {
       const recovered = await recoverSubmittedApplication();
       if (recovered) {
-        goToSuccess(recovered);
+        goToSuccess(recovered, { navigate: false, refreshList: true });
         return;
       }
       if (isPaymentSettledError(error)) {
@@ -233,9 +241,15 @@ export const ServicePaymentScreen: React.FC<Props> = ({ navigation, route }) => 
         },
       });
 
-      void queryClient.invalidateQueries({
-        queryKey: applicationsQueryKeys.detail(applicationId),
-      });
+      const cached = queryClient.getQueryData<ApplicationDetail>(
+        applicationsQueryKeys.detail(applicationId),
+      );
+      if (cached?.payment) {
+        queryClient.setQueryData(applicationsQueryKeys.detail(applicationId), {
+          ...cached,
+          payment: { ...cached.payment, status: 'CAPTURED' },
+        });
+      }
 
       return { kind: 'paid' };
     },

@@ -57,6 +57,10 @@ import {
 } from '@/services/api';
 import { useAuthStore } from '@/features/auth/store/auth.store';
 import {
+  refreshApplicationsListQueries,
+  syncSubmittedApplicationInCaches,
+} from '@/features/applications/utils/applicationListCache';
+import {
   isRazorpayUserCancelled,
   processApplicationPayment,
   type PaymentMethod,
@@ -512,16 +516,22 @@ export function ServiceApplyPage() {
         applicationsQueryKeys.detail(applicationId),
       );
     if (base) {
-      queryClient.setQueryData(applicationsQueryKeys.detail(applicationId), {
+      const optimistic: ApplicationDetail = {
         ...base,
         status: 'SUBMITTED',
         submittedAt: new Date().toISOString(),
         payment: base.payment ? { ...base.payment, status: 'CAPTURED' } : base.payment,
-      });
+      };
+      syncSubmittedApplicationInCaches(queryClient, optimistic);
     }
     setSubmittedLocally(true);
     goToStep('confirmation');
     clearApplyFormSession(serviceKey, applicationId);
+    void queryClient.prefetchQuery({
+      queryKey: applicationsQueryKeys.list(1),
+      queryFn: () => applicationsApi.listApplications({ page: 1, limit: 50 }),
+      staleTime: 30_000,
+    });
   }
 
   async function finalizeSubmissionAfterPayment() {
@@ -532,9 +542,9 @@ export function ServiceApplyPage() {
         'Your payment went through, but we could not submit the application. Click Pay again to finish — you will not be charged twice.',
         { fast: true },
       );
-      queryClient.setQueryData(applicationsQueryKeys.detail(applicationId), submitted);
+      syncSubmittedApplicationInCaches(queryClient, submitted);
       void Promise.all([
-        queryClient.invalidateQueries({ queryKey: applicationsQueryKeys.all }),
+        refreshApplicationsListQueries(queryClient),
         queryClient.invalidateQueries({ queryKey: paymentsQueryKeys.all }),
         queryClient.invalidateQueries({ queryKey: walletQueryKeys.summary() }),
       ]);
@@ -544,7 +554,8 @@ export function ServiceApplyPage() {
         try {
           const latest = await applicationsApi.getApplicationById(applicationId);
           if (isApplicationAlreadySubmitted(latest.status)) {
-            queryClient.setQueryData(applicationsQueryKeys.detail(applicationId), latest);
+            syncSubmittedApplicationInCaches(queryClient, latest);
+            void refreshApplicationsListQueries(queryClient);
             return;
           }
         } catch {
@@ -595,10 +606,10 @@ export function ServiceApplyPage() {
       }
 
       const submitted = await applicationsApi.submitApplication(applicationId);
-      queryClient.setQueryData(applicationsQueryKeys.detail(applicationId), submitted);
+      syncSubmittedApplicationInCaches(queryClient, submitted);
       setSubmittedLocally(true);
       void Promise.all([
-        queryClient.invalidateQueries({ queryKey: applicationsQueryKeys.all }),
+        refreshApplicationsListQueries(queryClient),
         queryClient.invalidateQueries({ queryKey: paymentsQueryKeys.all }),
         queryClient.invalidateQueries({ queryKey: walletQueryKeys.summary() }),
       ]);
@@ -611,7 +622,8 @@ export function ServiceApplyPage() {
         try {
           const latest = await applicationsApi.getApplicationById(applicationId);
           if (isApplicationAlreadySubmitted(latest.status)) {
-            queryClient.setQueryData(applicationsQueryKeys.detail(applicationId), latest);
+            syncSubmittedApplicationInCaches(queryClient, latest);
+            void refreshApplicationsListQueries(queryClient);
             setSubmittedLocally(true);
             goToStep('confirmation');
             toast.success('Application submitted successfully');
