@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   StyleSheet,
   Text,
@@ -14,6 +13,7 @@ import { useTranslation } from '@/i18n';
 import { Button } from '@components/Button';
 import { DynamicBillerForm, billerInitial } from '@features/bill-payments/components';
 import { BillPaymentScreenLayout } from '@features/bill-payments/components/BillPaymentScreenLayout';
+import { BBPS_BILLER_STALE_MS } from '@features/bill-payments/utils/billPaymentsPrefetch';
 import { BillPaymentsStackParamList } from '@/types/navigation';
 import { billPaymentsApi, billPaymentsQueryKeys, getBillPaymentsErrorMessage } from '@services/api/billPayments.api';
 
@@ -56,13 +56,13 @@ export const BillerFormScreen: React.FC<Props> = ({ navigation, route }) => {
   const { t } = useTranslation();
   const [values, setValues] = useState<Record<string, string>>(preset ?? {});
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [fetching, setFetching] = useState(false);
-  const [slowMessage, setSlowMessage] = useState(false);
 
   const { data: biller, isLoading, isError, refetch } = useQuery({
     queryKey: billPaymentsQueryKeys.biller(billerId),
     queryFn: () => billPaymentsApi.getBiller(billerId),
     retry: 2,
+    staleTime: BBPS_BILLER_STALE_MS,
+    placeholderData: previous => previous,
   });
 
   useEffect(() => {
@@ -83,44 +83,10 @@ export const BillerFormScreen: React.FC<Props> = ({ navigation, route }) => {
     },
   });
 
-  const pollUntilDone = useCallback(async (requestId: string) => {
-    setFetching(true);
-    setSlowMessage(false);
-    const slowTimer = setTimeout(() => setSlowMessage(true), 4000);
-
-    try {
-      let attempt = 0;
-      while (attempt < 30) {
-        const result = await billPaymentsApi.getBillRequest(requestId, true);
-        if (result.status === 'success') {
-          navigation.replace('BillDetails', { requestId });
-          return;
-        }
-        if (result.status === 'failed') {
-          Alert.alert(t.bills.couldNotFetchBill, result.errorMessage ?? t.bills.verifyDetails);
-          return;
-        }
-        await new Promise<void>(resolve => {
-          setTimeout(resolve, 1500);
-        });
-        attempt += 1;
-      }
-      Alert.alert(t.bills.takingLonger, t.bills.checkHistory);
-    } finally {
-      clearTimeout(slowTimer);
-      setFetching(false);
-      setSlowMessage(false);
-    }
-  }, [navigation, t]);
-
   const handleFetch = useCallback(async () => {
     try {
       const created = await fetchMutation.mutateAsync();
-      if (created.status === 'success') {
-        navigation.replace('BillDetails', { requestId: created.id });
-        return;
-      }
-      await pollUntilDone(created.id);
+      navigation.replace('BillDetails', { requestId: created.id });
     } catch (error) {
       if (error instanceof Error && error.message === 'Validation failed') return;
       Alert.alert(
@@ -128,7 +94,7 @@ export const BillerFormScreen: React.FC<Props> = ({ navigation, route }) => {
         getBillPaymentsErrorMessage(error, t.bills.unableToStartFetch),
       );
     }
-  }, [fetchMutation, navigation, pollUntilDone]);
+  }, [fetchMutation, navigation, t]);
 
   const styles = useMemo(
     () =>
@@ -151,12 +117,6 @@ export const BillerFormScreen: React.FC<Props> = ({ navigation, route }) => {
           color: theme.colors.textPrimary,
           marginBottom: theme.spacing.lg,
         },
-        fetchStatus: {
-          ...theme.typography.bodyMedium,
-          color: theme.colors.textSecondary,
-          textAlign: 'center',
-          marginTop: theme.spacing.lg,
-        },
       }),
     [theme],
   );
@@ -168,7 +128,7 @@ export const BillerFormScreen: React.FC<Props> = ({ navigation, route }) => {
       title={t.bills.payBill}
       showBack
       onBack={() => navigation.goBack()}
-      loading={isLoading || (!biller && !isError)}
+      loading={isLoading && !biller}
       error={isError}
       errorMessage={t.bills.loadBillerError}
       onRetry={() => refetch()}
@@ -191,20 +151,11 @@ export const BillerFormScreen: React.FC<Props> = ({ navigation, route }) => {
             errors={errors}
           />
 
-          {fetching ? (
-            <View style={{ alignItems: 'center', paddingVertical: theme.spacing.lg }}>
-              <ActivityIndicator color={theme.colors.primary} size="large" />
-              <Text style={styles.fetchStatus}>
-                {slowMessage ? t.bills.fetchBillSlow : t.bills.fetchingBill}
-              </Text>
-            </View>
-          ) : (
-            <Button
-              title={t.bills.fetchBill.toUpperCase()}
-              loading={fetchMutation.isPending}
-              onPress={handleFetch}
-            />
-          )}
+          <Button
+            title={t.bills.fetchBill.toUpperCase()}
+            loading={fetchMutation.isPending}
+            onPress={handleFetch}
+          />
         </>
       ) : null}
     </BillPaymentScreenLayout>

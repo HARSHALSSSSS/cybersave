@@ -21,7 +21,7 @@ import { goBackInServicesStack } from '@features/services/utils/navigateToServic
 import { openManualApplyPortal } from '@features/services/utils/openManualApplyPortal';
 import { useRequireProfile } from '@features/profile/hooks/useRequireProfile';
 import { extractRequestError } from '@utils/apiDiscovery';
-import { prefetchWalletForPayment } from '@features/services/utils/applyFlowPrefetch';
+import { prefetchWalletForPayment, APPLY_QUERY_STALE_MS } from '@features/services/utils/applyFlowPrefetch';
 import { servicesApi, servicesQueryKeys } from '@services/api';
 import { useTranslation } from '@/i18n';
 import { getScrollBottomPadding } from '@utils/layout';
@@ -45,6 +45,8 @@ export const ServiceDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const { data: config, isLoading, isError } = useQuery({
     queryKey: servicesQueryKeys.configuration(optionId, stateCode),
     queryFn: () => servicesApi.getSubServiceConfiguration(optionId, stateCode),
+    staleTime: APPLY_QUERY_STALE_MS,
+    placeholderData: previous => previous,
   });
 
   useEffect(() => {

@@ -11,6 +11,7 @@ import {
 import {
   cancelSimulatedCheckout,
   completeSimulatedCheckout,
+  dismissRazorpayHost,
   getCheckoutRequest,
   getSuccessTick,
   subscribeRazorpayHost,
@@ -52,6 +53,7 @@ export const RazorpayCheckoutHost: React.FC = () => {
     });
     return () => {
       unsubscribe();
+      dismissRazorpayHost();
     };
   }, []);
 
@@ -60,7 +62,12 @@ export const RazorpayCheckoutHost: React.FC = () => {
   const visible = Boolean(request || success);
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={cancelSimulatedCheckout}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      statusBarTranslucent
+      onRequestClose={cancelSimulatedCheckout}>
       {success ? (
         <View style={styles.overlay}>
           <SuccessTick />
@@ -94,14 +101,18 @@ const CheckoutSheet: React.FC = () => {
 
   const pay = async () => {
     setPaying(true);
-    await new Promise<void>(resolve => {
-      setTimeout(resolve, 80);
-    });
-    completeSimulatedCheckout({
-      razorpay_payment_id: `pay_test_${Date.now()}`,
-      razorpay_order_id: params.orderId || `order_test_${Date.now()}`,
-      razorpay_signature: `sig_test_${Date.now()}`,
-    });
+    try {
+      await new Promise<void>(resolve => {
+        setTimeout(resolve, 80);
+      });
+      completeSimulatedCheckout({
+        razorpay_payment_id: `pay_test_${Date.now()}`,
+        razorpay_order_id: params.orderId || `order_test_${Date.now()}`,
+        razorpay_signature: `sig_test_${Date.now()}`,
+      });
+    } finally {
+      setPaying(false);
+    }
   };
 
   return (

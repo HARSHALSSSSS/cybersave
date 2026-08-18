@@ -8,7 +8,7 @@ import {
   walletQueryKeys,
 } from '@services/api';
 
-const APPLY_QUERY_STALE_MS = 1000 * 60 * 15;
+export const APPLY_QUERY_STALE_MS = 1000 * 60 * 15;
 
 export function prefetchApplyConfiguration(
   queryClient: QueryClient,

@@ -122,6 +122,8 @@ export const billPaymentsQueryKeys = {
     [...billPaymentsQueryKeys.all, 'history', filter, page] as const,
   recent: () => [...billPaymentsQueryKeys.all, 'recent'] as const,
   saved: () => [...billPaymentsQueryKeys.all, 'saved'] as const,
+  paymentIntent: (requestId: string) =>
+    [...billPaymentsQueryKeys.all, 'payment-intent', requestId] as const,
 };
 
 function randomIdempotencyKey(): string {

@@ -13,6 +13,7 @@ type ServiceOptionCardProps = {
   processingDays?: string;
   fee?: string;
   onPress: () => void;
+  onPressIn?: () => void;
   variant?: 'grid' | 'certificate';
 };
 
@@ -25,6 +26,7 @@ export const ServiceOptionCard: React.FC<ServiceOptionCardProps> = ({
   processingDays,
   fee,
   onPress,
+  onPressIn,
   variant = 'grid',
 }) => {
   const { theme } = useTheme();
@@ -79,6 +81,7 @@ export const ServiceOptionCard: React.FC<ServiceOptionCardProps> = ({
     <Pressable
       style={({ pressed }) => [styles.card, pressed && { opacity: 0.92 }]}
       accessibilityRole="button"
+      onPressIn={onPressIn}
       onPress={onPress}>
       <View style={[styles.iconWrap, { backgroundColor: iconBg }]}>
         <ServiceIcon name={icon} color={iconColor} size={22} />

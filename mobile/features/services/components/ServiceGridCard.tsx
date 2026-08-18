@@ -10,6 +10,7 @@ type ServiceGridCardProps = {
   iconColor: string;
   iconBg: string;
   onPress: () => void;
+  onPressIn?: () => void;
 };
 
 export const ServiceGridCard: React.FC<ServiceGridCardProps> = ({
@@ -18,6 +19,7 @@ export const ServiceGridCard: React.FC<ServiceGridCardProps> = ({
   iconColor,
   iconBg,
   onPress,
+  onPressIn,
 }) => {
   const { theme } = useTheme();
   const cardWidth = useTwoColumnCardWidth();
@@ -59,6 +61,7 @@ export const ServiceGridCard: React.FC<ServiceGridCardProps> = ({
     <Pressable
       style={({ pressed }) => [styles.card, pressed && { opacity: 0.92 }]}
       accessibilityRole="button"
+      onPressIn={onPressIn}
       onPress={onPress}>
       <View style={[styles.iconWrap, { backgroundColor: iconBg }]}>
         <ServiceIcon name={icon} color={iconColor} size={24} />

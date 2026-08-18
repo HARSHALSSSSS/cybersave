@@ -12,6 +12,7 @@ import {
   walletApi,
   walletQueryKeys,
 } from '@services/api';
+import { billPaymentsApi, billPaymentsQueryKeys } from '@services/api/billPayments.api';
 import { ensureApiReachable } from '@services/api/bootstrapApi';
 import { getString, StorageKeys } from '@services/storage';
 import { queryClient } from './QueryProvider';
@@ -58,6 +59,16 @@ export function ApiWarmup() {
             queryKey: walletQueryKeys.summary(),
             queryFn: () => walletApi.getWalletSummary(),
             staleTime: 1000 * 60 * 15,
+          }),
+          queryClient.prefetchQuery({
+            queryKey: billPaymentsQueryKeys.categories(),
+            queryFn: () => billPaymentsApi.listCategories(),
+            staleTime: 1000 * 60 * 5,
+          }),
+          queryClient.prefetchQuery({
+            queryKey: billPaymentsQueryKeys.recent(),
+            queryFn: () => billPaymentsApi.listRecentBillers(),
+            staleTime: 1000 * 60 * 5,
           }),
           // Same key/shape the home screen asks for, so it lands as a cache hit.
           queryClient.prefetchQuery({

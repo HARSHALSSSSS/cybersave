@@ -8,7 +8,7 @@ import {
   View,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { useTheme } from '@app/providers/ThemeProvider';
 import { useTranslation } from '@/i18n';
@@ -18,6 +18,10 @@ import { billerInitial } from '@features/bill-payments/components';
 import { BillPaymentScreenLayout } from '@features/bill-payments/components/BillPaymentScreenLayout';
 import { BillPaymentsStackParamList } from '@/types/navigation';
 import { billPaymentsApi, billPaymentsQueryKeys } from '@services/api/billPayments.api';
+import {
+  BBPS_CATALOG_STALE_MS,
+  prefetchBillerDetail,
+} from '@features/bill-payments/utils/billPaymentsPrefetch';
 
 type Props = NativeStackScreenProps<BillPaymentsStackParamList, 'CategoryBillers'>;
 
@@ -25,12 +29,13 @@ export const CategoryBillersScreen: React.FC<Props> = ({ navigation, route }) =>
   const { category, categoryName } = route.params;
   const { theme } = useTheme();
   const { t, format } = useTranslation();
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const safeCategoryName = categoryName ?? t.bills.billerName;
 
   useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 150);
     return () => clearTimeout(timer);
   }, [search]);
 
@@ -43,6 +48,8 @@ export const CategoryBillersScreen: React.FC<Props> = ({ navigation, route }) =>
         limit: 100,
       }),
     retry: 2,
+    staleTime: BBPS_CATALOG_STALE_MS,
+    placeholderData: previous => previous,
   });
 
   const billers = data?.data ?? [];
@@ -89,6 +96,7 @@ export const CategoryBillersScreen: React.FC<Props> = ({ navigation, route }) =>
     ({ item }: { item: (typeof billers)[number] }) => (
       <Pressable
         style={styles.row}
+        onPressIn={() => void prefetchBillerDetail(queryClient, item.id)}
         onPress={() =>
           navigation.navigate('BillerForm', { billerId: item.id, billerName: item.name })
         }>
@@ -102,7 +110,7 @@ export const CategoryBillersScreen: React.FC<Props> = ({ navigation, route }) =>
         <ChevronRightIcon color={theme.colors.textSecondary} />
       </Pressable>
     ),
-    [navigation, styles, theme.colors.textSecondary],
+    [navigation, queryClient, styles, theme.colors.textSecondary],
   );
 
   return (

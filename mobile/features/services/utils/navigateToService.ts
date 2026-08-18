@@ -7,6 +7,11 @@ import type {
   MainServiceCatalogItem,
   SubServiceCatalogItem,
 } from '@services/api/services.api';
+import { queryClient } from '@app/providers/QueryProvider';
+import {
+  prefetchApplyConfiguration,
+  prefetchWalletForPayment,
+} from '@features/services/utils/applyFlowPrefetch';
 
 type SubServiceNavInput = Pick<
   SubServiceCatalogItem,
@@ -104,6 +109,27 @@ export function resolveServiceDestination(
   };
 }
 
+function warmSubServiceNavigation(
+  subService: SubServiceNavInput,
+  categoryId: string,
+  existing?: { stateCode?: string; stateName?: string },
+) {
+  const { screen, params } = resolveServiceDestination(subService, categoryId, existing);
+  if (screen !== 'ServiceDetail') return;
+  const detail = params as ServicesStackParamList['ServiceDetail'];
+  void prefetchApplyConfiguration(queryClient, detail.optionId, detail.stateCode);
+  void prefetchWalletForPayment(queryClient);
+}
+
+/** Call on card press-in so detail/config is warm before navigation. */
+export function prefetchSubServiceNavigation(
+  categoryId: string,
+  subService: SubServiceNavInput,
+  existing?: { stateCode?: string; stateName?: string },
+) {
+  warmSubServiceNavigation(subService, categoryId, existing);
+}
+
 /** Reset Services stack to [ServicesMain → target] so back and tab switches behave predictably. */
 function dispatchServicesStack(
   tabNavigation: BottomTabNavigationProp<MainTabParamList>,
@@ -129,6 +155,7 @@ export function navigateToSubServiceFromStack(
   subService: SubServiceNavInput,
   existing?: { stateCode?: string; stateName?: string },
 ) {
+  warmSubServiceNavigation(subService, categoryId, existing);
   const { screen, params } = resolveServiceDestination(
     subService,
     categoryId,
@@ -144,6 +171,7 @@ export function navigateToSubServiceFromTab(
   existing?: { stateCode?: string; stateName?: string },
 ) {
   if (!tabNavigation) return;
+  warmSubServiceNavigation(subService, categoryId, existing);
   const { screen, params } = resolveServiceDestination(
     subService,
     categoryId,

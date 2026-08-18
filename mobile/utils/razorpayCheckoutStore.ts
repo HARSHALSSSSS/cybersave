@@ -1,8 +1,10 @@
-import type { RazorpayCheckoutParams, RazorpaySuccess } from '@utils/razorpayCheckout';
+import type { QueryClient } from '@tanstack/react-query';
+
+let successTickTimer: ReturnType<typeof setTimeout> | null = null;
 
 export type CheckoutRequest = {
-  params: RazorpayCheckoutParams;
-  resolve: (value: RazorpaySuccess) => void;
+  params: import('@utils/razorpayCheckout').RazorpayCheckoutParams;
+  resolve: (value: import('@utils/razorpayCheckout').RazorpaySuccess) => void;
   reject: (error: Error) => void;
 };
 
@@ -29,6 +31,26 @@ function emit() {
   store().listeners.forEach(listener => listener());
 }
 
+function clearSuccessTickTimer() {
+  if (successTickTimer) {
+    clearTimeout(successTickTimer);
+    successTickTimer = null;
+  }
+}
+
+/** Force-close checkout overlay — call after payment flow ends or on navigation. */
+export function dismissRazorpayHost() {
+  clearSuccessTickTimer();
+  const state = store();
+  if (state.checkoutRequest) {
+    state.checkoutRequest.reject(new Error('Payment dismissed'));
+  }
+  state.checkoutRequest = null;
+  state.successTick?.resolve();
+  state.successTick = null;
+  emit();
+}
+
 export function subscribeRazorpayHost(listener: () => void) {
   store().listeners.add(listener);
   return () => {
@@ -45,35 +67,45 @@ export function getSuccessTick() {
 }
 
 export function openSimulatedRazorpayCheckout(
-  params: RazorpayCheckoutParams,
-): Promise<RazorpaySuccess> {
+  params: CheckoutRequest['params'],
+): Promise<import('@utils/razorpayCheckout').RazorpaySuccess> {
   return new Promise((resolve, reject) => {
+    dismissRazorpayHost();
     store().checkoutRequest = { params, resolve, reject };
     emit();
   });
 }
 
-export function completeSimulatedCheckout(result: RazorpaySuccess) {
+export function completeSimulatedCheckout(
+  result: import('@utils/razorpayCheckout').RazorpaySuccess,
+) {
+  clearSuccessTickTimer();
   store().checkoutRequest?.resolve(result);
   store().checkoutRequest = null;
+  store().successTick = null;
   emit();
 }
 
 export function cancelSimulatedCheckout() {
-  store().checkoutRequest?.reject(new Error('Payment cancelled'));
-  store().checkoutRequest = null;
-  emit();
+  dismissRazorpayHost();
 }
 
-export function showPaymentSuccessTick(durationMs = 200): Promise<void> {
+export function showPaymentSuccessTick(durationMs = 160): Promise<void> {
   return new Promise(resolve => {
-    const timer = setTimeout(() => {
-      store().successTick?.resolve();
+    clearSuccessTickTimer();
+    const state = store();
+    state.checkoutRequest = null;
+    successTickTimer = setTimeout(() => {
+      successTickTimer = null;
+      state.successTick?.resolve();
+      state.successTick = null;
+      emit();
+      resolve();
     }, durationMs);
-    store().successTick = {
+    state.successTick = {
       resolve: () => {
-        clearTimeout(timer);
-        store().successTick = null;
+        clearSuccessTickTimer();
+        state.successTick = null;
         emit();
         resolve();
       },

@@ -21,6 +21,7 @@ import { useTheme } from '@app/providers/ThemeProvider';
 import { Button } from '@components/Button';
 import { ScrollScreenAction } from '@components/layout';
 import { BackIcon } from '@components/icons';
+import { dismissRazorpayHost } from '@utils/razorpayCheckoutStore';
 import {
   isRazorpayUserCancelled,
   processWalletTopUp,
@@ -80,6 +81,7 @@ export const AddMoneyScreen: React.FC<Props> = ({ navigation }) => {
       if (isRazorpayUserCancelled(error)) return;
       Alert.alert(t.common.error, t.wallet.topUpFailed ?? t.common.pleaseTryAgain);
     } finally {
+      dismissRazorpayHost();
       setProcessing(false);
     }
   };

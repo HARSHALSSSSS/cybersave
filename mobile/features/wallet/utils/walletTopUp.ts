@@ -1,6 +1,7 @@
 import { walletApi } from '@services/api/wallet.api';
 import { isRazorpayUserCancelled } from '@utils/razorpayCheckout';
 import { collectRazorpayPayment, isSimulatedRazorpayCheckout } from '@utils/razorpayExperience';
+import { dismissRazorpayHost } from '@utils/razorpayCheckoutStore';
 import { settlePayment } from '@utils/paymentResilience';
 
 async function topUpCredited(topUpId: string): Promise<boolean> {
@@ -15,30 +16,34 @@ export async function processWalletTopUp(params: {
   idempotencyKey: string;
   prefill?: { contact?: string; email?: string; name?: string };
 }): Promise<void> {
-  const intent = await walletApi.createWalletTopUpIntent(params.amount, params.idempotencyKey);
+  try {
+    const intent = await walletApi.createWalletTopUpIntent(params.amount, params.idempotencyKey);
 
-  const checkout = await collectRazorpayPayment(
-    {
-      keyId: intent.keyId,
-      orderId: intent.orderId ?? '',
-      amount: Number(intent.amount) || params.amount,
-      name: 'Cybersave Wallet',
-      description: 'Wallet recharge',
-      prefill: params.prefill,
-    },
-    intent,
-  );
+    const checkout = await collectRazorpayPayment(
+      {
+        keyId: intent.keyId,
+        orderId: intent.orderId ?? '',
+        amount: Number(intent.amount) || params.amount,
+        name: 'Cybersave Wallet',
+        description: 'Wallet recharge',
+        prefill: params.prefill,
+      },
+      intent,
+    );
 
-  await settlePayment({
-    confirm: () =>
-      walletApi.confirmWalletTopUp(intent.id, {
-        mockCapture: isSimulatedRazorpayCheckout(checkout),
-        razorpayPaymentId: checkout.razorpay_payment_id,
-        razorpayOrderId: checkout.razorpay_order_id,
-        razorpaySignature: checkout.razorpay_signature,
-      }),
-    verify: () => topUpCredited(intent.id),
-  });
+    await settlePayment({
+      confirm: () =>
+        walletApi.confirmWalletTopUp(intent.id, {
+          mockCapture: isSimulatedRazorpayCheckout(checkout),
+          razorpayPaymentId: checkout.razorpay_payment_id,
+          razorpayOrderId: checkout.razorpay_order_id,
+          razorpaySignature: checkout.razorpay_signature,
+        }),
+      verify: () => topUpCredited(intent.id),
+    });
+  } finally {
+    dismissRazorpayHost();
+  }
 }
 
 export { isRazorpayUserCancelled };

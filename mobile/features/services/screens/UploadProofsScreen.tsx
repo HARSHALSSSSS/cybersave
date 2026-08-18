@@ -24,6 +24,7 @@ import { goBackInServicesStack } from '@features/services/utils/navigateToServic
 import {
   prefetchApplicationDetail,
   prefetchWalletForPayment,
+  APPLY_QUERY_STALE_MS,
 } from '@features/services/utils/applyFlowPrefetch';
 import {
   pickDocument,
@@ -57,7 +58,8 @@ export const UploadProofsScreen: React.FC<Props> = ({ navigation, route }) => {
   const { data: config, isLoading } = useQuery({
     queryKey: servicesQueryKeys.configuration(optionId, stateCode),
     queryFn: () => servicesApi.getSubServiceConfiguration(optionId, stateCode),
-    staleTime: 1000 * 60 * 15,
+    staleTime: APPLY_QUERY_STALE_MS,
+    placeholderData: previous => previous,
   });
 
   const { data: application } = useQuery({
@@ -66,7 +68,8 @@ export const UploadProofsScreen: React.FC<Props> = ({ navigation, route }) => {
       : ['applications', 'missing'],
     queryFn: () => applicationsApi.getApplicationById(applicationId!),
     enabled: Boolean(applicationId),
-    staleTime: 1000 * 60 * 15,
+    staleTime: APPLY_QUERY_STALE_MS,
+    placeholderData: previous => previous,
   });
 
   useEffect(() => {

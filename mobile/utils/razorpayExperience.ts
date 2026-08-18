@@ -5,8 +5,8 @@ import {
   type RazorpaySuccess,
 } from '@utils/razorpayCheckout';
 import {
+  dismissRazorpayHost,
   openSimulatedRazorpayCheckout,
-  showPaymentSuccessTick,
 } from '@utils/razorpayCheckoutStore';
 
 export function isLiveRazorpayOrderId(orderId?: string | null): boolean {
@@ -41,15 +41,14 @@ export async function collectRazorpayPayment(
 ): Promise<RazorpaySuccess> {
   if (intent && canUseLiveRazorpay(intent)) {
     try {
-      const result = await openRazorpayCheckout({
+      return await openRazorpayCheckout({
         ...params,
         keyId: intent.keyId!,
         orderId: intent.orderId!,
       });
-      void showPaymentSuccessTick();
-      return result;
     } catch (error) {
       if (isRazorpayUserCancelled(error)) throw error;
+      dismissRazorpayHost();
     }
   }
 

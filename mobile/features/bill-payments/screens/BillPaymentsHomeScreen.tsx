@@ -7,8 +7,9 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '@app/providers/ThemeProvider';
@@ -24,6 +25,7 @@ import {
 } from '@features/bill-payments/components';
 import { BillPaymentsStackParamList } from '@/types/navigation';
 import { billPaymentsApi, billPaymentsQueryKeys } from '@services/api/billPayments.api';
+import { BBPS_CATALOG_STALE_MS, prefetchBillPaymentsCategory, prefetchBillPaymentsHome } from '@features/bill-payments/utils/billPaymentsPrefetch';
 import { getScreenBottomPadding, getTwoColumnWidth } from '@utils/layout';
 
 type Props = NativeStackScreenProps<BillPaymentsStackParamList, 'BillPaymentsHome'>;
@@ -31,6 +33,7 @@ type Props = NativeStackScreenProps<BillPaymentsStackParamList, 'BillPaymentsHom
 export const BillPaymentsHomeScreen: React.FC<Props> = ({ navigation }) => {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
+  const queryClient = useQueryClient();
   const { width: screenWidth } = useWindowDimensions();
   const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
@@ -46,12 +49,22 @@ export const BillPaymentsHomeScreen: React.FC<Props> = ({ navigation }) => {
   } = useQuery({
     queryKey: billPaymentsQueryKeys.categories(),
     queryFn: () => billPaymentsApi.listCategories(),
+    staleTime: BBPS_CATALOG_STALE_MS,
+    placeholderData: previous => previous ?? [],
   });
 
   const { data: recentBillers = [] } = useQuery({
     queryKey: billPaymentsQueryKeys.recent(),
     queryFn: () => billPaymentsApi.listRecentBillers(),
+    staleTime: BBPS_CATALOG_STALE_MS,
+    placeholderData: previous => previous ?? [],
   });
+
+  useFocusEffect(
+    useCallback(() => {
+      void prefetchBillPaymentsHome(queryClient);
+    }, [queryClient]),
+  );
 
   const featured = useMemo(
     () => categories.filter(c => c.isFeatured).slice(0, 6),
@@ -225,9 +238,10 @@ export const BillPaymentsHomeScreen: React.FC<Props> = ({ navigation }) => {
 
   const openCategory = useCallback(
     (category: string, categoryName: string) => {
+      void prefetchBillPaymentsCategory(queryClient, category);
       navigation.navigate('CategoryBillers', { category, categoryName });
     },
-    [navigation],
+    [navigation, queryClient],
   );
 
   const payAgain = useCallback(

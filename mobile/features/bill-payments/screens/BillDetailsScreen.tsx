@@ -1,7 +1,7 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { useTheme } from '@app/providers/ThemeProvider';
 import { useTranslation } from '@/i18n';
@@ -10,6 +10,7 @@ import { formatBillDate, formatRupee } from '@features/bill-payments/components'
 import { BillPaymentScreenLayout } from '@features/bill-payments/components/BillPaymentScreenLayout';
 import { BillPaymentsStackParamList } from '@/types/navigation';
 import { billPaymentsApi, billPaymentsQueryKeys } from '@services/api/billPayments.api';
+import { prefetchBillPaymentIntent } from '@features/bill-payments/utils/billPaymentsPrefetch';
 
 type Props = NativeStackScreenProps<BillPaymentsStackParamList, 'BillDetails'>;
 
@@ -29,13 +30,22 @@ export const BillDetailsScreen: React.FC<Props> = ({ navigation, route }) => {
   const { requestId } = route.params;
   const { theme } = useTheme();
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
 
   const { data: bill, isLoading, isError, refetch } = useQuery({
     queryKey: billPaymentsQueryKeys.billRequest(requestId),
     queryFn: () => billPaymentsApi.getBillRequest(requestId, true),
     retry: 2,
+    placeholderData: previous => previous,
     refetchInterval: query => (query.state.data?.status === 'processing' ? 2000 : false),
   });
+
+  const billAmount = Number(bill?.billAmount ?? 0);
+
+  useEffect(() => {
+    if (!bill || bill.status !== 'success' || billAmount <= 0) return;
+    void prefetchBillPaymentIntent(queryClient, requestId);
+  }, [bill, billAmount, queryClient, requestId]);
 
   const details = (bill?.billDetails ?? {}) as Record<string, unknown>;
   const breakdown = (bill?.breakdown ?? details.breakdown) as
@@ -140,7 +150,7 @@ export const BillDetailsScreen: React.FC<Props> = ({ navigation, route }) => {
       title={t.bills.billDetails}
       showBack
       onBack={() => navigation.goBack()}
-      loading={isLoading || (!bill && !isError)}
+      loading={isLoading && !bill}
       error={isError}
       errorMessage={t.bills.loadBillError}
       onRetry={() => refetch()}

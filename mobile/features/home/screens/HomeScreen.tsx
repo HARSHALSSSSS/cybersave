@@ -11,7 +11,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSelector } from 'react-redux';
 import { HomeStackParamList, MainTabParamList } from '@/types/navigation';
 import type { RootState } from '@app/store';
@@ -46,6 +46,8 @@ import {
 import { CompleteProfileModal } from '@features/profile/components/CompleteProfileModal';
 import { PromotionalBannerCard } from '@features/home/components/PromotionalBannerCard';
 import { getCatalogIconStyle } from '@features/services/utils/catalogHelpers';
+import { queryClient } from '@app/providers/QueryProvider';
+import { prefetchBillPaymentsHome } from '@features/bill-payments/utils/billPaymentsPrefetch';
 import { navigateToSubServiceById, findSubServiceBySlugHints, QUICK_ACTION_SLUG_HINTS } from '@features/services/utils/navigateToService';
 import {
   getProfileGreetingName,
@@ -229,6 +231,7 @@ export const HomeScreen: React.FC<Props> = ({ navigation }) => {
   }, [navigation]);
 
   const goToBillPayments = useCallback(() => {
+    void prefetchBillPaymentsHome(queryClient);
     navigation.navigate('BillPaymentsHome');
   }, [navigation]);
 

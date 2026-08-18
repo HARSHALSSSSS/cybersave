@@ -4,8 +4,7 @@
     <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
         <!-- Customize your theme here. -->
         <item name="android:editTextBackground">@drawable/rn_edit_text_material</item>
-        <!-- Otherwise the window shows through as black during screen transitions. -->
-        <item name="android:windowBackground">@android:color/white</item>
+        <item name="android:windowBackground">@drawable/splash_background</item>
     </style>
 
 </resources>

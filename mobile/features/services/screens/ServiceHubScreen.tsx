@@ -26,7 +26,7 @@ import {
   getCatalogIconStyle,
   isCertificateHub,
 } from '@features/services/utils/catalogHelpers';
-import { navigateToSubServiceFromStack } from '@features/services/utils/navigateToService';
+import { navigateToSubServiceFromStack, prefetchSubServiceNavigation } from '@features/services/utils/navigateToService';
 import { servicesApi, servicesQueryKeys } from '@services/api';
 import { useTranslation } from '@/i18n';
 import { getScrollBottomPadding } from '@utils/layout';
@@ -43,6 +43,7 @@ export const ServiceHubScreen: React.FC<Props> = ({ navigation, route }) => {
   const { data: catalog = [], isLoading } = useQuery({
     queryKey: servicesQueryKeys.catalog(),
     queryFn: servicesApi.getServicesCatalog,
+    placeholderData: previous => previous ?? [],
   });
 
   const category = catalog.find(item => item.id === categoryId);
@@ -214,6 +215,7 @@ export const ServiceHubScreen: React.FC<Props> = ({ navigation, route }) => {
                 processingDays={option.processingTime ?? undefined}
                 fee={formatServiceFee(option.baseFee, option.currency)}
                 variant={isCertificates ? 'certificate' : 'grid'}
+                onPressIn={() => prefetchSubServiceNavigation(categoryId, option)}
                 onPress={() => handleOptionPress(option)}
               />
             ))
