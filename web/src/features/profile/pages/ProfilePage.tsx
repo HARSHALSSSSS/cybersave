@@ -9,9 +9,7 @@ import {
   FileText,
   FolderOpen,
   HelpCircle,
-  Link2,
   Search,
-  Shield,
   User,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -52,12 +50,6 @@ const QUICK_ACTIONS = [
   { label: 'Documents', subtitle: 'Secure vault', icon: FolderOpen, to: '/documents' },
   { label: 'Support', subtitle: 'Get help', icon: HelpCircle, to: '/help/tickets' },
   { label: 'Alerts', subtitle: 'Preferences', icon: Bell, to: '/notifications' },
-] as const;
-
-const IDENTITY_ITEMS = [
-  { name: 'Aadhaar Card', hint: 'UIDAI verified identity', linked: false },
-  { name: 'PAN Card', hint: 'Income Tax Department', linked: false },
-  { name: 'Voter ID', hint: 'Election Commission of India', linked: false },
 ] as const;
 
 export function ProfilePage() {
@@ -248,42 +240,6 @@ export function ProfilePage() {
               submitLabel="Save changes"
               onSaved={() => toast.success('Profile saved')}
             />
-          </PortalCard>
-
-          {/* Linked identities */}
-          <PortalCard padding="lg">
-            <SectionHeading
-              title="Linked Identities"
-              subtitle="Connect government IDs for faster verification during service applications."
-            />
-            <ul className="divide-y divide-[#F1F5F9]">
-              {IDENTITY_ITEMS.map(item => (
-                <li key={item.name} className="flex items-center justify-between gap-4 py-4 first:pt-0 last:pb-0">
-                  <div className="flex items-center gap-4">
-                    <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#EFF6FF] text-[#2563EB]">
-                      <Shield className="h-5 w-5" />
-                    </span>
-                    <div>
-                      <p className="text-sm font-semibold text-[#0A1629]">{item.name}</p>
-                      <p className="text-xs text-[#94A3B8]">{item.hint}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <StatusPill tone={item.linked ? 'green' : 'slate'}>
-                      {item.linked ? 'Linked' : 'Not linked'}
-                    </StatusPill>
-                    <button
-                      type="button"
-                      className="inline-flex items-center gap-1 text-sm font-semibold text-[#2563EB] hover:underline"
-                      onClick={() => toast.info('Identity linking will be available soon')}
-                    >
-                      <Link2 className="h-3.5 w-3.5" />
-                      {item.linked ? 'View' : 'Link'}
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
           </PortalCard>
         </div>
 

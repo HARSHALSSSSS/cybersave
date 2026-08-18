@@ -11,6 +11,7 @@ export const StorageKeys = {
   API_BASE_URL: 'api_base_url',
   WALLET_BALANCE: 'wallet_balance',
   WALLET_EXTRA_TRANSACTIONS: 'wallet_extra_transactions',
+  PROFILE_EXTRAS: 'profile_extras',
 } as const;
 
 export const getString = (key: string): string | undefined =>

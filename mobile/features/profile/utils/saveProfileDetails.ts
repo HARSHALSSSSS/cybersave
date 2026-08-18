@@ -2,7 +2,9 @@ import {
   CitizenAddress,
   CreateAddressPayload,
   profileApi,
+  profileQueryKeys,
 } from '@services/api';
+import { queryClient } from '@app/providers/QueryProvider';
 import { saveProfileExtras } from '@utils/profileExtras';
 import {
   parseFullName,
@@ -80,6 +82,7 @@ export async function saveProfileDetails(
     } else {
       await profileApi.createAddress(payload);
     }
+    await queryClient.invalidateQueries({ queryKey: profileQueryKeys.addresses() });
   }
 
   return result;

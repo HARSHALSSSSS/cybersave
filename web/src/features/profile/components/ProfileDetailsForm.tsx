@@ -1,6 +1,6 @@
 import { useEffect, useId, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Calendar, IdCard, Mail, MapPin, Phone, User } from 'lucide-react';
+import { Calendar, Mail, MapPin, Phone, User } from 'lucide-react';
 import { Button, Input, Label } from '@/components/ui/button';
 import { useAuthStore } from '@/features/auth/store/auth.store';
 import { GENDER_OPTIONS, INDIAN_STATE_NAMES } from '@/lib/indian-states';
@@ -350,20 +350,6 @@ export function ProfileDetailsForm({
           </div>
         </FormSection>
       ) : null}
-
-      <FormSection icon={IdCard} title="Identity verification" subtitle="Link documents from your vault when applying for services.">
-        <div className="grid gap-3 sm:grid-cols-3">
-          {['Aadhaar', 'PAN', 'Voter ID'].map(doc => (
-            <div
-              key={doc}
-              className="rounded-xl border border-dashed border-[#CBD5E1] bg-[#F8FAFC] px-3 py-4 text-center"
-            >
-              <p className="text-xs font-semibold text-[#0A1629]">{doc}</p>
-              <p className="mt-1 text-[10px] text-[#94A3B8]">Link during application</p>
-            </div>
-          ))}
-        </div>
-      </FormSection>
 
       {error ? (
         <p className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>

@@ -9,7 +9,7 @@ import {
   walletQueryKeys,
 } from '@services/api';
 import { ensureApiReachable } from '@services/api/bootstrapApi';
-import { getString, StorageKeys } from '@utils/storage';
+import { getString, StorageKeys } from '@services/storage';
 import { queryClient } from './QueryProvider';
 
 /** Prefetch catalog and common lists so tabs feel instant on slow APIs. */

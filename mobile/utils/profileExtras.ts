@@ -1,20 +1,36 @@
+import { getString, setString, StorageKeys } from '@services/storage';
+
 export type ProfileExtras = {
   gender?: string;
   dateOfBirth?: string;
   fatherOrGuardianName?: string;
 };
 
-const cache = new Map<string, ProfileExtras>();
+function readAll(): Record<string, ProfileExtras> {
+  try {
+    const raw = getString(StorageKeys.PROFILE_EXTRAS);
+    if (!raw) return {};
+    return JSON.parse(raw) as Record<string, ProfileExtras>;
+  } catch {
+    return {};
+  }
+}
+
+function writeAll(all: Record<string, ProfileExtras>): void {
+  setString(StorageKeys.PROFILE_EXTRAS, JSON.stringify(all));
+}
 
 export function getProfileExtras(citizenId: string | undefined): ProfileExtras {
   if (!citizenId) return {};
-  return cache.get(citizenId) ?? {};
+  return readAll()[citizenId] ?? {};
 }
 
 export function saveProfileExtras(citizenId: string, extras: ProfileExtras): void {
-  cache.set(citizenId, {
+  const all = readAll();
+  all[citizenId] = {
     gender: extras.gender?.trim() || undefined,
     dateOfBirth: extras.dateOfBirth?.trim() || undefined,
     fatherOrGuardianName: extras.fatherOrGuardianName?.trim() || undefined,
-  });
+  };
+  writeAll(all);
 }

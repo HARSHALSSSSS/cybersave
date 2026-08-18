@@ -5,10 +5,10 @@ export const HOSTED_API_BASE_URL =
   'https://api.cybersaveonline.com/api/v1';
 
 /**
- * Dev (Metro): local backend — same catalog as web (`localhost:8000`).
- * Release APK / current hosted connect: production API.
+ * Dev (Metro): set false to use local backend (`localhost:8000` / LAN IP).
+ * Set true to test against production API while developing.
  */
-export const USE_HOSTED_API = false;
+export const USE_HOSTED_API = true;
 
 /**
  * If auto-detect fails on your phone, set your PC's Wi‑Fi IP here (e.g. '192.168.1.42').
