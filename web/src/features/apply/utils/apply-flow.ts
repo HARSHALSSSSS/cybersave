@@ -31,6 +31,11 @@ export function defaultApplyStepForStatus(status: BackendApplicationStatus): App
 
 const STEP_ORDER: ApplyStep[] = ['form', 'documents', 'payment', 'confirmation'];
 
+/** Furthest of two steps, used to keep the user from being pulled back mid-flow. */
+export function maxApplyStep(a: ApplyStep, b: ApplyStep): ApplyStep {
+  return STEP_ORDER.indexOf(a) >= STEP_ORDER.indexOf(b) ? a : b;
+}
+
 export function clampApplyStep(requested: ApplyStep, allowed: ApplyStep): ApplyStep {
   const reqIdx = STEP_ORDER.indexOf(requested);
   const allowIdx = STEP_ORDER.indexOf(allowed);

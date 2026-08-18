@@ -23,6 +23,7 @@ import {
 import {
   clampApplyStep,
   defaultApplyStepForStatus,
+  maxApplyStep,
   randomIdempotencyKey,
 } from '@/features/apply/utils/apply-flow';
 import {
@@ -90,6 +91,7 @@ export function ServiceApplyPage() {
   const hydratedApplicationIdRef = useRef<string | null>(null);
   const prevServiceKeyRef = useRef<string | null>(null);
   const [submittedLocally, setSubmittedLocally] = useState(false);
+  const [maxStepReached, setMaxStepReached] = useState<ApplyStep>('form');
 
   const citizen = useAuthStore(s => s.citizen);
 
@@ -189,8 +191,10 @@ export function ServiceApplyPage() {
     createDraft.mutate();
   }
 
-  const needsStateSelection =
-    Boolean(config?.fulfillment?.requiresStateSelection) && !stateCode;
+  // Fall back to the catalog flag so the draft does not have to wait for config.
+  const needsStateSelection = config
+    ? Boolean(config.fulfillment?.requiresStateSelection) && !stateCode
+    : Boolean(match?.requiresStateSelection) && !stateCode;
   const availableStates = config?.fulfillment?.availableStates ?? [];
 
   const serviceKey = `${mainSlug}/${subSlug}/${stateCode ?? ''}`;
@@ -202,6 +206,7 @@ export function ServiceApplyPage() {
     setFieldErrors({});
     draftRequestedRef.current = false;
     setSubmittedLocally(false);
+    setMaxStepReached('form');
     hydratedApplicationIdRef.current = null;
   }, [routeAppId]);
 
@@ -211,13 +216,15 @@ export function ServiceApplyPage() {
     hydratedApplicationIdRef.current = null;
     setFieldErrors({});
     setSubmittedLocally(false);
+    setMaxStepReached('form');
 
     const saved = readApplyFormSession(serviceKey, routeAppId);
     setFormValues(saved && Object.keys(saved).length > 0 ? saved : {});
   }, [serviceKey, routeAppId]);
 
+  // Runs as soon as the catalog resolves, in parallel with the config fetch.
   useEffect(() => {
-    if (!match?.id || !config || routeAppId || applicationId || draftFailed || needsStateSelection) {
+    if (!match?.id || routeAppId || applicationId || draftFailed || needsStateSelection) {
       return;
     }
     if (draftRequestedRef.current) return;
@@ -231,7 +238,6 @@ export function ServiceApplyPage() {
   }, [
     serviceKey,
     match?.id,
-    config,
     routeAppId,
     applicationId,
     draftFailed,
@@ -325,10 +331,14 @@ export function ServiceApplyPage() {
 
   const allowedStep = useMemo((): ApplyStep => {
     if (submittedLocally) return 'confirmation';
-    if (!application) return 'form';
+    if (!application) return maxStepReached;
     const status = application.status as BackendApplicationStatus;
-    return defaultApplyStepForStatus(status);
-  }, [application, submittedLocally]);
+    const serverStep = defaultApplyStepForStatus(status);
+    if (serverStep === 'confirmation') return serverStep;
+    // Steps the user already cleared locally stay open while the server catches
+    // up, otherwise a slow background save snaps them back mid-flow.
+    return maxApplyStep(serverStep, maxStepReached);
+  }, [application, submittedLocally, maxStepReached]);
 
   const step = clampApplyStep(requestedStep, allowedStep);
 
@@ -342,6 +352,7 @@ export function ServiceApplyPage() {
 
   const goToStep = useCallback(
     (s: ApplyStep) => {
+      setMaxStepReached(prev => maxApplyStep(prev, s));
       const params = new URLSearchParams(searchParams);
       params.set('step', s);
       setSearchParams(params, { replace: true });
@@ -407,12 +418,13 @@ export function ServiceApplyPage() {
       toast.error('Please fill all required fields');
       return;
     }
-    setBusy(true);
+    // Move immediately; the save and server validation run behind the documents
+    // step so the button never sits there spinning on a round trip.
+    writeApplyFormSession(serviceKey, applicationId, formValues);
+    goToStep('documents');
     try {
       const updated = await applicationsApi.saveApplicationFormValues(applicationId, formValues);
       queryClient.setQueryData(applicationsQueryKeys.detail(applicationId), updated);
-      writeApplyFormSession(serviceKey, applicationId, formValues);
-      goToStep('documents');
 
       const validation = await applicationsApi.validateApplication(applicationId, 'form');
       queryClient.setQueryData(applicationsQueryKeys.detail(applicationId), validation.application);
@@ -444,8 +456,6 @@ export function ServiceApplyPage() {
       toast.error(
         extractErrorMessage(error, 'Could not save form. Try again after signing in.'),
       );
-    } finally {
-      setBusy(false);
     }
   }
 
@@ -458,6 +468,30 @@ export function ServiceApplyPage() {
       toast.error(`Upload required: ${missing.map(d => d.name).join(', ')}`);
       return;
     }
+    // Every required document is already present client-side, so move to payment
+    // now and confirm with the server behind the step.
+    if (requiresPayment) {
+      goToStep('payment');
+      try {
+        const validation = await applicationsApi.validateApplication(applicationId, 'documents');
+        queryClient.setQueryData(
+          applicationsQueryKeys.detail(applicationId),
+          validation.application,
+        );
+        if (!validation.valid) {
+          toast.error(
+            validation.errors[0]?.message ??
+              'Please upload all required documents before continuing.',
+          );
+          goToStep('documents');
+        }
+      } catch (error) {
+        toast.error(extractErrorMessage(error, 'Could not verify uploaded documents.'));
+        goToStep('documents');
+      }
+      return;
+    }
+
     setBusy(true);
     try {
       const validation = await applicationsApi.validateApplication(applicationId, 'documents');
@@ -472,11 +506,7 @@ export function ServiceApplyPage() {
         );
         return;
       }
-      if (requiresPayment) {
-        goToStep('payment');
-      } else {
-        await handleSubmitApplication();
-      }
+      await handleSubmitApplication();
     } catch (error) {
       toast.error(extractErrorMessage(error, 'Could not verify uploaded documents.'));
     } finally {
