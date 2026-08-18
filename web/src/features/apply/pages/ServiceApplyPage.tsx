@@ -24,7 +24,6 @@ import {
   clampApplyStep,
   defaultApplyStepForStatus,
   maxApplyStep,
-  randomIdempotencyKey,
 } from '@/features/apply/utils/apply-flow';
 import {
   clearApplyFormSession,
