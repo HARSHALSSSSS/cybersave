@@ -196,7 +196,10 @@ export function DocumentUploadGrid({
   return (
     <div className="grid gap-4 sm:grid-cols-2">
       {sorted.map(req => {
-        const existing = uploaded.find(d => d.documentRequirementId === req.id);
+        const existing = uploaded.find(
+          d =>
+            d.documentRequirementId === req.id || d.documentRequirement?.id === req.id,
+        );
         return (
           <UploadTile
             key={req.id}

@@ -26,6 +26,11 @@ import {
   randomIdempotencyKey,
 } from '@/features/apply/utils/apply-flow';
 import {
+  clearApplyFormSession,
+  readApplyFormSession,
+  writeApplyFormSession,
+} from '@/features/apply/utils/applyFormSession';
+import {
   prefetchApplicationDetail,
   prefetchWalletForPayment,
 } from '@/features/apply/utils/applyFlowPrefetch';
@@ -81,6 +86,8 @@ export function ServiceApplyPage() {
   const [draftErrorMessage, setDraftErrorMessage] = useState<string | null>(null);
   const draftRequestedRef = useRef(false);
   const paymentKeyRef = useRef<string | null>(null);
+  const hydratedApplicationIdRef = useRef<string | null>(null);
+  const prevServiceKeyRef = useRef<string | null>(null);
   const [submittedLocally, setSubmittedLocally] = useState(false);
 
   const citizen = useAuthStore(s => s.citizen);
@@ -141,6 +148,11 @@ export function ServiceApplyPage() {
         stateName ? decodeURIComponent(stateName) : undefined,
       ),
     onSuccess: data => {
+      const savedDraft = readApplyFormSession(serviceKey);
+      if (savedDraft) {
+        writeApplyFormSession(serviceKey, data.id, savedDraft);
+        clearApplyFormSession(serviceKey);
+      }
       setApplicationId(data.id);
       setDraftFailed(false);
       setDraftErrorMessage(null);
@@ -186,10 +198,21 @@ export function ServiceApplyPage() {
     setApplicationId(routeAppId);
     setDraftFailed(false);
     setDraftErrorMessage(null);
-    setFormValues({});
     setFieldErrors({});
     draftRequestedRef.current = false;
     setSubmittedLocally(false);
+    hydratedApplicationIdRef.current = null;
+  }, [routeAppId]);
+
+  useEffect(() => {
+    if (prevServiceKeyRef.current === serviceKey) return;
+    prevServiceKeyRef.current = serviceKey;
+    hydratedApplicationIdRef.current = null;
+    setFieldErrors({});
+    setSubmittedLocally(false);
+
+    const saved = readApplyFormSession(serviceKey, routeAppId);
+    setFormValues(saved && Object.keys(saved).length > 0 ? saved : {});
   }, [serviceKey, routeAppId]);
 
   useEffect(() => {
@@ -253,22 +276,32 @@ export function ServiceApplyPage() {
   }, [appError, appQueryError, routeAppId, mainSlug, subSlug, navigate, searchParams]);
 
   useEffect(() => {
-    if (!config?.form?.fields) return;
-    const defaults: Record<string, unknown> = {};
-    config.form.fields.forEach(f => {
-      if (f.defaultValue != null && f.defaultValue !== '') defaults[f.key] = f.defaultValue;
+    const fields = config?.form?.fields;
+    if (!fields?.length) return;
+    setFormValues(prev => {
+      if (Object.keys(prev).length > 0) return prev;
+      const defaults: Record<string, unknown> = {};
+      fields.forEach(f => {
+        if (f.defaultValue != null && f.defaultValue !== '') defaults[f.key] = f.defaultValue;
+      });
+      return defaults;
     });
-    setFormValues(prev => ({ ...defaults, ...prev }));
   }, [config]);
 
   useEffect(() => {
-    if (!application?.fieldValues) return;
+    if (!application?.fieldValues?.length || !applicationId) return;
+    if (hydratedApplicationIdRef.current === applicationId) return;
+    hydratedApplicationIdRef.current = applicationId;
     const fromApi: Record<string, unknown> = {};
     application.fieldValues.forEach(fv => {
       fromApi[fv.fieldKey] = fv.value;
     });
-    setFormValues(prev => ({ ...prev, ...fromApi }));
-  }, [application]);
+    setFormValues(prev => {
+      const next = { ...prev, ...fromApi };
+      writeApplyFormSession(serviceKey, applicationId, next);
+      return next;
+    });
+  }, [application, applicationId, serviceKey]);
 
   const displayName = config ? getServiceDisplayName(config) : 'Service';
   const totalAmount = Number(
@@ -315,9 +348,16 @@ export function ServiceApplyPage() {
     [searchParams, setSearchParams],
   );
 
-  const handleFieldChange = useCallback((key: string, value: unknown) => {
-    setFormValues(prev => ({ ...prev, [key]: value }));
-  }, []);
+  const handleFieldChange = useCallback(
+    (key: string, value: unknown) => {
+      setFormValues(prev => {
+        const next = { ...prev, [key]: value };
+        writeApplyFormSession(serviceKey, applicationId, next);
+        return next;
+      });
+    },
+    [applicationId, serviceKey],
+  );
 
   const handleApplicationCacheUpdate = useCallback(
     (updated: ApplicationDetail) => {
@@ -332,6 +372,16 @@ export function ServiceApplyPage() {
   );
 
   const uploadedDocs = application?.documents ?? [];
+
+  function documentRequirementMatches(
+    doc: (typeof uploadedDocs)[number],
+    requirementId: string,
+  ) {
+    return (
+      doc.documentRequirementId === requirementId ||
+      doc.documentRequirement?.id === requirementId
+    );
+  }
 
   const formFields = config?.form?.fields ?? [];
 
@@ -360,22 +410,21 @@ export function ServiceApplyPage() {
     try {
       const updated = await applicationsApi.saveApplicationFormValues(applicationId, formValues);
       queryClient.setQueryData(applicationsQueryKeys.detail(applicationId), updated);
+      writeApplyFormSession(serviceKey, applicationId, formValues);
       goToStep('documents');
-      void applicationsApi
-        .validateApplication(applicationId, 'form')
-        .then(validation => {
-          if (!validation.valid) {
-            const apiErrors = issuesToFieldErrors(validation.errors);
-            setFieldErrors(apiErrors);
-            const first = validation.errors[0]?.message ?? 'Please fix the highlighted fields';
-            toast.error(first);
-            goToStep('form');
-          }
-        })
-        .catch(() => {
-          // Full validation still runs before payment/submit.
-        });
+
+      const validation = await applicationsApi.validateApplication(applicationId, 'form');
+      queryClient.setQueryData(applicationsQueryKeys.detail(applicationId), validation.application);
+      if (!validation.valid) {
+        const apiErrors = issuesToFieldErrors(validation.errors);
+        setFieldErrors(apiErrors);
+        const first = validation.errors[0]?.message ?? 'Please fix the highlighted fields';
+        toast.error(first);
+        goToStep('form');
+        return;
+      }
     } catch (error) {
+      goToStep('form');
       const issues = extractValidationIssues(error);
       if (issues.length > 0) {
         setFieldErrors(issuesToFieldErrors(issues));
@@ -400,17 +449,37 @@ export function ServiceApplyPage() {
   }
 
   async function handleDocumentsNext() {
+    if (!applicationId) return;
     const missing = requiredDocs.filter(
-      req => !uploadedDocs.some(d => d.documentRequirementId === req.id),
+      req => !uploadedDocs.some(d => documentRequirementMatches(d, req.id)),
     );
     if (missing.length > 0) {
       toast.error(`Upload required: ${missing.map(d => d.name).join(', ')}`);
       return;
     }
-    if (requiresPayment) {
-      goToStep('payment');
-    } else {
-      await handleSubmitApplication();
+    setBusy(true);
+    try {
+      const validation = await applicationsApi.validateApplication(applicationId, 'documents');
+      queryClient.setQueryData(
+        applicationsQueryKeys.detail(applicationId),
+        validation.application,
+      );
+      if (!validation.valid) {
+        toast.error(
+          validation.errors[0]?.message ??
+            'Please upload all required documents before continuing.',
+        );
+        return;
+      }
+      if (requiresPayment) {
+        goToStep('payment');
+      } else {
+        await handleSubmitApplication();
+      }
+    } catch (error) {
+      toast.error(extractErrorMessage(error, 'Could not verify uploaded documents.'));
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -457,6 +526,7 @@ export function ServiceApplyPage() {
         queryClient.invalidateQueries({ queryKey: walletQueryKeys.summary() }),
       ]);
       goToStep('confirmation');
+      clearApplyFormSession(serviceKey, applicationId);
       toast.success('Application submitted successfully');
     } catch (error) {
       if (isRazorpayUserCancelled(error)) return;
@@ -496,7 +566,9 @@ export function ServiceApplyPage() {
   const isBootstrapping =
     (!subServiceId && catalogLoading && catalog.length === 0) ||
     (Boolean(subServiceId) && configLoading && !config);
-  const isCreatingDraft = createDraft.isPending || (!applicationId && !draftFailed && !needsStateSelection && !routeAppId);
+  const isCreatingDraft =
+    createDraft.isPending ||
+    (!applicationId && !draftFailed && !needsStateSelection && !routeAppId && Boolean(match?.id));
 
   if (isBootstrapping) {
     return (

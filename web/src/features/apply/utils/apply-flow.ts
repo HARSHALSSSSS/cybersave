@@ -34,7 +34,10 @@ const STEP_ORDER: ApplyStep[] = ['form', 'documents', 'payment', 'confirmation']
 export function clampApplyStep(requested: ApplyStep, allowed: ApplyStep): ApplyStep {
   const reqIdx = STEP_ORDER.indexOf(requested);
   const allowIdx = STEP_ORDER.indexOf(allowed);
-  return reqIdx <= allowIdx ? requested : allowed;
+  if (reqIdx <= allowIdx) return requested;
+  // User just finished the previous step — allow advancing one step before status catches up.
+  if (reqIdx === allowIdx + 1) return requested;
+  return allowed;
 }
 
 export function buildApplyUrl(

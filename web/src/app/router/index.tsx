@@ -101,8 +101,14 @@ export const router = createBrowserRouter([
       {
         element: <ProtectedRoute />,
         children: [
-          { path: 'services/:mainSlug/:subSlug/apply', element: <Page><ServiceApplyPage /></Page> },
-          { path: 'services/:mainSlug/:subSlug/apply/:applicationId', element: <Page><ServiceApplyPage /></Page> },
+          {
+            path: 'services/:mainSlug/:subSlug/apply/:applicationId?',
+            element: (
+              <Page>
+                <ServiceApplyPage />
+              </Page>
+            ),
+          },
           { path: 'applications', element: <Page><ApplicationsPage /></Page> },
           { path: 'applications/:id', element: <Page><ApplicationDetailPage /></Page> },
           { path: 'wallet', element: <Page><WalletPage /></Page> },
