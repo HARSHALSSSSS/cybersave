@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -7,7 +7,7 @@ import {
   View,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ServicesStackParamList } from '@/types/navigation';
 import { useTheme } from '@app/providers/ThemeProvider';
 import { Button } from '@components/Button';
@@ -15,7 +15,7 @@ import { TabStackScreenLayout } from '@components/layout';
 import { FileDocIcon } from '@components/icons';
 import { ServiceHubHeader } from '@features/services/components';
 import { goBackInServicesStack } from '@features/services/utils/navigateToService';
-import { applicationsApi, applicationsQueryKeys, servicesApi, servicesQueryKeys } from '@services/api';
+import { applicationsApi, applicationsQueryKeys, servicesApi, servicesQueryKeys, walletApi, walletQueryKeys } from '@services/api';
 import { useTranslation } from '@/i18n';
 
 type Props = NativeStackScreenProps<
@@ -31,6 +31,7 @@ export const ReviewApplicationScreen: React.FC<Props> = ({
     route.params;
   const { theme } = useTheme();
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
 
   const { data: application, isLoading } = useQuery({
     queryKey: applicationsQueryKeys.detail(applicationId ?? ''),
@@ -135,6 +136,15 @@ export const ReviewApplicationScreen: React.FC<Props> = ({
     [theme],
   );
 
+  useEffect(() => {
+    if (totalAmount <= 0) return;
+    void queryClient.prefetchQuery({
+      queryKey: walletQueryKeys.summary(),
+      queryFn: () => walletApi.getWalletSummary(),
+      staleTime: 1000 * 60 * 15,
+    });
+  }, [queryClient, totalAmount]);
+
   const handlePayment = useCallback(() => {
     if (!applicationId) return;
     navigation.navigate('ServicePayment', {
@@ -148,7 +158,7 @@ export const ReviewApplicationScreen: React.FC<Props> = ({
 
   if (!applicationId) return null;
 
-  if (isLoading || !application) {
+  if (isLoading && !application) {
     return (
       <View style={{ flex: 1, backgroundColor: theme.colors.backgroundSecondary }}>
         <ServiceHubHeader title={t.services.reviewDetails} showBack onBack={() => goBackInServicesStack(navigation)} />

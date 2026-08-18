@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Breadcrumbs } from '@/components/layout/Breadcrumbs';
 import { LoadingBlock, EmptyState } from '@/components/ui/primitives';
 import { getServiceDisplayName } from '@/features/apply/utils/service-helpers';
@@ -8,6 +8,7 @@ import { servicesApi, servicesQueryKeys } from '@/services/api';
 
 export function StateSelectPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { mainSlug = '', subSlug = '' } = useParams();
 
   const { data: catalog = [], isLoading: catalogLoading } = useQuery({
@@ -38,7 +39,9 @@ export function StateSelectPage() {
     }
   }, [states, mainSlug, subSlug, navigate]);
 
-  if (catalogLoading || configLoading) return <LoadingBlock className="h-96" />;
+  if ((catalogLoading && catalog.length === 0) || (configLoading && !config)) {
+    return <LoadingBlock className="h-96" />;
+  }
 
   if (!match || !config) {
     return <EmptyState title="Service not found" description="Return to the services catalog." />;
@@ -77,11 +80,18 @@ export function StateSelectPage() {
           <button
             key={state.code}
             type="button"
-            onClick={() =>
+            onClick={() => {
+              if (match?.id) {
+                void queryClient.prefetchQuery({
+                  queryKey: servicesQueryKeys.configuration(match.id, state.code),
+                  queryFn: () => servicesApi.getSubServiceConfiguration(match.id, state.code),
+                });
+                void import('@/features/apply/pages/ServiceApplyPage');
+              }
               navigate(
                 `/services/${mainSlug}/${subSlug}/apply?state=${state.code}&stateName=${encodeURIComponent(state.name)}`,
-              )
-            }
+              );
+            }}
             className="rounded-2xl border border-[#E5E7EB] bg-white px-5 py-4 text-left shadow-sm transition hover:border-[#2563EB] hover:bg-[#EFF6FF]/40"
           >
             <p className="font-semibold text-[#0A1629]">{state.name}</p>

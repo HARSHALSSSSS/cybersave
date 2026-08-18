@@ -233,7 +233,7 @@ export const ServicePaymentScreen: React.FC<Props> = ({ navigation, route }) => 
 
   if (!applicationId) return null;
 
-  if (isLoading || !application) {
+  if (isLoading && !application) {
     return (
       <View style={{ flex: 1, backgroundColor: theme.colors.backgroundSecondary }}>
         <ServiceHubHeader

@@ -1,6 +1,6 @@
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { useEffect, useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { CheckCircle2, FileText, Shield } from 'lucide-react';
 import { Breadcrumbs } from '@/components/layout/Breadcrumbs';
@@ -70,6 +70,7 @@ export function ServiceDetailPage() {
   const stateCode = searchParams.get('state') ?? undefined;
   const stateName = searchParams.get('stateName') ?? undefined;
   const [manualOpening, setManualOpening] = useState(false);
+  const queryClient = useQueryClient();
 
   const { data: catalog = [], isLoading: catalogLoading } = useQuery({
     queryKey: servicesQueryKeys.catalog(),
@@ -201,7 +202,17 @@ export function ServiceDetailPage() {
   const selectedStateLabel =
     stateName ?? fulfillment?.selectedState?.name ?? undefined;
 
+  function prefetchApplyAssets() {
+    if (!match?.id) return;
+    void queryClient.prefetchQuery({
+      queryKey: servicesQueryKeys.configuration(match.id, stateCode),
+      queryFn: () => servicesApi.getSubServiceConfiguration(match.id, stateCode),
+    });
+    void import('@/features/apply/pages/ServiceApplyPage');
+  }
+
   function handleAssistedApply() {
+    prefetchApplyAssets();
     const path =
       config?.fulfillment?.requiresStateSelection && !stateCode
         ? `/services/${mainSlug}/${subSlug}/select-state`
@@ -337,7 +348,13 @@ export function ServiceDetailPage() {
       {/* CTAs — same as mobile: assisted + manual */}
       <div className="space-y-3 pt-2">
         {assistedEnabled ? (
-          <Button size="lg" className="h-14 w-full rounded-xl text-base" onClick={handleAssistedApply}>
+          <Button
+            size="lg"
+            className="h-14 w-full rounded-xl text-base"
+            onMouseEnter={prefetchApplyAssets}
+            onFocus={prefetchApplyAssets}
+            onClick={handleAssistedApply}
+          >
             {assistedLabel}
             {totalAssisted > 0 ? ` — ${formatCurrency(totalAssisted)}` : ''}
           </Button>

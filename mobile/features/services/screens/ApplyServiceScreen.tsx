@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ServicesStackParamList } from '@/types/navigation';
 import { useTheme } from '@app/providers/ThemeProvider';
 import { Button } from '@components/Button';
@@ -39,6 +39,7 @@ export const ApplyServiceScreen: React.FC<Props> = ({ navigation, route }) => {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const { t, format } = useTranslation();
+  const queryClient = useQueryClient();
   const [formValues, setFormValues] = useState<Record<string, unknown>>({});
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [applicationId, setApplicationId] = useState<string | undefined>(
@@ -91,6 +92,7 @@ export const ApplyServiceScreen: React.FC<Props> = ({ navigation, route }) => {
       applicationsApi.createDraftApplication(optionId, stateCode, stateName),
     onSuccess: data => {
       setApplicationId(data.id);
+      queryClient.setQueryData(applicationsQueryKeys.detail(data.id), data);
     },
   });
 
@@ -212,7 +214,7 @@ export const ApplyServiceScreen: React.FC<Props> = ({ navigation, route }) => {
   const waitingOnExisting =
     Boolean(existingApplicationId) && (isLoadingExisting || !hydrated);
 
-  if (isLoading || waitingOnExisting) {
+  if ((isLoading && !config) || waitingOnExisting) {
     return (
       <View style={styles.container}>
         <ServiceHubHeader title={t.services.applyTitle} showBack onBack={() => goBackInServicesStack(navigation)} />

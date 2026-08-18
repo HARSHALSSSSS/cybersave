@@ -132,14 +132,18 @@ export const UploadProofsScreen: React.FC<Props> = ({ navigation, route }) => {
       );
 
       return {
-        requirementId,
-        name: picked.name,
-        documentId: attached?.id,
+        result: {
+          requirementId,
+          name: picked.name,
+          documentId: attached?.id,
+        },
+        updated,
       };
     },
-    onSuccess: result => {
+    onSuccess: payload => {
       setUploadingId(null);
-      if (!result) return;
+      if (!payload?.result) return;
+      const { result, updated } = payload;
       setUploads(prev => ({
         ...prev,
         [result.requirementId]: {
@@ -149,9 +153,7 @@ export const UploadProofsScreen: React.FC<Props> = ({ navigation, route }) => {
         },
       }));
       if (applicationId) {
-        queryClient.invalidateQueries({
-          queryKey: applicationsQueryKeys.detail(applicationId),
-        });
+        queryClient.setQueryData(applicationsQueryKeys.detail(applicationId), updated);
       }
     },
     onError: (error: Error) => {
@@ -163,23 +165,22 @@ export const UploadProofsScreen: React.FC<Props> = ({ navigation, route }) => {
   const deleteMutation = useMutation({
     mutationFn: async (payload: { requirementId: string; documentId?: string }) => {
       if (applicationId && payload.documentId) {
-        await applicationsApi.deleteApplicationDocument(
+        const updated = await applicationsApi.deleteApplicationDocument(
           applicationId,
           payload.documentId,
         );
+        return { requirementId: payload.requirementId, updated };
       }
-      return payload.requirementId;
+      return { requirementId: payload.requirementId, updated: null };
     },
-    onSuccess: requirementId => {
+    onSuccess: ({ requirementId, updated }) => {
       setUploads(prev => {
         const next = { ...prev };
         delete next[requirementId];
         return next;
       });
-      if (applicationId) {
-        queryClient.invalidateQueries({
-          queryKey: applicationsQueryKeys.detail(applicationId),
-        });
+      if (applicationId && updated) {
+        queryClient.setQueryData(applicationsQueryKeys.detail(applicationId), updated);
       }
     },
     onError: () => Alert.alert(t.services.removeFailed, t.services.couldNotRemoveDoc),
@@ -267,23 +268,21 @@ export const UploadProofsScreen: React.FC<Props> = ({ navigation, route }) => {
     [uploadMutation],
   );
 
-  const handleContinue = useCallback(async () => {
+  const handleContinue = useCallback(() => {
     if (!applicationId) {
       Alert.alert(t.common.error, t.services.applicationNotFound);
       return;
     }
-    try {
-      await applicationsApi.validateApplication(applicationId);
-      navigation.navigate('ReviewApplication', {
-        categoryId,
-        optionId,
-        applicationId,
-        stateCode,
-        stateName,
-      });
-    } catch {
-      Alert.alert(t.services.validationFailed, t.services.uploadAllRequired);
-    }
+    navigation.navigate('ReviewApplication', {
+      categoryId,
+      optionId,
+      applicationId,
+      stateCode,
+      stateName,
+    });
+    void applicationsApi.validateApplication(applicationId).catch(() => {
+      // Validation runs in background; review screen shows latest cached application data.
+    });
   }, [applicationId, categoryId, navigation, optionId, stateCode, stateName, t]);
 
   if (!applicationId) {
@@ -297,7 +296,7 @@ export const UploadProofsScreen: React.FC<Props> = ({ navigation, route }) => {
     );
   }
 
-  if (isLoading) {
+  if (isLoading && !config) {
     return (
       <View style={styles.container}>
         <ServiceHubHeader title={t.services.uploadProofs} showBack onBack={() => goBackInServicesStack(navigation)} />

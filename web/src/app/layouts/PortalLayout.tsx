@@ -7,12 +7,13 @@ import { AuthModal } from '@/features/auth/components/AuthModal';
 import { CompleteProfileModal } from '@/features/profile/components/CompleteProfileModal';
 import { SessionGuard } from '@/features/auth/components/SessionGuard';
 import { useAuthStore } from '@/features/auth/store/auth.store';
-import { servicesApi, servicesQueryKeys } from '@/services/api';
+import { servicesApi, servicesQueryKeys, walletApi, walletQueryKeys } from '@/services/api';
 
 export function PortalLayout() {
   const { pathname } = useLocation();
   const isHome = pathname === '/';
   const hydrate = useAuthStore(s => s.hydrate);
+  const isAuthenticated = useAuthStore(s => Boolean(s.token));
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -24,7 +25,13 @@ export function PortalLayout() {
       queryKey: servicesQueryKeys.catalog(),
       queryFn: () => servicesApi.getServicesCatalog(),
     });
-  }, [queryClient]);
+    if (isAuthenticated) {
+      void queryClient.prefetchQuery({
+        queryKey: walletQueryKeys.summary(),
+        queryFn: () => walletApi.getWalletSummary(),
+      });
+    }
+  }, [queryClient, isAuthenticated]);
 
   return (
     <div className="flex min-h-dvh flex-col bg-[#F4F7FB]">

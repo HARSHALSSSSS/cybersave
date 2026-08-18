@@ -5,8 +5,11 @@ import {
   notificationsQueryKeys,
   servicesApi,
   servicesQueryKeys,
+  walletApi,
+  walletQueryKeys,
 } from '@services/api';
 import { ensureApiReachable } from '@services/api/bootstrapApi';
+import { getString, StorageKeys } from '@utils/storage';
 import { queryClient } from './QueryProvider';
 
 /** Prefetch catalog and common lists so tabs feel instant on slow APIs. */
@@ -46,6 +49,16 @@ export function ApiWarmup() {
           staleTime: 1000 * 60 * 2,
         }),
       ];
+
+      if (getString(StorageKeys.AUTH_TOKEN)) {
+        prefetch.push(
+          queryClient.prefetchQuery({
+            queryKey: walletQueryKeys.summary(),
+            queryFn: () => walletApi.getWalletSummary(),
+            staleTime: 1000 * 60 * 15,
+          }),
+        );
+      }
 
       void Promise.allSettled(prefetch);
     }

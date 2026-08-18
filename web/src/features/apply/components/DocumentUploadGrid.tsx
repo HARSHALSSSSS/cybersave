@@ -2,15 +2,16 @@ import { useRef, useState } from 'react';
 import { CloudUpload, FileText, Loader2, X } from 'lucide-react';
 import { toast } from 'sonner';
 import type { DocumentRequirement } from '@/services/api/services.api';
-import type { ApplicationDocument } from '@/services/api/applications.api';
+import type { ApplicationDetail, ApplicationDocument } from '@/services/api/applications.api';
 import { applicationsApi } from '@/services/api/applications.api';
+import { uploadToPresignedUrl } from '@/lib/upload';
 import { cn } from '@/lib/utils';
 
 type DocumentUploadGridProps = {
   applicationId: string;
   requirements: DocumentRequirement[];
   uploaded: ApplicationDocument[];
-  onUpdated: () => void;
+  onApplicationUpdated?: (application: ApplicationDetail) => void;
 };
 
 function guessMimeType(file: File) {
@@ -35,12 +36,12 @@ function UploadTile({
   applicationId,
   requirement,
   existing,
-  onUpdated,
+  onApplicationUpdated,
 }: {
   applicationId: string;
   requirement: DocumentRequirement;
   existing?: ApplicationDocument;
-  onUpdated: () => void;
+  onApplicationUpdated?: (application: ApplicationDetail) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -63,19 +64,28 @@ function UploadTile({
         file.type || guessMimeType(file),
       );
 
-      await applicationsApi.uploadApplicationFile(
-        applicationId,
-        session.uploadSessionId,
-        file,
-      );
+      if (session.uploadUrl) {
+        await uploadToPresignedUrl(
+          session.uploadUrl,
+          file,
+          session.headers ?? {},
+          session.method || 'PUT',
+        );
+      } else {
+        await applicationsApi.uploadApplicationFile(
+          applicationId,
+          session.uploadSessionId,
+          file,
+        );
+      }
 
-      await applicationsApi.completeDocumentUpload(
+      const updated = await applicationsApi.completeDocumentUpload(
         applicationId,
         session.uploadSessionId,
         session.storedFileId,
       );
       toast.success(`${requirement.name} uploaded`);
-      onUpdated();
+      onApplicationUpdated?.(updated);
     } catch (error) {
       const message =
         (error as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error
@@ -89,9 +99,9 @@ function UploadTile({
   async function handleRemove() {
     if (!existing) return;
     try {
-      await applicationsApi.deleteApplicationDocument(applicationId, existing.id);
+      const updated = await applicationsApi.deleteApplicationDocument(applicationId, existing.id);
       toast.success('Document removed');
-      onUpdated();
+      onApplicationUpdated?.(updated);
     } catch {
       toast.error('Could not remove document');
     }
@@ -179,7 +189,7 @@ export function DocumentUploadGrid({
   applicationId,
   requirements,
   uploaded,
-  onUpdated,
+  onApplicationUpdated,
 }: DocumentUploadGridProps) {
   const sorted = [...requirements].sort((a, b) => a.sortOrder - b.sortOrder);
 
@@ -193,7 +203,7 @@ export function DocumentUploadGrid({
             applicationId={applicationId}
             requirement={req}
             existing={existing}
-            onUpdated={onUpdated}
+            onApplicationUpdated={onApplicationUpdated}
           />
         );
       })}

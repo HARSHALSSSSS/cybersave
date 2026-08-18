@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import type { FormFieldConfig } from '@/services/api/services.api';
 import { Input, Label } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -43,7 +44,7 @@ function FieldWrapper({
 }
 
 export function DynamicFormFields({ fields, values, onChange, errors = {}, disabled = false }: DynamicFormFieldsProps) {
-  const visible = getVisibleFormFields(fields);
+  const visible = useMemo(() => getVisibleFormFields(fields), [fields]);
 
   if (visible.length === 0) {
     return (

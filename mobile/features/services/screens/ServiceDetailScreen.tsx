@@ -11,7 +11,7 @@ import {
 import LinearGradient from 'react-native-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ServicesStackParamList } from '@/types/navigation';
 import { useTheme } from '@app/providers/ThemeProvider';
 import { Button } from '@components/Button';
@@ -21,7 +21,7 @@ import { goBackInServicesStack } from '@features/services/utils/navigateToServic
 import { openManualApplyPortal } from '@features/services/utils/openManualApplyPortal';
 import { useRequireProfile } from '@features/profile/hooks/useRequireProfile';
 import { extractRequestError } from '@utils/apiDiscovery';
-import { servicesApi, servicesQueryKeys } from '@services/api';
+import { servicesApi, servicesQueryKeys, walletApi, walletQueryKeys } from '@services/api';
 import { useTranslation } from '@/i18n';
 import { getScrollBottomPadding } from '@utils/layout';
 
@@ -39,11 +39,21 @@ export const ServiceDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
   const { t, format } = useTranslation();
   const [manualOpening, setManualOpening] = useState(false);
+  const queryClient = useQueryClient();
 
   const { data: config, isLoading, isError } = useQuery({
     queryKey: servicesQueryKeys.configuration(optionId, stateCode),
     queryFn: () => servicesApi.getSubServiceConfiguration(optionId, stateCode),
   });
+
+  useEffect(() => {
+    if (!config) return;
+    void queryClient.prefetchQuery({
+      queryKey: walletQueryKeys.summary(),
+      queryFn: () => walletApi.getWalletSummary(),
+      staleTime: 1000 * 60 * 15,
+    });
+  }, [config, queryClient]);
 
   useEffect(() => {
     if (!config?.fulfillment?.requiresStateSelection || stateCode) return;
@@ -241,7 +251,7 @@ export const ServiceDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     t,
   ]);
 
-  if (isLoading) {
+  if (isLoading && !config) {
     return (
       <View style={styles.container}>
         <ServiceHubHeader title={t.services.serviceDetails} showBack onBack={() => goBackInServicesStack(navigation)} />

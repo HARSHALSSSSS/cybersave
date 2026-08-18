@@ -41,6 +41,7 @@ import {
   servicesQueryKeys,
   walletApi,
   walletQueryKeys,
+  type ApplicationDetail,
   type BackendApplicationStatus,
 } from '@/services/api';
 import { useAuthStore } from '@/features/auth/store/auth.store';
@@ -78,7 +79,7 @@ export function ServiceApplyPage() {
   const { data: wallet } = useQuery({
     queryKey: walletQueryKeys.summary(),
     queryFn: () => walletApi.getWalletSummary(),
-    enabled: requestedStep === 'payment',
+    enabled: requestedStep === 'payment' || requestedStep === 'documents',
   });
 
   const { data: catalog = [], isLoading: catalogLoading } = useQuery({
@@ -94,17 +95,7 @@ export function ServiceApplyPage() {
     [catalog, mainSlug, subSlug],
   );
 
-  const {
-    data: config,
-    isLoading: configLoading,
-    isError: configError,
-  } = useQuery({
-    queryKey: servicesQueryKeys.configuration(match?.id ?? '', stateCode),
-    queryFn: () => servicesApi.getSubServiceConfiguration(match!.id, stateCode),
-    enabled: Boolean(match?.id),
-  });
-
-  const { data: application, refetch: refetchApp, isError: appError, error: appQueryError } = useQuery({
+  const { data: application, isError: appError, error: appQueryError } = useQuery({
     queryKey: applicationsQueryKeys.detail(applicationId ?? ''),
     queryFn: () => applicationsApi.getApplicationById(applicationId!),
     enabled: Boolean(applicationId),
@@ -113,6 +104,21 @@ export function ServiceApplyPage() {
       if (status === 404) return false;
       return failureCount < 2;
     },
+  });
+
+  const subServiceId = useMemo(
+    () => match?.id ?? application?.serviceVersion?.subService?.id,
+    [match?.id, application?.serviceVersion?.subService?.id],
+  );
+
+  const {
+    data: config,
+    isLoading: configLoading,
+    isError: configError,
+  } = useQuery({
+    queryKey: servicesQueryKeys.configuration(subServiceId ?? '', stateCode),
+    queryFn: () => servicesApi.getSubServiceConfiguration(subServiceId!, stateCode),
+    enabled: Boolean(subServiceId),
   });
 
   const createDraft = useMutation({
@@ -126,6 +132,7 @@ export function ServiceApplyPage() {
       setApplicationId(data.id);
       setDraftFailed(false);
       setDraftErrorMessage(null);
+      queryClient.setQueryData(applicationsQueryKeys.detail(data.id), data);
       const params = new URLSearchParams(searchParams);
       params.set('step', 'form');
       navigate(`/services/${mainSlug}/${subSlug}/apply/${data.id}?${params.toString()}`, {
@@ -285,6 +292,17 @@ export function ServiceApplyPage() {
     [searchParams, setSearchParams],
   );
 
+  const handleFieldChange = useCallback((key: string, value: unknown) => {
+    setFormValues(prev => ({ ...prev, [key]: value }));
+  }, []);
+
+  const handleApplicationCacheUpdate = useCallback(
+    (updated: ApplicationDetail) => {
+      queryClient.setQueryData(applicationsQueryKeys.detail(updated.id), updated);
+    },
+    [queryClient],
+  );
+
   const requiredDocs = useMemo(
     () => (config?.documentRequirements ?? []).filter(d => d.required),
     [config],
@@ -426,7 +444,9 @@ export function ServiceApplyPage() {
     }
   }
 
-  const isBootstrapping = catalogLoading || configLoading;
+  const isBootstrapping =
+    (!subServiceId && catalogLoading && catalog.length === 0) ||
+    (Boolean(subServiceId) && configLoading && !config);
   const isCreatingDraft = createDraft.isPending || (!applicationId && !draftFailed && !needsStateSelection && !routeAppId);
 
   if (isBootstrapping) {
@@ -438,7 +458,7 @@ export function ServiceApplyPage() {
     );
   }
 
-  if (!match) {
+  if (!match && !application && !catalogLoading) {
     return (
       <EmptyState
         title="Service not found"
@@ -594,7 +614,7 @@ export function ServiceApplyPage() {
                 fields={formFields}
                 values={formValues}
                 errors={fieldErrors}
-                onChange={(key, value) => setFormValues(prev => ({ ...prev, [key]: value }))}
+                onChange={handleFieldChange}
               />
             ) : (
               <EmptyState
@@ -637,7 +657,7 @@ export function ServiceApplyPage() {
                 applicationId={applicationId}
                 requirements={config.documentRequirements}
                 uploaded={uploadedDocs}
-                onUpdated={() => void refetchApp()}
+                onApplicationUpdated={handleApplicationCacheUpdate}
               />
             ) : null}
             <SecurityNotice className="mt-8" />
