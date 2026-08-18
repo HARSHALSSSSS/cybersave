@@ -50,6 +50,7 @@ import {
   processApplicationPayment,
   type PaymentMethod,
 } from '@/features/payments/utils/applicationPayment';
+import { isPaymentSettledError, runAfterPayment } from '@/lib/paymentResilience';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { openStorageDownloadUrl } from '@/lib/upload';
 import { cn } from '@/lib/utils';
@@ -415,7 +416,10 @@ export function ServiceApplyPage() {
           },
         });
       }
-      const submitted = await applicationsApi.submitApplication(applicationId);
+      const submitted = await runAfterPayment(
+        () => applicationsApi.submitApplication(applicationId),
+        'Your payment went through, but we could not submit the application. Click Pay again to finish — you will not be charged twice.',
+      );
       queryClient.setQueryData(applicationsQueryKeys.detail(applicationId), submitted);
       setSubmittedLocally(true);
       void Promise.all([
@@ -427,7 +431,11 @@ export function ServiceApplyPage() {
       toast.success('Application submitted successfully');
     } catch (error) {
       if (isRazorpayUserCancelled(error)) return;
-      toast.error('Could not submit application');
+      if (isPaymentSettledError(error)) {
+        toast.error(error.message, { duration: 8000 });
+        return;
+      }
+      toast.error(extractErrorMessage(error, 'Could not submit application'));
     } finally {
       setBusy(false);
     }

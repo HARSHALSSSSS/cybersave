@@ -4,21 +4,49 @@ import { ProtectedRoute } from '@/features/auth/components/ProtectedRoute';
 import { PortalLayout } from '@/app/layouts/PortalLayout';
 import { BrandMark } from '@/components/brand/BrandMark';
 
+/**
+ * Held as named loaders so the same chunks can be warmed ahead of navigation —
+ * otherwise every click pays for a fresh round trip behind a loading spinner.
+ */
+const load = {
+  services: () => import('@/features/services/pages/ServicesPage'),
+  applications: () => import('@/features/applications/pages/ApplicationsPage'),
+  wallet: () => import('@/features/wallet/pages/WalletPage'),
+  profile: () => import('@/features/profile/pages/ProfilePage'),
+  apply: () => import('@/features/apply/pages/ServiceApplyPage'),
+  serviceDetail: () => import('@/features/services/pages/ServiceDetailPage'),
+  payBills: () => import('@/features/bill-payments/pages/PayBillsHomePage'),
+};
+
+/** Warm the chunks a signed-in user reaches for first, once the page is idle. */
+export function prefetchCommonRoutes(): void {
+  const warm = () => {
+    for (const loader of Object.values(load)) {
+      void loader().catch(() => undefined);
+    }
+  };
+  const idle = (window as unknown as {
+    requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => void;
+  }).requestIdleCallback;
+  if (idle) idle(warm, { timeout: 3000 });
+  else window.setTimeout(warm, 1500);
+}
+
 const LoginPage = lazy(() => import('@/features/auth/pages/LoginPage').then(m => ({ default: m.LoginPage })));
 const OtpPage = lazy(() => import('@/features/auth/pages/OtpPage').then(m => ({ default: m.OtpPage })));
 const HomePage = lazy(() => import('@/features/home/pages/HomePage').then(m => ({ default: m.HomePage })));
-const ServicesPage = lazy(() => import('@/features/services/pages/ServicesPage').then(m => ({ default: m.ServicesPage })));
+const ServicesPage = lazy(() => load.services().then(m => ({ default: m.ServicesPage })));
 const SchemesPage = lazy(() => import('@/features/services/pages/SchemesPage').then(m => ({ default: m.SchemesPage })));
 const SchemeDetailPage = lazy(() => import('@/features/services/pages/SchemeDetailPage').then(m => ({ default: m.SchemeDetailPage })));
 const CategoryServicesPage = lazy(() => import('@/features/services/pages/CategoryServicesPage').then(m => ({ default: m.CategoryServicesPage })));
-const ServiceDetailPage = lazy(() => import('@/features/services/pages/ServiceDetailPage').then(m => ({ default: m.ServiceDetailPage })));
+const ServiceDetailPage = lazy(() => load.serviceDetail().then(m => ({ default: m.ServiceDetailPage })));
 const StateSelectPage = lazy(() => import('@/features/services/pages/StateSelectPage').then(m => ({ default: m.StateSelectPage })));
 const StateServicesPage = lazy(() => import('@/features/services/pages/StateServicesPage').then(m => ({ default: m.StateServicesPage })));
-const ServiceApplyPage = lazy(() => import('@/features/apply/pages/ServiceApplyPage').then(m => ({ default: m.ServiceApplyPage })));
-const ApplicationsPage = lazy(() => import('@/features/applications/pages/ApplicationsPage').then(m => ({ default: m.ApplicationsPage })));
+const ServiceApplyPage = lazy(() => load.apply().then(m => ({ default: m.ServiceApplyPage })));
+const ApplicationsPage = lazy(() => load.applications().then(m => ({ default: m.ApplicationsPage })));
 const ApplicationDetailPage = lazy(() => import('@/features/applications/pages/ApplicationDetailPage').then(m => ({ default: m.ApplicationDetailPage })));
-const WalletPage = lazy(() => import('@/features/wallet/pages/WalletPage').then(m => ({ default: m.WalletPage })));
-const ProfilePage = lazy(() => import('@/features/profile/pages/ProfilePage').then(m => ({ default: m.ProfilePage })));
+const WalletPage = lazy(() => load.wallet().then(m => ({ default: m.WalletPage })));
+const ProfilePage = lazy(() => load.profile().then(m => ({ default: m.ProfilePage })));
 const NotificationsPage = lazy(() =>
   import('@/features/notifications/pages/NotificationsPage').then(m => ({ default: m.NotificationsPage })),
 );
@@ -29,7 +57,7 @@ const HelpTicketsPage = lazy(() =>
 const HelpTicketDetailPage = lazy(() =>
   import('@/features/help/pages/HelpTicketDetailPage').then(m => ({ default: m.HelpTicketDetailPage })),
 );
-const PayBillsHomePage = lazy(() => import('@/features/bill-payments/pages/PayBillsHomePage').then(m => ({ default: m.PayBillsHomePage })));
+const PayBillsHomePage = lazy(() => load.payBills().then(m => ({ default: m.PayBillsHomePage })));
 const PayBillsCategoryPage = lazy(() => import('@/features/bill-payments/pages/PayBillsCategoryPage').then(m => ({ default: m.PayBillsCategoryPage })));
 const PayBillsBillerPage = lazy(() => import('@/features/bill-payments/pages/PayBillsBillerPage').then(m => ({ default: m.PayBillsBillerPage })));
 const PayBillsBillPage = lazy(() => import('@/features/bill-payments/pages/PayBillsBillPage').then(m => ({ default: m.PayBillsBillPage })));

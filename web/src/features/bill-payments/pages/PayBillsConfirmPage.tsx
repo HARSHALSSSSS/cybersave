@@ -10,6 +10,7 @@ import { useAuthStore } from '@/features/auth/store/auth.store';
 import { extractErrorMessage } from '@/features/apply/utils/validation-errors';
 import { isRazorpayUserCancelled } from '@/lib/razorpay';
 import { collectRazorpayPayment, isSimulatedRazorpayCheckout } from '@/lib/razorpayExperience';
+import { settlePayment } from '@/lib/paymentResilience';
 import { billPaymentsApi, billPaymentsQueryKeys } from '@/services/api';
 import { formatCurrency } from '@/lib/utils';
 import { getProfileDisplayName } from '@/lib/profile';
@@ -55,16 +56,26 @@ export function PayBillsConfirmPage() {
         intent,
       );
 
-      return billPaymentsApi.confirmPayment(intent.id, {
-        mockCapture: isSimulatedRazorpayCheckout(checkout),
-        razorpayPaymentId: checkout.razorpay_payment_id,
-        razorpayOrderId: checkout.razorpay_order_id,
-        razorpaySignature: checkout.razorpay_signature,
+      await settlePayment({
+        confirm: () =>
+          billPaymentsApi.confirmPayment(intent.id, {
+            mockCapture: isSimulatedRazorpayCheckout(checkout),
+            razorpayPaymentId: checkout.razorpay_payment_id,
+            razorpayOrderId: checkout.razorpay_order_id,
+            razorpaySignature: checkout.razorpay_signature,
+          }),
+        verify: async () => {
+          const payment = await billPaymentsApi.getPayment(intent.id, true);
+          return payment.status === 'success' || payment.status === 'processing';
+        },
       });
+
+      // The receipt page polls for the authoritative status.
+      return intent.id;
     },
-    onSuccess: payment => {
+    onSuccess: paymentId => {
       void queryClient.invalidateQueries({ queryKey: billPaymentsQueryKeys.all });
-      navigate(`/pay-bills/receipt/${payment.id}`, { replace: true });
+      navigate(`/pay-bills/receipt/${paymentId}`, { replace: true });
     },
     onError: (error: unknown) => {
       if (isRazorpayUserCancelled(error)) return;

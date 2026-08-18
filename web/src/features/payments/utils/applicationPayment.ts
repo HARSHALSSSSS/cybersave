@@ -5,8 +5,14 @@ import {
 import { isRazorpayUserCancelled } from '@/lib/razorpay';
 import { showPaymentSuccessTick } from '@/lib/razorpayCheckoutStore';
 import { applicationsApi } from '@/services/api/applications.api';
+import { settlePayment } from '@/lib/paymentResilience';
 
 export type PaymentMethod = 'razorpay' | 'wallet';
+
+async function applicationPaymentCaptured(applicationId: string): Promise<boolean> {
+  const application = await applicationsApi.getApplicationById(applicationId);
+  return application.payment?.status === 'CAPTURED';
+}
 
 export async function processApplicationPayment(params: {
   applicationId: string;
@@ -19,7 +25,10 @@ export async function processApplicationPayment(params: {
   const { applicationId, method, idempotencyKey, amount, serviceName, prefill } = params;
 
   if (method === 'wallet') {
-    await applicationsApi.payWithWallet(applicationId, idempotencyKey);
+    await settlePayment({
+      confirm: () => applicationsApi.payWithWallet(applicationId, idempotencyKey),
+      verify: () => applicationPaymentCaptured(applicationId),
+    });
     return;
   }
 
@@ -41,12 +50,16 @@ export async function processApplicationPayment(params: {
     intent,
   );
 
-  await applicationsApi.confirmApplicationPayment(applicationId, {
-    paymentId: intent.paymentId,
-    mockCapture: isSimulatedRazorpayCheckout(checkout),
-    razorpayPaymentId: checkout.razorpay_payment_id,
-    razorpayOrderId: checkout.razorpay_order_id,
-    razorpaySignature: checkout.razorpay_signature,
+  await settlePayment({
+    confirm: () =>
+      applicationsApi.confirmApplicationPayment(applicationId, {
+        paymentId: intent.paymentId,
+        mockCapture: isSimulatedRazorpayCheckout(checkout),
+        razorpayPaymentId: checkout.razorpay_payment_id,
+        razorpayOrderId: checkout.razorpay_order_id,
+        razorpaySignature: checkout.razorpay_signature,
+      }),
+    verify: () => applicationPaymentCaptured(applicationId),
   });
 }
 
