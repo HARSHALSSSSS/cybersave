@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import axios from 'axios';
 import { useLocation, useNavigate } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -9,9 +10,19 @@ import { ProfileDetailsForm } from '@/features/profile/components/ProfileDetails
 import { useAuthStore } from '@/features/auth/store/auth.store';
 import { useAuthModalStore } from '@/features/auth/store/auth-modal.store';
 import { isProfileComplete } from '@/lib/profile';
-import { firebaseAuthErrorMessage, firebasePhoneAuthHostHint, isFirebaseAuthEnabled } from '@/lib/firebasePhoneAuth';
 import { normalizePhone, cn } from '@/lib/utils';
 import { profileApi, profileQueryKeys } from '@/services/api';
+
+function authErrorMessage(error: unknown, fallback: string): string {
+  if (axios.isAxiosError(error)) {
+    const data = error.response?.data as
+      | { message?: string; error?: { message?: string } }
+      | undefined;
+    if (data?.error?.message) return data.error.message;
+    if (data?.message) return data.message;
+  }
+  return error instanceof Error ? error.message : fallback;
+}
 
 function IndiaFlag() {
   return (
@@ -42,6 +53,7 @@ export function AuthModal() {
 
   const requestOtp = useAuthStore(s => s.requestOtp);
   const verifyOtp = useAuthStore(s => s.verifyOtp);
+  const otpChannel = useAuthStore(s => s.otpChannel);
   const citizen = useAuthStore(s => s.citizen);
   const isAuthenticated = useAuthStore(s => s.isAuthenticated);
 
@@ -54,12 +66,6 @@ export function AuthModal() {
     queryFn: () => profileApi.listAddresses(),
     enabled: open && step === 'profile' && Boolean(citizen),
   });
-
-  useEffect(() => {
-    if (!open || !isFirebaseAuthEnabled()) return;
-    const hint = firebasePhoneAuthHostHint();
-    if (hint) toast.warning(hint, { duration: 12000 });
-  }, [open]);
 
   useEffect(() => {
     const state = location.state as { authRequired?: boolean; from?: string } | null;
@@ -94,16 +100,12 @@ export function AuthModal() {
       const result = await requestOtp(normalized);
       setPhone(normalized);
       if (result.devCode) toast.message(`Dev OTP: ${result.devCode}`);
+      else toast.success('OTP sent on WhatsApp');
       setStep('otp');
       setOtp('');
     } catch (error) {
       toast.error(
-        firebaseAuthErrorMessage(
-          error,
-          isFirebaseAuthEnabled()
-            ? 'Could not send OTP. Check Firebase web config and authorized domains.'
-            : 'Could not send OTP. Check backend is running.',
-        ),
+        authErrorMessage(error, 'Could not send OTP. Check your number and try again.'),
       );
     } finally {
       setLoading(false);
@@ -124,11 +126,11 @@ export function AuthModal() {
       }
     } catch (error) {
       toast.error(
-        firebaseAuthErrorMessage(
+        authErrorMessage(
           error,
-          isFirebaseAuthEnabled()
-            ? 'Invalid OTP. Check the SMS code from Firebase.'
-            : 'Invalid OTP. Try 123456 in local dev.',
+          otpChannel === 'whatsapp'
+            ? 'Invalid OTP. Check the code in your WhatsApp chat.'
+            : 'Invalid OTP. Try again.',
         ),
       );
     } finally {
@@ -180,7 +182,7 @@ export function AuthModal() {
                 Welcome to Cybersave
               </h2>
               <p className="mt-2 text-center text-sm text-blue-100">
-                Sign in with your mobile number to access services
+                Sign in with your mobile number — we&apos;ll send a WhatsApp OTP
               </p>
               <form onSubmit={handleSendOtp} className="mt-6 space-y-4">
                 <div>
@@ -199,13 +201,6 @@ export function AuthModal() {
                     />
                   </div>
                 </div>
-                {isFirebaseAuthEnabled() ? (
-                  <div
-                    id="firebase-recaptcha"
-                    className="flex min-h-[78px] justify-center rounded-xl bg-white/10 p-2"
-                    aria-label="Security verification"
-                  />
-                ) : null}
                 <Button
                   type="submit"
                   variant="secondary"
@@ -213,7 +208,7 @@ export function AuthModal() {
                   className="w-full bg-white text-[#2563EB] hover:bg-blue-50"
                   disabled={loading}
                 >
-                  {loading ? 'Sending OTP…' : 'Send OTP'}
+                  {loading ? 'Sending OTP…' : 'Send WhatsApp OTP'}
                 </Button>
               </form>
               <button
@@ -230,7 +225,9 @@ export function AuthModal() {
           {step === 'otp' ? (
             <>
               <h2 className="font-display text-2xl font-bold text-white">Enter OTP</h2>
-              <p className="mt-2 text-sm text-blue-100">Sent to {phone}</p>
+              <p className="mt-2 text-sm text-blue-100">
+                Check WhatsApp for the 6-digit code sent to {phone}
+              </p>
               <form onSubmit={handleVerifyOtp} className="mt-6 space-y-4">
                 <Input
                   inputMode="numeric"

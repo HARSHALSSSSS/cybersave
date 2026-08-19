@@ -35,8 +35,10 @@ export async function verifyFirebaseToken(idToken: string) {
 export async function getAuthConfig() {
   const response = await apiClient.get('/auth/config');
   return unwrapApiResponse<{
-    authProvider: 'firebase' | 'legacy';
+    authProvider: 'firebase' | 'whatsapp' | 'legacy';
+    otpChannel: 'firebase' | 'whatsapp' | 'sms';
     firebaseConfigured: boolean;
+    whatsappConfigured: boolean;
     otpLength: number;
   }>(response);
 }

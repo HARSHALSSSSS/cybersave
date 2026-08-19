@@ -59,9 +59,19 @@ services:
       - key: SWAGGER_ENABLED
         value: "true"
       - key: SMS_PROVIDER
-        value: console
+        value: whatsapp
       - key: AUTH_PROVIDER
-        value: firebase
+        value: legacy
+      - key: WHATSAPP_ACCESS_TOKEN
+        sync: false
+      - key: WHATSAPP_PHONE_NUMBER_ID
+        sync: false
+      - key: WHATSAPP_OTP_TEMPLATE_NAME
+        value: cybersave_otp
+      - key: WHATSAPP_TEMPLATE_LANGUAGE
+        value: en
+      - key: WHATSAPP_OTP_TEMPLATE_STYLE
+        value: body
       - key: FIREBASE_PROJECT_ID
         sync: false
       - key: FIREBASE_CLIENT_EMAIL
@@ -124,14 +134,4 @@ services:
       - key: VITE_APP_NAME
         value: Cybersave
       - key: VITE_USE_FIREBASE_AUTH
-        value: "true"
-      - key: VITE_FIREBASE_API_KEY
-        sync: false
-      - key: VITE_FIREBASE_AUTH_DOMAIN
-        sync: false
-      - key: VITE_FIREBASE_PROJECT_ID
-        sync: false
-      - key: VITE_FIREBASE_APP_ID
-        sync: false
-      - key: VITE_FIREBASE_MESSAGING_SENDER_ID
-        sync: false
+        value: "false"

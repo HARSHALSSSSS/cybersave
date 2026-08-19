@@ -105,3 +105,21 @@ export const firebaseConfig = registerAs('firebase', () => ({
         process.env.FIREBASE_PRIVATE_KEY,
     ),
 }));
+
+export const smsConfig = registerAs('sms', () => ({
+  provider: (process.env.SMS_PROVIDER ?? 'console').toLowerCase(),
+}));
+
+export const whatsappConfig = registerAs('whatsapp', () => ({
+  accessToken: process.env.WHATSAPP_ACCESS_TOKEN,
+  phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID,
+  otpTemplateName: process.env.WHATSAPP_OTP_TEMPLATE_NAME ?? 'cybersave_otp',
+  templateLanguage: process.env.WHATSAPP_TEMPLATE_LANGUAGE ?? 'en',
+  /** body = single body variable; auth = Meta authentication template with copy-code button */
+  templateStyle: (process.env.WHATSAPP_OTP_TEMPLATE_STYLE ?? 'body') as 'body' | 'auth',
+  apiVersion: process.env.WHATSAPP_API_VERSION ?? 'v21.0',
+  configured: Boolean(
+    process.env.WHATSAPP_ACCESS_TOKEN?.trim() &&
+      process.env.WHATSAPP_PHONE_NUMBER_ID?.trim(),
+  ),
+}));

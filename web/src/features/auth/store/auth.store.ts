@@ -2,13 +2,6 @@ import { create } from 'zustand';
 import axios from 'axios';
 import { authApi, type CitizenProfile } from '@/services/api/auth.api';
 import {
-  isFirebaseAuthEnabled,
-  missingFirebaseWebConfigKeys,
-  resetFirebasePhoneSession,
-  sendFirebasePhoneOtp,
-  verifyFirebasePhoneOtp,
-} from '@/lib/firebasePhoneAuth';
-import {
   clearAuthTokens,
   getAccessToken,
   getRefreshToken,
@@ -20,6 +13,7 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   pendingPhone: string | null;
+  otpChannel: 'whatsapp' | 'sms' | null;
   hydrate: () => Promise<void>;
   requestOtp: (phone: string) => Promise<{ devCode?: string }>;
   verifyOtp: (phone: string, code: string) => Promise<void>;
@@ -38,6 +32,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   isAuthenticated: false,
   isLoading: true,
   pendingPhone: null,
+  otpChannel: null,
 
   async hydrate() {
     if (!getAccessToken()) {
@@ -69,32 +64,30 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   async requestOtp(phone) {
-    if (import.meta.env.VITE_USE_FIREBASE_AUTH !== 'false') {
-      const missing = missingFirebaseWebConfigKeys();
-      if (missing.length > 0) {
-        throw new Error(
-          `Firebase web is missing: ${missing.join(', ')}. Add a Web app in Firebase Console and paste appId into web/.env`,
-        );
-      }
-    }
-    if (isFirebaseAuthEnabled()) {
-      resetFirebasePhoneSession();
-      await sendFirebasePhoneOtp(phone);
-      set({ pendingPhone: phone });
-      return {};
-    }
     const result = await authApi.requestOtp(phone);
-    set({ pendingPhone: phone });
+    try {
+      const config = await authApi.getAuthConfig();
+      set({
+        pendingPhone: phone,
+        otpChannel: config.otpChannel === 'whatsapp' ? 'whatsapp' : 'sms',
+      });
+    } catch {
+      set({ pendingPhone: phone, otpChannel: 'whatsapp' });
+    }
     return { devCode: result.devCode };
   },
 
   async verifyOtp(phone, code) {
-    const tokens = isFirebaseAuthEnabled()
-      ? await authApi.verifyFirebaseToken(await verifyFirebasePhoneOtp(code))
-      : await authApi.verifyOtp(phone, code);
+    const tokens = await authApi.verifyOtp(phone, code);
     setAuthTokens(tokens.accessToken, tokens.refreshToken);
     const citizen = await authApi.getMe();
-    set({ citizen, isAuthenticated: true, pendingPhone: null, isLoading: false });
+    set({
+      citizen,
+      isAuthenticated: true,
+      pendingPhone: null,
+      otpChannel: null,
+      isLoading: false,
+    });
   },
 
   async updateProfile(payload) {
@@ -106,12 +99,18 @@ export const useAuthStore = create<AuthState>((set) => ({
     const refresh = getRefreshToken();
     if (refresh) await authApi.logout(refresh);
     clearAuthTokens();
-    set({ citizen: null, isAuthenticated: false, pendingPhone: null });
+    set({ citizen: null, isAuthenticated: false, pendingPhone: null, otpChannel: null });
   },
 
   forceLogout() {
     clearAuthTokens();
-    set({ citizen: null, isAuthenticated: false, pendingPhone: null, isLoading: false });
+    set({
+      citizen: null,
+      isAuthenticated: false,
+      pendingPhone: null,
+      otpChannel: null,
+      isLoading: false,
+    });
   },
 
   setPendingPhone(phone) {

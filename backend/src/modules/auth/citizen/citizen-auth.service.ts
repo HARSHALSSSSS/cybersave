@@ -34,6 +34,8 @@ export class CitizenAuthService {
       'citizenAuth.otpExpiresMinutes',
       5,
     );
+    const smsProvider = this.configService.get<string>('sms.provider', 'console');
+    const useConsoleOtp = smsProvider === 'console';
 
     const recentCount = await this.prisma.citizenOtpChallenge.count({
       where: {
@@ -54,15 +56,10 @@ export class CitizenAuthService {
       data: { usedAt: new Date() },
     });
 
-    const isDev = this.configService.get('app.nodeEnv') !== 'production';
-    const consoleSms =
-      (process.env.SMS_PROVIDER ?? 'console').toLowerCase() === 'console';
-    // Fixed OTP for local/testing; console SMS on hosted demo exposes code in API/logs
-    const code =
-      isDev || consoleSms
-        ? '123456'
-        : randomInt(10 ** (otpLength - 1), 10 ** otpLength - 1).toString();
-    const codeHash = await bcrypt.hash(code, isDev ? 4 : 10);
+    const code = useConsoleOtp
+      ? '123456'
+      : randomInt(10 ** (otpLength - 1), 10 ** otpLength - 1).toString();
+    const codeHash = await bcrypt.hash(code, useConsoleOtp ? 4 : 10);
     const expiresAt = new Date(Date.now() + expiresMinutes * 60 * 1000);
 
     await this.prisma.citizenOtpChallenge.create({
@@ -73,16 +70,31 @@ export class CitizenAuthService {
       },
     });
 
-    await this.smsService.sendOtp(normalizedPhone, code);
+    try {
+      await this.smsService.sendOtp(normalizedPhone, code);
+    } catch (error) {
+      await this.prisma.citizenOtpChallenge.updateMany({
+        where: { phone: normalizedPhone, usedAt: null, expiresAt: { gt: new Date() } },
+        data: { usedAt: new Date() },
+      });
+      const message =
+        error instanceof Error ? error.message : 'Could not send OTP. Try again later.';
+      this.logger.error(`OTP delivery failed for ${normalizedPhone}: ${message}`);
+      throw new HttpException(message, HttpStatus.BAD_GATEWAY);
+    }
 
-    if (isDev || consoleSms) {
+    if (useConsoleOtp) {
       this.logger.log(`[OTP] ${normalizedPhone} => ${code}`);
     }
 
+    const whatsappDelivery = smsProvider === 'whatsapp';
+
     return {
-      message: 'OTP sent successfully',
+      message: whatsappDelivery
+        ? 'OTP sent to your WhatsApp'
+        : 'OTP sent successfully',
       expiresAt,
-      ...(isDev || consoleSms ? { devCode: code } : {}),
+      ...(useConsoleOtp ? { devCode: code } : {}),
     };
   }
 
@@ -117,9 +129,8 @@ export class CitizenAuthService {
     const normalizedPhone = this.normalizePhone(phone);
     const phoneVariants = this.phoneLookupVariants(phone);
     const trimmedCode = code.trim();
-    const isDev = this.configService.get('app.nodeEnv') !== 'production';
-    const consoleSms =
-      (process.env.SMS_PROVIDER ?? 'console').toLowerCase() === 'console';
+    const smsProvider = this.configService.get<string>('sms.provider', 'console');
+    const useConsoleOtp = smsProvider === 'console';
 
     const challenge = await this.prisma.citizenOtpChallenge.findFirst({
       where: {
@@ -135,7 +146,7 @@ export class CitizenAuthService {
     }
 
     const valid =
-      ((isDev || consoleSms) && trimmedCode === '123456') ||
+      (useConsoleOtp && trimmedCode === '123456') ||
       (await bcrypt.compare(trimmedCode, challenge.codeHash));
     if (!valid) {
       throw new UnauthorizedException('Invalid OTP');
@@ -160,13 +171,32 @@ export class CitizenAuthService {
 
   getAuthConfig() {
     const firebaseConfigured = this.firebaseAdmin.isConfigured();
-    const authProvider =
-      (process.env.AUTH_PROVIDER === 'firebase' || firebaseConfigured) && firebaseConfigured
-        ? 'firebase'
-        : 'legacy';
+    const smsProvider = this.configService.get<string>('sms.provider', 'console');
+    const whatsappConfigured = this.configService.get<boolean>(
+      'whatsapp.configured',
+      false,
+    );
+    const authProviderEnv = (process.env.AUTH_PROVIDER ?? '').toLowerCase();
+
+    let authProvider: 'firebase' | 'whatsapp' | 'legacy';
+    let otpChannel: 'firebase' | 'whatsapp' | 'sms';
+
+    if (authProviderEnv === 'firebase' && firebaseConfigured) {
+      authProvider = 'firebase';
+      otpChannel = 'firebase';
+    } else if (smsProvider === 'whatsapp' && whatsappConfigured) {
+      authProvider = 'whatsapp';
+      otpChannel = 'whatsapp';
+    } else {
+      authProvider = 'legacy';
+      otpChannel = 'sms';
+    }
+
     return {
       authProvider,
+      otpChannel,
       firebaseConfigured,
+      whatsappConfigured,
       otpLength: this.configService.get<number>('citizenAuth.otpLength', 6),
       ...this.firebaseAdmin.credentialStatus(),
     };

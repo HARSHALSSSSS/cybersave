@@ -10,6 +10,7 @@ export class SmsService {
   sendOtp(phone: string, code: string): Promise<void> {
     return this.provider.sendSms({
       to: phone,
+      otpCode: code,
       message: `Your Cybersave verification code is ${code}. Do not share this code.`,
     });
   }
